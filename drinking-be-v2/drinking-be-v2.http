@@ -1,0 +1,6 @@
+@drinking_be_v2_HostAddress = http://localhost:5239
+
+GET {{drinking_be_v2_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
