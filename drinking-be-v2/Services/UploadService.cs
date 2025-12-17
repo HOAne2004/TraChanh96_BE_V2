@@ -1,7 +1,6 @@
-﻿// Services/UploadService.cs
-using drinking_be.Interfaces;
-using Microsoft.AspNetCore.Hosting;
+﻿using drinking_be.Interfaces;
 using Microsoft.AspNetCore.Http;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -9,11 +8,14 @@ namespace drinking_be.Services
 {
     public class UploadService : IUploadService
     {
-        private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly Supabase.Client _supabaseClient;
 
-        public UploadService(IWebHostEnvironment webHostEnvironment)
+        // Tên Bucket bạn đã tạo trên Supabase Dashboard
+        private const string BUCKET_NAME = "drinking_files";
+
+        public UploadService(Supabase.Client supabaseClient)
         {
-            _webHostEnvironment = webHostEnvironment;
+            _supabaseClient = supabaseClient;
         }
 
         public async Task<string> SaveFileAsync(IFormFile file, string subPath = "uploads")
@@ -23,30 +25,38 @@ namespace drinking_be.Services
                 throw new ArgumentException("Tệp tải lên không hợp lệ.");
             }
 
-            // 1. Chuẩn bị đường dẫn vật lý
-            // Lấy đường dẫn đến thư mục wwwroot
-            var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, subPath);
-
-            // Đảm bảo thư mục tồn tại
-            if (!Directory.Exists(uploadsFolder))
+            try
             {
-                Directory.CreateDirectory(uploadsFolder);
+                // 1. Tạo tên file duy nhất
+                var extension = Path.GetExtension(file.FileName);
+                // Lưu ý: Supabase thích đường dẫn kiểu "folder/file.jpg"
+                var fileName = $"{Guid.NewGuid()}{extension}";
+                var fullPath = $"{subPath}/{fileName}"; // Ví dụ: uploads/abc-xyz.jpg
+
+                // 2. Chuyển file thành mảng byte
+                using var memoryStream = new MemoryStream();
+                await file.CopyToAsync(memoryStream);
+                var fileBytes = memoryStream.ToArray();
+
+                // 3. Upload lên Supabase Storage
+                // Hàm Upload trả về đường dẫn file nếu thành công
+                await _supabaseClient.Storage
+                    .From(BUCKET_NAME)
+                    .Upload(fileBytes, fullPath);
+
+                // 4. Lấy đường dẫn công khai (Public URL)
+                // Đây là đường dẫn HTTPs thật sự (ví dụ: https://supabase.co/.../abc.jpg)
+                var publicUrl = _supabaseClient.Storage
+                    .From(BUCKET_NAME)
+                    .GetPublicUrl(fullPath);
+
+                return publicUrl;
             }
-
-            // 2. Tạo tên file duy nhất (để tránh xung đột)
-            var extension = Path.GetExtension(file.FileName);
-            var fileName = $"{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsFolder, fileName);
-
-            // 3. Lưu file
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            catch (Exception ex)
             {
-                await file.CopyToAsync(stream);
+                // Log lỗi nếu cần
+                throw new Exception($"Lỗi upload Supabase: {ex.Message}");
             }
-
-            // 4. Trả về đường dẫn công khai (URL)
-            // Đường dẫn công khai bắt đầu từ gốc web (wwwroot)
-            return $"/{subPath}/{fileName}";
         }
     }
 }

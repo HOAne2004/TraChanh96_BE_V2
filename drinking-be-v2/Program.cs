@@ -34,7 +34,20 @@ builder.Services.AddDbContext<DBDrinkContext>(options =>
     options.UseNpgsql(dbConnectionString);
 });
 
-// --- 2. CẤU HÌNH CƠ BẢN ---
+
+// --- 2. CẤU HÌNH SUPABASE  ---
+// Phải đăng ký trước khi build app và trước khi các Service khác cần dùng nó
+var supabaseUrl = builder.Configuration["Supabase:Url"];
+var supabaseKey = builder.Configuration["Supabase:Key"];
+
+builder.Services.AddScoped<Supabase.Client>(_ =>
+    new Supabase.Client(supabaseUrl, supabaseKey, new SupabaseOptions
+    {
+        AutoRefreshToken = true,
+        AutoConnectRealtime = true
+    }));
+
+// --- 3. CẤU HÌNH CƠ BẢN ---
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddControllers()
@@ -77,25 +90,25 @@ builder.Services.AddSwaggerGen(option =>
 builder.Services.AddHostedService<drinking_be.Services.Background.SoftDeleteCleanupService>();
 
 // ==================================================================
-// 3. ĐĂNG KÝ DEPENDENCY INJECTION (DI)
+// 4. ĐĂNG KÝ DEPENDENCY INJECTION (DI)
 // ==================================================================
 
 // --- A. CORE & UTILS ---
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IJwtGenerator, JwtGenerator>();
-builder.Services.AddScoped<IUploadService, UploadService>();
+builder.Services.AddScoped<IUploadService, UploadService>(); // Service này cần Supabase, giờ đã an toàn
 builder.Services.AddScoped<IEnumOptionService, EnumOptionService>();
 
 // --- B. AUTH & USERS ---
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
-builder.Services.AddScoped<IUserRepository, UserRepository>(); // (Nếu Auth vẫn dùng riêng Repo)
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // --- C. STORE & STAFF ---
 builder.Services.AddScoped<IStoreService, StoreService>();
-builder.Services.AddScoped<IStaffService, StaffService>(); // ✅ Đã thêm
+builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IPayslipService, PayslipService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
@@ -113,7 +126,7 @@ builder.Services.AddScoped<ISupplyOrderService, SupplyOrderService>();
 // --- E. ORDER & PAYMENT ---
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>(); // ✅ Đã xóa trùng
+builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
 
 // --- F. MARKETING & CONTENT ---
 builder.Services.AddScoped<IBannerService, BannerService>();
@@ -135,7 +148,7 @@ builder.Services.AddScoped<IBrandService, BrandService>();
 
 // ==================================================================
 
-// --- 4. CẤU HÌNH JWT AUTH ---
+// --- 5. CẤU HÌNH JWT AUTH ---
 var config = builder.Configuration;
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Key"]!));
 
@@ -159,7 +172,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// --- 5. CẤU HÌNH CORS ---
+// --- 6. CẤU HÌNH CORS ---
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 builder.Services.AddCors(options =>
 {
@@ -173,9 +186,12 @@ builder.Services.AddCors(options =>
         });
 });
 
+// ==========================================================
+// ⭐️ QUAN TRỌNG: MỌI CẤU HÌNH builder.Services PHẢI NẰM TRÊN DÒNG NÀY
 var app = builder.Build();
+// ==========================================================
 
-// --- 6. PIPELINE ---
+// --- 7. PIPELINE ---
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -185,7 +201,7 @@ app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --- 7. MIGRATION & SEED DATA ---
+// --- 8. MIGRATION & SEED DATA ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -201,19 +217,6 @@ using (var scope = app.Services.CreateScope())
         logger.LogError(ex, "Lỗi khi khởi tạo Database.");
     }
 }
-
-// --- 8. CẤU HÌNH SUPABASE ---
-var url = builder.Configuration["Supabase:Url"];
-var key_supabase = builder.Configuration["Supabase:Key"];
-
-// Đăng ký Supabase Client (Scoped hoặc Singleton đều được)
-builder.Services.AddScoped<Supabase.Client>(_ =>
-    new Supabase.Client(url, key_supabase, new SupabaseOptions
-    {
-        AutoRefreshToken = true,
-        AutoConnectRealtime = true
-    }));
-
 
 app.MapControllers();
 app.Run();
