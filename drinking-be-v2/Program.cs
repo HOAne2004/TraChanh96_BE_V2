@@ -26,19 +26,28 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. CẤU HÌNH DATABASE ---
-var dbConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-Console.WriteLine($"👉 [DEBUG CHECK] Connection String: '{dbConnectionString}'");
+//var runtimeConnection = builder.Configuration.GetConnectionString("RuntimeConnection");
 
 builder.Services.AddDbContext<DBDrinkContext>(options =>
 {
-    options.UseNpgsql(dbConnectionString);
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("RuntimeConnection")
+    );
 });
+
+
 
 
 // --- 2. CẤU HÌNH SUPABASE  ---
 // Phải đăng ký trước khi build app và trước khi các Service khác cần dùng nó
 var supabaseUrl = builder.Configuration["Supabase:Url"];
 var supabaseKey = builder.Configuration["Supabase:Key"];
+
+// Fix CS8604: Ensure supabaseUrl and supabaseKey are not null
+if (string.IsNullOrWhiteSpace(supabaseUrl))
+    throw new InvalidOperationException("Supabase:Url configuration is missing or empty.");
+if (string.IsNullOrWhiteSpace(supabaseKey))
+    throw new InvalidOperationException("Supabase:Key configuration is missing or empty.");
 
 builder.Services.AddScoped<Supabase.Client>(_ =>
     new Supabase.Client(supabaseUrl, supabaseKey, new SupabaseOptions
@@ -179,10 +188,9 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: MyAllowSpecificOrigins,
         policy =>
         {
-            policy.SetIsOriginAllowed(origin => true)
+            policy.AllowAnyOrigin()
                   .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
+                  .AllowAnyHeader();
         });
 });
 

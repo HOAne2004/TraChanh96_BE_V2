@@ -3,7 +3,7 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum ProductStatusEnum : byte
+    public enum ProductStatusEnum : short
     {
         [Description("Nháp")]
         Draft = 1, // Trạng thái riêng (Đã thay thế Pending)

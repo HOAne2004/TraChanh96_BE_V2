@@ -2,7 +2,7 @@
 
 namespace drinking_be.Enums
 {
-    public enum PayslipStatusEnum : byte
+    public enum PayslipStatusEnum : short
     {
         [Description("Nháp (Đang tính toán)")]
         Draft = 1,

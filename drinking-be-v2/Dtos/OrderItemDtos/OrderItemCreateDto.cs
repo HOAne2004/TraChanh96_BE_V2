@@ -12,14 +12,14 @@ namespace drinking_be.Dtos.OrderItemDtos
         public int ProductId { get; set; }
 
         [Required(ErrorMessage = "Số lượng không được để trống.")]
-        [Range(1, 100)]
+        [Range(1, 100, ErrorMessage = "Số lượng phải từ 1 đến 100")]
         public int Quantity { get; set; }
 
         public short? SizeId { get; set; }
 
         // ⭐ Sử dụng byte cho giá trị Enum
-        public byte? SugarLevel { get; set; }
-        public byte? IceLevel { get; set; }
+        public SugarLevelEnum SugarLevel { get; set; } = SugarLevelEnum.S100;
+        public IceLevelEnum IceLevel { get; set; } = IceLevelEnum.I100;
 
         [MaxLength(255)]
         public string? Note { get; set; }

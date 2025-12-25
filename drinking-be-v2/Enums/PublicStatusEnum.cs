@@ -2,7 +2,7 @@
 
 namespace drinking_be.Enums
 {
-    public enum PublicStatusEnum : byte
+    public enum PublicStatusEnum : short
     {
         [Description("Chờ xử lý")]
         Pending = 1,

@@ -1,37 +1,39 @@
-﻿// File: Enums/OrderStatusEnum.cs
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum OrderStatusEnum : byte
+    public enum OrderStatusEnum : short
     {
-        // Nhóm 1: Trạng thái Khởi tạo & Xác nhận
+        // Nhóm 0: Chờ thanh toán (Dành cho Online Payment)
+        [Description("Chờ thanh toán")]
+        PendingPayment = 0,
 
+        // Nhóm 1: Trạng thái Khởi tạo & Xác nhận
         [Description("Mới")]
-        New = 1, // Đơn hàng vừa được đặt, chờ xử lý
+        New = 1, // Đơn hàng mới (COD hoặc đã thanh toán xong), chờ nhân viên xác nhận
 
         [Description("Đã xác nhận")]
-        Confirmed = 2, // Đã kiểm tra và xác nhận đơn hàng (thường do Manager thực hiện)
+        Confirmed = 2, // Nhân viên đã nhận đơn
 
         // Nhóm 2: Trạng thái Chuẩn bị & Vận chuyển
-
         [Description("Đang chuẩn bị")]
-        Preparing = 3, // Cửa hàng đang làm đồ uống
+        Preparing = 3, // Bếp đang làm
 
         [Description("Sẵn sàng")]
-        Ready = 4, // Đơn hàng đã xong, chờ Shipper/Khách đến lấy
+        Ready = 4, // Đã xong, chờ Shipper đến lấy hoặc Khách tự lấy (Pickup)
 
         [Description("Đang giao hàng")]
-        Delivering = 5, // Shipper đã nhận hàng và đang giao (Chỉ cho Delivery Order)
+        Delivering = 5, // Shipper đang đi giao
 
         // Nhóm 3: Trạng thái Kết thúc
-
         [Description("Đã hoàn thành")]
-        Completed = 6, // Đơn hàng đã giao thành công và thanh toán
+        Completed = 6, // Giao hàng thành công (Delivery)
+
+        [Description("Đã nhận hàng")]
+        Received = 8, // Khách đã lấy đồ tại quầy thành công (AtCounter)
 
         // Nhóm 4: Trạng thái Hủy
-
-        [Description("Đã bị hủy")]
-        Cancelled = 7, // Đơn hàng bị hủy bởi Khách hàng hoặc Cửa hàng
+        [Description("Đã hủy")]
+        Cancelled = 7, // Đơn bị hủy
     }
 }

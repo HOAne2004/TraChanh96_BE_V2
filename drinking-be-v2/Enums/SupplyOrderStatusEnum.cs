@@ -2,7 +2,7 @@
 
 namespace drinking_be.Enums
 {
-    public enum SupplyOrderStatusEnum : byte
+    public enum SupplyOrderStatusEnum : short
     {
         [Description("Chờ duyệt")]
         Pending = 1,        // Store gửi yêu cầu, chờ Admin/Kho tổng duyệt

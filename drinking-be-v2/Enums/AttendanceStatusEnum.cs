@@ -2,7 +2,7 @@
 
 namespace drinking_be.Enums
 {
-    public enum AttendanceStatusEnum : byte
+    public enum AttendanceStatusEnum : short
     {
         [Description("Đi làm đúng giờ")]
         Present = 1,

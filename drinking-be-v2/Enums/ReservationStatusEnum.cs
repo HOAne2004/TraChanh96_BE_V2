@@ -3,7 +3,7 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum ReservationStatusEnum : byte
+    public enum ReservationStatusEnum : short
     {
         [Description("Chờ xác nhận")]
         Pending = 1,

@@ -124,7 +124,7 @@ public class MappingProfile : Profile
 
         // --- Inventory Mappings ---
         CreateMap<InventoryCreateDto, Inventory>()
-            .ForMember(dest => dest.LastUpdated, opt => opt.MapFrom(src => DateTime.UtcNow))
+            .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
             .ReverseMap();
         CreateMap<Inventory, InventoryReadDto>()
             .ForMember(dest => dest.MaterialName, opt => opt.MapFrom(src => src.Material.Name))
@@ -134,7 +134,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store != null ? src.Store.Name : "Kho Tổng (HQ)"))
             .ForMember(dest => dest.IsLowStock, opt => opt.MapFrom(src => src.Material.MinStockAlert.HasValue && src.Quantity <= src.Material.MinStockAlert.Value));
         CreateMap<InventoryUpdateDto, Inventory>()
-            .ForMember(dest => dest.LastUpdated, opt => opt.MapFrom(src => DateTime.UtcNow));
+            .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => DateTime.UtcNow));
 
         // --- Material Mappings ---
         CreateMap<MaterialCreateDto, Material>()
@@ -182,18 +182,44 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type.ToString())); // Enum -> String
 
         // --- Order Mappings ---
-        CreateMap<OrderCreateDto, Order>()
-             .ForMember(dest => dest.OrderCode, opt => opt.Ignore())
-             .ForMember(dest => dest.OrderDate, opt => opt.MapFrom(src => DateTime.UtcNow))
-             .ForMember(dest => dest.TotalAmount, opt => opt.Ignore())
-             .ForMember(dest => dest.GrandTotal, opt => opt.Ignore())
-             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => OrderStatusEnum.New))
-             .ForMember(dest => dest.OrderItems, opt => opt.Ignore());
         CreateMap<Order, OrderReadDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.Name))
-            .ForMember(dest => dest.Items, opt => opt.Ignore())
-            .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.PaymentMethod));
+                // Map Enum sang String
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.OrderType, opt => opt.MapFrom(src => src.OrderType.ToString()))
+
+                // Map thông tin liên kết (Flattening)
+                .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.Name))
+                .ForMember(dest => dest.ShipperName, opt => opt.MapFrom(src => src.Shipper != null ? src.Shipper.Username : null))
+                .ForMember(dest => dest.TableName, opt => opt.MapFrom(src => src.Table != null ? src.Table.Name : null))
+
+                // Map lý do hủy (nếu có)
+                .ForMember(dest => dest.CancelReason, opt => opt.MapFrom(src => src.CancelReason.HasValue ? src.CancelReason.Value.ToString() : null))
+
+                // ⭐ Lọc Item chính: Chỉ lấy những item không có cha (ParentId == null)
+                // Vì topping đã nằm lồng trong item chính rồi, không liệt kê lại ở đây.
+                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.OrderItems.Where(x => x.ParentItemId == null)));
+
+        CreateMap<BaseOrderCreateDto, Order>()
+                .ForMember(dest => dest.UserNotes, opt => opt.MapFrom(src => src.UserNotes))
+                .ForMember(dest => dest.StoreId, opt => opt.MapFrom(src => src.StoreId))
+                .ForMember(dest => dest.PaymentMethodId, opt => opt.MapFrom(src => src.PaymentMethodId))
+                .ForMember(dest => dest.UserVoucherId, opt => opt.MapFrom(src => src.UserVoucherId))
+                .ForMember(dest => dest.VoucherCodeUsed, opt => opt.MapFrom(src => src.VoucherCode))
+                // Các trường sau sẽ do Service tính toán, nên Ignore (Bỏ qua) để tránh lỗi
+                .ForMember(dest => dest.TotalAmount, opt => opt.Ignore())
+                .ForMember(dest => dest.GrandTotal, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore());
+        // 1. Tại quầy
+        CreateMap<AtCounterOrderCreateDto, Order>()
+            .IncludeBase<BaseOrderCreateDto, Order>() // Kế thừa logic map của Base
+            .ForMember(dest => dest.TableId, opt => opt.MapFrom(src => src.TableId))
+            .ForMember(dest => dest.OrderType, opt => opt.MapFrom(src => OrderTypeEnum.AtCounter)); // Gán cứng loại đơn
+
+        // 2. Giao hàng
+        CreateMap<DeliveryOrderCreateDto, Order>()
+            .IncludeBase<BaseOrderCreateDto, Order>() // Kế thừa logic map của Base
+            .ForMember(dest => dest.DeliveryAddressId, opt => opt.MapFrom(src => src.DeliveryAddressId))
+            .ForMember(dest => dest.OrderType, opt => opt.MapFrom(src => OrderTypeEnum.Delivery)); // Gán cứng loại đơn
 
         // --- OrderItem Mappings ---
         CreateMap<OrderItemCreateDto, OrderItem>()
@@ -202,8 +228,8 @@ public class MappingProfile : Profile
              .ForMember(dest => dest.FinalPrice, opt => opt.Ignore())
              .ForMember(dest => dest.ParentItem, opt => opt.Ignore())
              .ForMember(dest => dest.ParentItemId, opt => opt.Ignore())
-             .ForMember(dest => dest.SugarLevel, opt => opt.MapFrom(src => src.SugarLevel.HasValue ? (SugarLevelEnum)src.SugarLevel.Value : SugarLevelEnum.S100))
-             .ForMember(dest => dest.IceLevel, opt => opt.MapFrom(src => src.IceLevel.HasValue ? (IceLevelEnum)src.IceLevel.Value : IceLevelEnum.I100));
+             .ForMember(dest => dest.SugarLevel, opt => opt.MapFrom(src => src.SugarLevel))
+             .ForMember(dest => dest.IceLevel, opt => opt.MapFrom(src => src.IceLevel));
         CreateMap<OrderItem, OrderItemReadDto>()
             .ForMember(dest => dest.ProductName, opt => opt.Ignore())
             .ForMember(dest => dest.SizeLabel, opt => opt.Ignore())
@@ -248,19 +274,74 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Slug, opt => opt.Condition((src, dest) => src.Slug != null || src.Title != null))
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
-        // --- Product Mappings ---
+        // =======================================================
+        // 1. MAP CHO PRODUCT SIZE (QUAN TRỌNG)
+        // =======================================================
+
+        // A. Map từ Entity -> ReadDto (Hiển thị ra ngoài)
+        CreateMap<ProductSize, ProductSizeReadDto>()
+            .ForMember(dest => dest.SizeLabel, opt => opt.MapFrom(src => src.Size.Label))
+            .ForMember(dest => dest.SizeModifierPrice, opt => opt.MapFrom(src => src.Size.PriceModifier ?? 0))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            // FinalPrice sẽ được tính toán sau (vì cần BasePrice của cha)
+            .ForMember(dest => dest.FinalPrice, opt => opt.Ignore());
+        // B. Map từ CreateDto -> Entity (Lưu vào DB)
+        CreateMap<ProductSizeCreateDto, ProductSize>()
+            .ForMember(dest => dest.SizeId, opt => opt.MapFrom(src => src.SizeId))
+            .ForMember(dest => dest.PriceOverride, opt => opt.MapFrom(src => src.PriceOverride))
+            // Mặc định Status là Active khi tạo mới, hoặc bạn có thể map nếu Dto có
+            .ForMember(dest => dest.Status, opt => opt.Ignore());
+        // 2. MAP CHO PRODUCT (CẬP NHẬT)
+        // =======================================================
+
         CreateMap<ProductCreateDto, Product>()
-             .ForMember(dest => dest.Slug, opt => opt.Ignore())
-             .ForMember(dest => dest.ProductSizes, opt => opt.Ignore())
-             .ReverseMap();
+            .ForMember(dest => dest.Slug, opt => opt.Ignore())
+            // Map danh sách ProductSizes từ DTO sang ICollection<ProductSize>
+            .ForMember(dest => dest.ProductSizes, opt => opt.MapFrom(src => src.ProductSizes))
+            .ReverseMap();
+
         CreateMap<Product, ProductReadDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.ProductType, opt => opt.MapFrom(src => src.ProductType.ToString()))
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
-            .ForMember(dest => dest.AvailableSizes, opt => opt.MapFrom(src => src.ProductSizes.Select(ps => ps.Size)));
+            .ForMember(dest => dest.ProductSizes, opt => opt.MapFrom(src => src.ProductSizes))
+            // 🔥 TÍNH TOÁN GIÁ CUỐI CÙNG (FinalPrice)
+            .AfterMap((src, dest) =>
+            {
+                foreach (var sizeDto in dest.ProductSizes)
+                {
+                    // Logic: Nếu có PriceOverride thì dùng, nếu không thì lấy Giá gốc + Giá Size
+                    if (sizeDto.PriceOverride.HasValue)
+                    {
+                        sizeDto.FinalPrice = sizeDto.PriceOverride.Value;
+                    }
+                    else
+                    {
+                        sizeDto.FinalPrice = src.BasePrice + sizeDto.SizeModifierPrice;
+                    }
+                }
+            });
+
         CreateMap<ProductUpdateDto, Product>()
              .ForMember(dest => dest.Slug, opt => opt.Condition(src => src.Slug != null))
-             .ForMember(dest => dest.ProductSizes, opt => opt.Ignore())
+             .ForMember(dest => dest.ProductSizes, opt => opt.Ignore()) // Update Size xử lý riêng trong Service
              .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+        // =======================================================
+        // 3. MAP CHO PRODUCT STORE (NẾU DÙNG)
+        // =======================================================
+        CreateMap<ProductStore, ProductStoreReadDto>()
+            .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store.Name))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+        // Trong Constructor của MappingProfile:
+
+        CreateMap<Product, StoreMenuReadDto>()
+            // Copy các map cơ bản từ ProductReadDto (hoặc dùng IncludeBase nếu cấu hình chuẩn)
+            .IncludeBase<Product, ProductReadDto>()
+            .ForMember(dest => dest.IsSoldOut, opt => opt.Ignore()) // Tính toán trong Service
+            .ForMember(dest => dest.StoreStatus, opt => opt.Ignore()) // Tính toán trong Service
+            .ForMember(dest => dest.DisplayPrice, opt => opt.Ignore()); // Tính toán trong Service
+
 
         // --- Reservation Mappings ---
         CreateMap<ReservationCreateDto, Reservation>()
@@ -320,7 +401,7 @@ public class MappingProfile : Profile
         CreateMap<SocialMediaCreateDto, SocialMedia>().ReverseMap();
         CreateMap<SocialMedia, SocialMediaReadDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.BrandName, opt => opt.MapFrom(src => src.Brand.Name))
+            .ForMember(dest => dest.BrandName, opt => opt.MapFrom(src => src.Brand != null ? src.Brand.Name : string.Empty))
             .ForMember(dest => dest.StoreName, opt => opt.MapFrom(src => src.Store != null ? src.Store.Name : null));
         CreateMap<SocialMediaUpdateDto, SocialMedia>()
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
@@ -395,7 +476,7 @@ public class MappingProfile : Profile
         CreateMap<VoucherTemplateCreateDto, VoucherTemplate>().ReverseMap();
         CreateMap<VoucherTemplate, VoucherTemplateReadDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.LevelName, opt => opt.MapFrom(src => src.Level != null ? src.Level.Name : "Tất cả"));
+            .ForMember(dest => dest.LevelName, opt => opt.MapFrom(src => src.MembershipLevel != null ? src.MembershipLevel.Name : "Tất cả"));
         CreateMap<VoucherTemplateUpdateDto, VoucherTemplate>()
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 

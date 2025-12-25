@@ -1,26 +1,27 @@
-﻿using System;
+﻿using drinking_be.Models;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
-namespace drinking_be.Models;
 
 public partial class Inventory
 {
     public long Id { get; set; }
 
-    // --- KHÓA NGOẠI ---
+    public Guid PublicId { get; set; }
+
+    // --- FK ---
     public int MaterialId { get; set; }
+    public int? StoreId { get; set; } // NULL = kho tổng
 
-    // Nếu StoreId = NULL => Đây là KHO TỔNG (Admin giữ)
-    // Nếu StoreId có giá trị => Đây là KHO CỬA HÀNG
-    public int? StoreId { get; set; }
+    // --- QUANTITY (Base Unit) ---
+    [Range(0, int.MaxValue)]
+    public int Quantity { get; set; }
 
-    // --- SỐ LIỆU ---
-    public int Quantity { get; set; } = 0; // Số lượng tồn kho hiện tại
+    public DateTime UpdatedAt { get; set; }
 
-    public DateTime LastUpdated { get; set; } // Thời điểm cập nhật cuối cùng
+    // --- CONCURRENCY ---
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = null!;
 
-    // Navigation Properties
+    // --- NAVIGATION ---
     public virtual Material Material { get; set; } = null!;
     public virtual Store? Store { get; set; }
 }

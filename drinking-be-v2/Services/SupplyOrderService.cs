@@ -52,7 +52,7 @@ namespace drinking_be.Services
                     Quantity = itemDto.Quantity,
 
                     // Snapshot dữ liệu tại thời điểm nhập
-                    Unit = material.PurchaseUnit ?? material.BaseUnit, // Ưu tiên đơn vị nhập
+                    Unit = (material.PurchaseUnit ?? material.BaseUnit).ToString(), // Ưu tiên đơn vị nhập
                     CostPerUnit = material.CostPerPurchaseUnit,
 
                     // Tính thành tiền
@@ -171,7 +171,7 @@ namespace drinking_be.Services
                         MaterialId = item.MaterialId,
                         StoreId = order.StoreId,
                         Quantity = quantityToAdd,
-                        LastUpdated = DateTime.UtcNow
+                        UpdatedAt = DateTime.UtcNow
                     };
                     await inventoryRepo.AddAsync(inventory);
                 }
@@ -179,7 +179,7 @@ namespace drinking_be.Services
                 {
                     // Nếu có rồi thì cộng dồn
                     inventory.Quantity += quantityToAdd;
-                    inventory.LastUpdated = DateTime.UtcNow;
+                    inventory.UpdatedAt = DateTime.UtcNow;
                     inventoryRepo.Update(inventory);
                 }
             }

@@ -70,5 +70,28 @@ namespace drinking_be.Controllers
             if (!result) return NotFound();
             return NoContent();
         }
+
+        // GET: api/products/store/{storeId}
+        // Lấy menu cho khách hàng tại một cửa hàng cụ thể
+        [HttpGet("store/{storeId}")]
+        public async Task<IActionResult> GetMenuByStore(int storeId, [FromQuery] string? search, [FromQuery] string? categorySlug)
+        {
+            var menu = await _productService.GetMenuByStoreAsync(storeId, search, categorySlug);
+            return Ok(menu);
+        }
+
+        // PATCH: api/products/store-status
+        // Dành cho Store Manager cập nhật trạng thái món (Hết hàng/Có hàng)
+        [HttpPatch("store-status")]
+        [Authorize(Roles = "Admin,Manager,StoreManager")] // Bổ sung Role StoreManager nếu có
+        public async Task<IActionResult> UpdateStoreStatus([FromBody] ProductStoreUpdateDto updateDto)
+        {
+            // TODO: Nếu kỹ tính, check xem User hiện tại có phải quản lý StoreId này không
+            var result = await _productService.UpdateProductStatusAtStoreAsync(updateDto);
+
+            if (!result) return NotFound("Không tìm thấy sản phẩm tại cửa hàng này.");
+
+            return NoContent();
+        }
     }
 }

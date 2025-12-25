@@ -3,7 +3,7 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum UserRoleEnum : byte
+    public enum UserRoleEnum : short
     {
         [Description("Khách hàng")]
         Customer = 1,

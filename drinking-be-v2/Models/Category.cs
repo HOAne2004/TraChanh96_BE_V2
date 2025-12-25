@@ -5,7 +5,7 @@ using drinking_be.Interfaces;
 
 namespace drinking_be.Models;
 
-public partial class Category:ISoftDelete
+public partial class Category : ISoftDelete
 {
     public int Id { get; set; }
 
@@ -17,15 +17,15 @@ public partial class Category:ISoftDelete
 
     public byte? SortOrder { get; set; }
 
-    public DateTime? CreatedAt { get; set; }
-
-    public DateTime? UpdatedAt { get; set; }
-    public DateTime? DeletedAt { get; set; }
     public PublicStatusEnum Status { get; set; } = PublicStatusEnum.Active;
 
-    public virtual ICollection<Category> InverseParent { get; set; } = new List<Category>();
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
 
     public virtual Category? Parent { get; set; }
+    public virtual ICollection<Category> InverseParent { get; set; } = new List<Category>();
 
     public virtual ICollection<Product> Products { get; set; } = new List<Product>();
 }
+

@@ -44,7 +44,7 @@ namespace drinking_be.Services
             await _unitOfWork.SaveChangesAsync(); // Commit User để lấy ID
 
             // Tạo Membership mặc định
-            var levels = await levelRepo.GetAllAsync(orderBy: q => q.OrderBy(l => l.MinSpendRequired));
+            var levels = await levelRepo.GetAllAsync(orderBy: q => q.OrderBy(l => l.MinCoinsRequired));
             var baseLevel = levels.FirstOrDefault();
 
             if (baseLevel != null)
@@ -52,11 +52,13 @@ namespace drinking_be.Services
                 var newMembership = new Membership
                 {
                     UserId = user.Id,
-                    LevelId = baseLevel.Id,
+                    MembershipLevelId = baseLevel.Id,
                     CardCode = $"DRK{DateTime.Now.Year}{new Random().Next(100000, 999999)}",
                     TotalSpent = 0,
                     LevelStartDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                    LevelEndDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(baseLevel.DurationDays)
+                    LevelEndDate = baseLevel.DurationDays.HasValue
+                            ? DateOnly.FromDateTime(DateTime.UtcNow).AddDays(baseLevel.DurationDays.Value)
+                            : null
                 };
                 await membershipRepo.AddAsync(newMembership);
                 await _unitOfWork.SaveChangesAsync();

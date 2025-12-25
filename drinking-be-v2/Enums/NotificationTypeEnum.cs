@@ -2,7 +2,7 @@
 
 namespace drinking_be.Enums
 {
-    public enum NotificationTypeEnum : byte
+    public enum NotificationTypeEnum : short
     {
         [Description("Hệ thống")]
         System = 1,      // Bảo trì, cập nhật app

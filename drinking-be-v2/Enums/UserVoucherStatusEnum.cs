@@ -3,7 +3,7 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum UserVoucherStatusEnum : byte
+    public enum UserVoucherStatusEnum : short
     {
         [Description("Chưa sử dụng")]
         Unused = 1,

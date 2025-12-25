@@ -2,7 +2,7 @@
 
 namespace drinking_be.Enums
 {
-    public enum StaffPositionEnum : byte
+    public enum StaffPositionEnum : short
     {
         [Description("Nhân viên Văn phòng/HQ")]
         OfficeStaff = 1,

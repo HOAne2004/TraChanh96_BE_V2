@@ -6,7 +6,7 @@ namespace drinking_be.Interfaces.PolicyInterfaces
     public interface IPolicyService
     {
         // Public: Lấy danh sách chính sách hiển thị (Approved) của Brand
-        Task<IEnumerable<PolicyReadDto>> GetActivePoliciesAsync(int brandId);
+        Task<IEnumerable<PolicyReadDto>> GetActivePoliciesAsync(int brandId, int? storeId);
 
         // Public: Lấy chi tiết theo Slug (Chỉ lấy Approved)
         Task<PolicyReadDto?> GetPolicyBySlugAsync(string slug);

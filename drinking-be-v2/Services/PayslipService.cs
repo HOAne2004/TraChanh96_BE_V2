@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using drinking_be.Dtos.PayslipDtos;
+using drinking_be.Dtos.PolicyDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.StoreInterfaces;
@@ -185,6 +186,22 @@ namespace drinking_be.Services
                 includeProperties: "Staff"
             );
             return _mapper.Map<PayslipReadDto>(p);
+        }
+
+        public async Task<IEnumerable<PolicyReadDto>> GetActivePoliciesAsync(int brandId, int? storeId)
+        {
+            var repo = _unitOfWork.Repository<Policy>();
+
+            var policies = await repo.GetAllAsync(
+                filter: p =>
+                    p.BrandId == brandId &&
+                    p.Status == PolicyReviewStatusEnum.Approved &&
+                    (!storeId.HasValue || p.StoreId == storeId),
+                orderBy: q => q.OrderBy(p => p.Title),
+                includeProperties: "Brand,Store"
+            );
+
+            return _mapper.Map<IEnumerable<PolicyReadDto>>(policies);
         }
     }
 }

@@ -3,10 +3,10 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum SugarLevelEnum : byte
+    public enum SugarLevelEnum : short
     {
         [Description("Không đường")]
-        S0 = 0,
+        S0 = 1,
         [Description("30% Đường")]
         S30 = 30,
         [Description("50% Đường")]

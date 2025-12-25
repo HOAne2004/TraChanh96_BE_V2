@@ -3,15 +3,15 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum IceLevelEnum : byte
+    public enum IceLevelEnum : short
     {
         // Tùy chọn đặc biệt (Non-numeric)
         [Description("Không đá")]
-        None = 0,
+        None = 1,
         [Description("Ấm")]
-        Warm = 1,
+        Warm = 2,
         [Description("Nóng")]
-        Hot = 2,
+        Hot = 3,
 
         // Tùy chọn phần trăm
         [Description("30% Đá")]

@@ -3,7 +3,7 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum ReviewStatusEnum : byte
+    public enum ReviewStatusEnum : short
     {
         // Nhóm 1: Kiểm duyệt
 

@@ -1,34 +1,36 @@
 ﻿using drinking_be.Enums;
-using System;
-using System.Collections.Generic;
 using drinking_be.Interfaces;
+using drinking_be.Models;
 
-namespace drinking_be.Models;
-
-public partial class Membership: ISoftDelete
+public partial class Membership : ISoftDelete
 {
     public long Id { get; set; }
 
+    // --- FK ---
     public int UserId { get; set; }
+    public int MembershipLevelId { get; set; }
 
+    // --- Identity ---
     public string CardCode { get; set; } = null!;
 
-    public byte LevelId { get; set; }
+    // --- Loyalty ---
+    public int CurrentCoins { get; set; } = 0;
+    public decimal TotalSpent { get; set; } = 0;
 
-    public decimal? TotalSpent { get; set; }
-
+    // --- Level lifecycle ---
     public DateOnly? LevelStartDate { get; set; }
-
-    public DateOnly LevelEndDate { get; set; }
-
+    public DateOnly? LevelEndDate { get; set; }
     public DateOnly? LastLevelSpentReset { get; set; }
 
     public MembershipStatusEnum Status { get; set; } = MembershipStatusEnum.Active;
 
-    public DateTime? CreatedAt { get; set; }
+    // --- Audit ---
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
 
-    public virtual MembershipLevel Level { get; set; } = null!;
-
+    // --- Navigation ---
     public virtual User User { get; set; } = null!;
+    public virtual MembershipLevel Level { get; set; } = null!;
+    public virtual ICollection<PointHistory> PointHistories { get; set; } = new List<PointHistory>();
 }

@@ -32,7 +32,7 @@ namespace drinking_be.Utils
             var claims = new List<Claim>
             {
                 // "sub": Dùng PublicId (GUID) để định danh an toàn trên API
-                new Claim(JwtRegisteredClaimNames.Sub, user.PublicId?.ToString() ?? ""), 
+                new Claim(JwtRegisteredClaimNames.Sub, user.PublicId.ToString()), 
                 
                 // "jti": ID duy nhất của Token
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),

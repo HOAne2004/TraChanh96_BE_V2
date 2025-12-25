@@ -24,7 +24,7 @@ public partial class Attendance
     public double OvertimeHours { get; set; } = 0; // Tổng giờ tăng ca
 
     // --- TRẠNG THÁI ---
-    public AttendanceStatusEnum Status { get; set; } = AttendanceStatusEnum.Absent; // Mặc định là Vắng nếu chưa check-in
+    public AttendanceStatusEnum? Status { get; set; } // Mặc định là Vắng nếu chưa check-in
 
     [MaxLength(500)]
     public string? Note { get; set; } // Ghi chú (VD: "Hỏng xe đến muộn")

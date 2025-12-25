@@ -2,7 +2,7 @@
 
 namespace drinking_be.Enums
 {
-    public enum SalaryTypeEnum : byte
+    public enum SalaryTypeEnum : short
     {
         [Description("Toàn thời gian (Lương cứng)")]
         FullTime = 1,

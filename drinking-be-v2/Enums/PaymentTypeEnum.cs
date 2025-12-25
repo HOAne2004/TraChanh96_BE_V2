@@ -3,7 +3,7 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum PaymentTypeEnum : byte
+    public enum PaymentTypeEnum : short
     {
         [Description("Thanh toán khi nhận hàng")]
         COD = 1,

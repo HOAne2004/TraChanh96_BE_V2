@@ -64,7 +64,10 @@ namespace drinking_be.Repositories
 
             return await query.FirstOrDefaultAsync(filter);
         }
-
+        public IQueryable<T> Find(Expression<Func<T, bool>> expression)
+        {
+            return dbSet.Where(expression);
+        }
         public async Task AddAsync(T entity)
         {
             await dbSet.AddAsync(entity);
@@ -111,6 +114,12 @@ namespace drinking_be.Repositories
             }
 
             return await query.CountAsync();
+        }
+
+        public IQueryable<T> GetQueryable()
+        {
+            // Trả về dạng IQueryable để bên Service có thể tiếp tục .Include(), .Where() tùy ý
+            return dbSet.AsQueryable();
         }
     }
 }

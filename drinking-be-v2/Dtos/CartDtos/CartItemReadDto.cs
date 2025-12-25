@@ -1,6 +1,4 @@
-﻿// File: Dtos/CartDtos/CartItemReadDto.cs
-
-using drinking_be.Enums;
+﻿using drinking_be.Enums;
 using System.Collections.Generic;
 
 namespace drinking_be.Dtos.CartDtos
@@ -11,9 +9,8 @@ namespace drinking_be.Dtos.CartDtos
         public long CartId { get; set; }
         public int ProductId { get; set; }
 
-        // Thông tin Product (Cần Include Product)
         public string ProductName { get; set; } = null!;
-        public string? ImageUrl { get; set; } // Giả định DTO cần ImageUrl
+        public string? ImageUrl { get; set; }
 
         public int Quantity { get; set; }
 
@@ -21,15 +18,16 @@ namespace drinking_be.Dtos.CartDtos
         public decimal FinalPrice { get; set; }
         public string? Note { get; set; }
 
-        // --- Tùy chọn dưới dạng Label/String ---
         public short? SizeId { get; set; }
-        public string? SizeLabel { get; set; } // Cần Include Size
+        public string? SizeLabel { get; set; }
 
-        // ⭐ Lấy từ Enum.ToString()
+        // ⭐ UPDATE: Bổ sung ID để Frontend dễ xử lý logic
+        public short? SugarLevelId { get; set; }
         public string? SugarLabel { get; set; }
+
+        public short? IceLevelId { get; set; }
         public string? IceLabel { get; set; }
 
-        // ⭐ Quan hệ đệ quy: Topping (dùng DTO đơn giản hơn)
         public ICollection<CartToppingReadDto> Toppings { get; set; } = new List<CartToppingReadDto>();
     }
 }

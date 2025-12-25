@@ -19,13 +19,13 @@ namespace drinking_be.Services
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<PolicyReadDto>> GetActivePoliciesAsync(int brandId)
+        public async Task<IEnumerable<PolicyReadDto>> GetActivePoliciesAsync(int brandId, int? storeId)
         {
             var repo = _unitOfWork.Repository<Policy>();
 
             // Lấy Policy đã duyệt của Brand (hoặc Store thuộc Brand đó nếu cần logic phức tạp hơn)
             var policies = await repo.GetAllAsync(
-                filter: p => p.BrandId == brandId && p.Status == PolicyReviewStatusEnum.Approved,
+                filter: p => p.BrandId == brandId && (storeId == null ? p.StoreId == null : p.StoreId == storeId) && p.Status == PolicyReviewStatusEnum.Approved,
                 orderBy: q => q.OrderBy(p => p.Title),
                 includeProperties: "Brand,Store"
             );

@@ -1,16 +1,24 @@
-﻿// Models/ProductSize.cs
-namespace drinking_be.Models
+﻿using drinking_be.Enums;
+using drinking_be.Interfaces;
+
+public partial class ProductSize : ISoftDelete
 {
-    public class ProductSize
-    {
-        // Khóa kép
-        public int ProductId { get; set; }
-        public short SizeId { get; set; }
+    // --- COMPOSITE KEY ---
+    public int ProductId { get; set; }
+    public short SizeId { get; set; }
 
-        // Navigation Properties
-        public Product Product { get; set; } = null!;
-        public Size Size { get; set; } = null!;
+    // --- NGHIỆP VỤ ---
+    public decimal? PriceOverride { get; set; }
+    // Nếu null → dùng BasePrice + Size.PriceModifier
 
+    public PublicStatusEnum Status { get; set; } = PublicStatusEnum.Active;
 
-    }
+    public byte? SortOrder { get; set; }
+
+    public DateTime? CreatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+
+    // --- NAVIGATION ---
+    public virtual Product Product { get; set; } = null!;
+    public virtual Size Size { get; set; } = null!;
 }

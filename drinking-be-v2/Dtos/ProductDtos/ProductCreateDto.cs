@@ -15,9 +15,10 @@ namespace drinking_be.Dtos.ProductDtos
         [Required(ErrorMessage = "Mã Danh mục không được để trống.")]
         public int CategoryId { get; set; }
 
-        [Required(ErrorMessage = "Loại sản phẩm (Ví dụ: Beverage, Topping) không được để trống.")]
-        [MaxLength(20)]
-        public string ProductType { get; set; } = string.Empty;
+        public string Slug { get; set; } = string.Empty;
+
+        [Required]
+        public ProductTypeEnum ProductType { get; set; }
 
         [Required(ErrorMessage = "Giá cơ bản không được để trống.")]
         [Range(0.01, 10000000, ErrorMessage = "Giá phải lớn hơn 0.")]
@@ -32,8 +33,6 @@ namespace drinking_be.Dtos.ProductDtos
         public ProductStatusEnum Status { get; set; } = ProductStatusEnum.Active;
         public DateTime? LaunchDateTime { get; set; }
 
-        // ⭐ CÁC LIÊN KẾT BAN ĐẦU: ID các Size áp dụng cho sản phẩm này
-        // (Sẽ được xử lý trong Service Layer để tạo ProductSize entities)
-        public ICollection<short>? SizeIds { get; set; }
+        public ICollection<ProductSizeCreateDto>? ProductSizes { get; set; }
     }
 }

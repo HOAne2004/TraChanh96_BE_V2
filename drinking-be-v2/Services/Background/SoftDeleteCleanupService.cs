@@ -43,7 +43,7 @@ namespace drinking_be.Services.Background
                 // --- CÁCH 2: TỰ ĐỘNG HÓA HOÀN TOÀN (Reflection) ---
 
                 // 1. Lấy tất cả các class trong Project có implement ISoftDelete
-                var softDeleteTypes = typeof(Models.User).Assembly.GetTypes()
+                var softDeleteTypes = typeof(ISoftDelete).Assembly.GetTypes()
                     .Where(t => typeof(ISoftDelete).IsAssignableFrom(t) && t.IsClass && !t.IsAbstract);
 
                 // 2. Lấy method Generic "DeleteExpiredAsync" bên dưới

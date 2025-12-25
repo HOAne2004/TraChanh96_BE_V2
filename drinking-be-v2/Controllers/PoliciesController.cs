@@ -21,9 +21,9 @@ namespace drinking_be.Controllers
 
         [HttpGet("active")] // Route: /api/policies/active?brandId=1
         [AllowAnonymous]
-        public async Task<IActionResult> GetActivePolicies([FromQuery] int brandId = 1) // Mặc định Brand 1
+        public async Task<IActionResult> GetActivePolicies([FromQuery] int brandId = 1, [FromQuery] int? storeId = null) // Mặc định Brand 1
         {
-            var policies = await _policyService.GetActivePoliciesAsync(brandId);
+            var policies = await _policyService.GetActivePoliciesAsync(brandId, storeId);
             return Ok(policies);
         }
 

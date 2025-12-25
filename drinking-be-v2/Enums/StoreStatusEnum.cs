@@ -3,7 +3,7 @@ using System.ComponentModel;
 
 namespace drinking_be.Enums
 {
-    public enum StoreStatusEnum : byte
+    public enum StoreStatusEnum : short
     {
         [Description("Chờ ngày khai trương")]
         ComingSoon = 1,

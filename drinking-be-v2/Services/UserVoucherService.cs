@@ -71,7 +71,7 @@ namespace drinking_be.Services
             // Giả sử Template có DiscountType (1: Percent, 2: Fixed) - Check lại model của bạn
             // Ở đây tôi dùng string theo DTO cũ của bạn ("Percent", "Fixed") hoặc Enum nếu có.
             // Tạm dùng logic thông dụng:
-            if (template.DiscountType == "Fixed") // Giảm tiền mặt
+            if (template.DiscountType == VoucherDiscountTypeEnum.FixedAmount) // Giảm tiền mặt
             {
                 discount = template.DiscountValue;
             }
@@ -93,7 +93,7 @@ namespace drinking_be.Services
             {
                 IsValid = true,
                 Message = "Áp dụng thành công.",
-                VoucherCode = voucher.VoucherCode,
+                VoucherCode = voucher.VoucherCode ?? string.Empty,
                 DiscountAmount = discount,
                 FinalAmount = applyDto.OrderTotalAmount - discount
             };

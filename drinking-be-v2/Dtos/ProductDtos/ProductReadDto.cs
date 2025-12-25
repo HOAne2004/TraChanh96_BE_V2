@@ -8,7 +8,7 @@ namespace drinking_be.Dtos.ProductDtos
     public class ProductReadDto
     {
         public int Id { get; set; }
-        public string PublicId { get; set; } = null!;
+        public Guid PublicId { get; set; }
         public string Name { get; set; } = null!;
         public string Slug { get; set; } = null!;
 
@@ -30,8 +30,6 @@ namespace drinking_be.Dtos.ProductDtos
         public DateTime? LaunchDateTime { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-
-        // ⭐ TÙY CHỌN ÁP DỤNG: Danh sách Size (Đã map từ ProductSize)
-        public ICollection<SizeReadDto> AvailableSizes { get; set; } = new List<SizeReadDto>();
+        public ICollection<ProductSizeReadDto> ProductSizes { get; set; } = new List<ProductSizeReadDto>();
     }
 }

@@ -1,28 +1,33 @@
 ﻿using drinking_be.Enums;
-using System.ComponentModel.DataAnnotations;
 using drinking_be.Interfaces;
 
-namespace drinking_be.Models
+namespace drinking_be.Models;
+
+public class Banner : ISoftDelete
 {
-    public class Banner : ISoftDelete
-    {
-        public int Id { get; set; }
+    public int Id { get; set; }
 
-        [Required]
-        public string ImageUrl { get; set; } = null!; // Link ảnh
+    public string ImageUrl { get; set; } = null!;
 
-        public string? Title { get; set; } // Tiêu đề (Alt text)
+    public string? Title { get; set; }
 
-        public string? LinkUrl { get; set; } // Khi bấm vào banner thì nhảy đi đâu? (VD: /menu/tra-sua)
+    public string? LinkUrl { get; set; }
 
-        public int SortOrder { get; set; } = 0; // Thứ tự hiển thị
+    public int SortOrder { get; set; } = 0;
 
-        public string? Position { get; set; } // Vị trí: "Home-Top", "Sidebar", "Popup"
+    public string? Position { get; set; }
+    // Ví dụ: "HOME_TOP", "HOME_POPUP", "SIDEBAR"
 
-        public PublicStatusEnum Status { get; set; } = PublicStatusEnum.Active;
+    public PublicStatusEnum Status { get; set; } = PublicStatusEnum.Active;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? UpdatedAt { get; set; }
-        public DateTime? DeletedAt { get; set; }
-    }
+    // ⭐ LỊCH HIỂN THỊ
+    public DateTime? StartAt { get; set; }
+    public DateTime? EndAt { get; set; }
+
+    public bool IsClickable { get; set; } = true;
+
+    // Audit
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
 }

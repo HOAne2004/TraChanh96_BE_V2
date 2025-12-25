@@ -1,6 +1,6 @@
 ﻿namespace drinking_be.Enums
 {
-    public enum FranchiseStatusEnum
+    public enum FranchiseStatusEnum : short
     {
         Pending = 1,        // Mới gửi yêu cầu (Chờ xử lý)
         Contacted = 2,      // Sale đã liên hệ (Gọi điện/Email)

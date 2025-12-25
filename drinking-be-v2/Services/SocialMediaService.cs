@@ -24,7 +24,7 @@ namespace drinking_be.Services
 
             var query = await repo.GetAllAsync(
                 filter: s => s.BrandId == brandId && s.Status == PublicStatusEnum.Active,
-                orderBy: q => q.OrderBy(s => s.SortOrder).ThenBy(s => s.PlatformName),
+                orderBy: q => q.OrderBy(s => s.SortOrder).ThenBy(s => s.Platform),
                 includeProperties: "Brand,Store"
             );
 

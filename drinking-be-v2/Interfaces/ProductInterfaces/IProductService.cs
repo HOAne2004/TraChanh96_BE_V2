@@ -13,5 +13,7 @@ namespace drinking_be.Interfaces.ProductInterfaces
         Task<ProductReadDto> CreateAsync(ProductCreateDto createDto);
         Task<ProductReadDto?> UpdateAsync(int id, ProductUpdateDto updateDto);
         Task<bool> DeleteAsync(int id);
+        Task<IEnumerable<StoreMenuReadDto>> GetMenuByStoreAsync(int storeId, string? search, string? categorySlug);
+        Task<bool> UpdateProductStatusAtStoreAsync(ProductStoreUpdateDto updateDto);
     }
 }

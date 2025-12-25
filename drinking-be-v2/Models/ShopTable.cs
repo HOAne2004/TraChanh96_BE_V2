@@ -32,7 +32,7 @@ public partial class ShopTable : ISoftDelete
     public virtual ShopTable? MergedWithTable { get; set; }
 
     public virtual ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
-
+    public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
     public virtual Store Store { get; set; } = null!;
 
     public virtual Room? Room { get; set; }

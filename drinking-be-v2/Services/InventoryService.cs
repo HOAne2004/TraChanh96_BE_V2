@@ -80,7 +80,7 @@ namespace drinking_be.Services
 
             // 2. Tạo mới
             var inventory = _mapper.Map<Inventory>(dto);
-            inventory.LastUpdated = DateTime.UtcNow;
+            inventory.UpdatedAt = DateTime.UtcNow;
 
             await repo.AddAsync(inventory);
             await _unitOfWork.SaveChangesAsync();
@@ -98,7 +98,7 @@ namespace drinking_be.Services
 
             // Cập nhật số lượng
             inventory.Quantity = dto.Quantity;
-            inventory.LastUpdated = DateTime.UtcNow;
+            inventory.UpdatedAt = DateTime.UtcNow;
 
             repo.Update(inventory);
             await _unitOfWork.SaveChangesAsync();

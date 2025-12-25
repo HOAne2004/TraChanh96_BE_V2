@@ -9,23 +9,33 @@ namespace drinking_be.Services
     public class UnitOfWork : IUnitOfWork
     {
         private readonly DBDrinkContext _context;
-        private Hashtable _repositories;
+        private Hashtable _repositories = new();
 
         public UnitOfWork(DBDrinkContext context)
         {
             _context = context;
         }
 
+        // --- TRIỂN KHAI CÁC REPOSITORY CỤ THỂ ---
+        // Sử dụng cú pháp => Repository<T>() để tận dụng cơ chế caching bên dưới
+        public IGenericRepository<Store> Stores => Repository<Store>();
+        public IGenericRepository<Address> Addresses => Repository<Address>();
+        public IGenericRepository<Order> Orders => Repository<Order>();
+        public IGenericRepository<ShopTable> ShopTables => Repository<ShopTable>();
+        public IGenericRepository<Product> Products => Repository<Product>();
+        public IGenericRepository<ProductSize> ProductSizes => Repository<ProductSize>();
         public async Task<int> SaveChangesAsync()
+        {
+            return await _context.SaveChangesAsync();
+        }
+
+        public async Task<int> CompleteAsync()
         {
             return await _context.SaveChangesAsync();
         }
 
         public IGenericRepository<T> Repository<T>() where T : class
         {
-            if (_repositories == null)
-                _repositories = new Hashtable();
-
             var type = typeof(T).Name;
 
             if (!_repositories.ContainsKey(type))

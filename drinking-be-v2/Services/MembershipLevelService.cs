@@ -26,7 +26,7 @@ namespace drinking_be.Services
             // Lọc Status Active nếu cần (nhưng Admin thì nên thấy hết)
             var levels = await repo.GetAllAsync(
                 filter: l => l.Status != PublicStatusEnum.Inactive, // Ví dụ lọc cái đã xóa
-                orderBy: q => q.OrderBy(l => l.MinSpendRequired)
+                orderBy: q => q.OrderBy(l => l.MinCoinsRequired)
             );
 
             return _mapper.Map<IEnumerable<MembershipLevelReadDto>>(levels);

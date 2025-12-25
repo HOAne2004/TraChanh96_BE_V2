@@ -20,20 +20,35 @@ namespace drinking_be.Controllers
         }
 
         // Helper function để lấy PublicId từ Token
-        private Guid GetUserPublicId()
+
+        protected Guid GetUserPublicId()
         {
+            // 1. Chưa được xác thực
+            if (User?.Identity == null || !User.Identity.IsAuthenticated)
+            {
+                throw new UnauthorizedAccessException("Người dùng chưa được xác thực.");
+            }
+
+            // 2. Ưu tiên chuẩn JWT: sub
             var subClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+            // 3. Fallback: NameIdentifier (phòng khi BE đổi mapping)
+            subClaim ??= User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (Guid.TryParse(subClaim, out var publicId))
             {
                 return publicId;
             }
-            throw new UnauthorizedAccessException("Token không hợp lệ.");
+
+            throw new UnauthorizedAccessException("Token không chứa PublicId hợp lệ.");
         }
+
 
         /// <summary>
         /// Xem hồ sơ cá nhân (Profile)
         /// </summary>
         [HttpGet("me")]
+        [Authorize]
         public async Task<IActionResult> GetMe()
         {
             var publicId = GetUserPublicId();

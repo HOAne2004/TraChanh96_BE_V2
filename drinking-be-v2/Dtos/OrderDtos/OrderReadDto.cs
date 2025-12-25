@@ -43,6 +43,22 @@ namespace drinking_be.Dtos.OrderDtos
         public DateTime? DeliveryDate { get; set; }
         public DateTime? CreatedAt { get; set; }
 
+
+        // 1. Phân loại & Vận hành
+        public string OrderType { get; set; } = null!; // Trả về tên Enum (AtCounter/Delivery)
+        public string? PickupCode { get; set; }        // Mã lấy đồ
+        public int? TableId { get; set; }              // Id bàn
+        public string? TableName { get; set; }         // Tên bàn (Include ShopTable để lấy)
+
+        // 2. Shipper (Cho đơn Delivery)
+        public int? ShipperId { get; set; }
+        public string? ShipperName { get; set; }       // Tên Shipper
+
+        // 3. Thông tin Hủy đơn (Nếu có)
+        public string? CancelReason { get; set; }      // Tên Enum lý do hủy
+        public string? CancelNote { get; set; }        // Ghi chú hủy
+        public int? CancelledByUserId { get; set; }    // Ai hủy?
+
         // ⭐ Order Items (Sẽ được ánh xạ chi tiết)
         public ICollection<OrderItemReadDto> Items { get; set; } = new List<OrderItemReadDto>();
 

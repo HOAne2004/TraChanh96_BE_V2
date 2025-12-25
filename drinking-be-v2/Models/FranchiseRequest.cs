@@ -21,7 +21,7 @@ public partial class FranchiseRequest
     public string? ExperienceDescription { get; set; } // Kinh nghiệm kinh doanh trước đây
 
     // --- Quản lý Nội bộ (Admin) ---
-    public FranchiseStatusEnum Status { get; set; } = FranchiseStatusEnum.Pending;
+    public FranchiseStatusEnum? Status { get; set; }
     public string? AdminNote { get; set; } // Ghi chú nội bộ (VD: "Khách có mặt bằng đẹp", "Gọi lại sau 5h")
 
     // Ai là người phụ trách hồ sơ này? (Liên kết với User - Role Admin/Manager)

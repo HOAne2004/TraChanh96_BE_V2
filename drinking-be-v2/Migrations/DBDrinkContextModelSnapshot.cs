@@ -22,7 +22,7 @@ namespace drinking_be.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("drinking_be.Models.Address", b =>
+            modelBuilder.Entity("Address", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -33,8 +33,8 @@ namespace drinking_be.Migrations
 
                     b.Property<string>("AddressDetail")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("address_detail");
 
                     b.Property<string>("Commune")
@@ -43,11 +43,11 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("commune");
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
@@ -61,8 +61,8 @@ namespace drinking_be.Migrations
 
                     b.Property<string>("FullAddress")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
                         .HasColumnName("full_address");
 
                     b.Property<bool?>("IsDefault")
@@ -86,27 +86,26 @@ namespace drinking_be.Migrations
                         .HasColumnName("province");
 
                     b.Property<string>("RecipientName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("recipient_name");
 
                     b.Property<string>("RecipientPhone")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("recipient_phone");
 
-                    b.Property<byte>("Status")
+                    b.Property<short?>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
+                        .HasDefaultValue((short)2)
                         .HasColumnName("status");
 
-                    b.Property<DateTime?>("UpdatedAt")
+                    b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("integer")
@@ -118,6 +117,991 @@ namespace drinking_be.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("address", (string)null);
+                });
+
+            modelBuilder.Entity("Brand", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("text")
+                        .HasColumnName("address");
+
+                    b.Property<string>("CompanyName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("company_name");
+
+                    b.Property<string>("CopyrightText")
+                        .HasColumnType("text")
+                        .HasColumnName("copyright_text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<string>("EmailSupport")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email_support");
+
+                    b.Property<DateTime?>("EstablishedDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("established_date");
+
+                    b.Property<string>("Hotline")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("hotline");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("logo_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Slogan")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("slogan");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("status");
+
+                    b.Property<string>("TaxCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("tax_code");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Brand_Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.ToTable("brand", (string)null);
+                });
+
+            modelBuilder.Entity("Inventory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("MaterialId")
+                        .HasColumnType("integer")
+                        .HasColumnName("material_id");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bytea")
+                        .HasColumnName("row_version");
+
+                    b.Property<int?>("StoreId")
+                        .HasColumnType("integer")
+                        .HasColumnName("store_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StoreId");
+
+                    b.HasIndex("MaterialId", "StoreId")
+                        .IsUnique();
+
+                    b.ToTable("inventory", (string)null);
+                });
+
+            modelBuilder.Entity("Membership", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CardCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("card_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int>("CurrentCoins")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("current_coins");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateOnly?>("LastLevelSpentReset")
+                        .HasColumnType("date")
+                        .HasColumnName("last_level_spent_reset");
+
+                    b.Property<DateOnly?>("LevelEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("level_end_date");
+
+                    b.Property<DateOnly?>("LevelStartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("level_start_date");
+
+                    b.Property<int>("MembershipLevelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("membership_level_id");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)1)
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TotalSpent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("total_spent");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Membership_Id");
+
+                    b.HasIndex("CardCode")
+                        .IsUnique();
+
+                    b.HasIndex("MembershipLevelId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("membership", (string)null);
+                });
+
+            modelBuilder.Entity("MembershipLevel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Benefits")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("benefits");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<int?>("DurationDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_days");
+
+                    b.Property<int>("MinCoinsRequired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("min_coins_required");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<double>("PointEarningRate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(0.0);
+
+                    b.Property<short>("RankOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("rank_order");
+
+                    b.Property<double>("ResetReductionPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(0.0);
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id")
+                        .HasName("PK_MembershipLevel_Id");
+
+                    b.HasIndex("RankOrder")
+                        .IsUnique();
+
+                    b.ToTable("membership_level", (string)null);
+                });
+
+            modelBuilder.Entity("Product", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BasePrice")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("base_price");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("image_url");
+
+                    b.Property<string>("Ingredient")
+                        .HasColumnType("text")
+                        .HasColumnName("ingredient");
+
+                    b.Property<DateTime?>("LaunchDateTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("launch_datetime");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<short>("ProductType")
+                        .HasColumnType("smallint")
+                        .HasColumnName("product_type");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<byte[]>("SearchVector")
+                        .HasColumnType("bytea")
+                        .HasColumnName("search_vector");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("slug");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("status");
+
+                    b.Property<double?>("TotalRating")
+                        .HasColumnType("double precision")
+                        .HasColumnName("total_rating");
+
+                    b.Property<int?>("TotalSold")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_sold");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Product_Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.ToTable("product", (string)null);
+                });
+
+            modelBuilder.Entity("ProductSize", b =>
+                {
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<short>("SizeId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("size_id");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<decimal?>("PriceOverride")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("price_override");
+
+                    b.Property<byte?>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("status");
+
+                    b.HasKey("ProductId", "SizeId")
+                        .HasName("PK_ProductSize");
+
+                    b.HasIndex("SizeId");
+
+                    b.ToTable("product_size", (string)null);
+                });
+
+            modelBuilder.Entity("Size", b =>
+                {
+                    b.Property<short>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<short>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("label");
+
+                    b.Property<decimal?>("PriceModifier")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("price_modifier");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Size_Id");
+
+                    b.ToTable("size", (string)null);
+                });
+
+            modelBuilder.Entity("Staff", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<decimal?>("BaseSalary")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("base_salary");
+
+                    b.Property<string>("CitizenId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("citizen_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date_of_birth");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("full_name");
+
+                    b.Property<DateTime>("HireDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("hire_date");
+
+                    b.Property<decimal?>("HourlySalary")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("hourly_salary");
+
+                    b.Property<double?>("MaxOvertimeHoursPerMonth")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_overtime_hours_per_month");
+
+                    b.Property<double?>("MaxWorkHoursPerMonth")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_work_hours_per_month");
+
+                    b.Property<double?>("MinWorkHoursPerMonth")
+                        .HasColumnType("double precision")
+                        .HasColumnName("min_work_hours_per_month");
+
+                    b.Property<decimal?>("OvertimeHourlySalary")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("overtime_hourly_salary");
+
+                    b.Property<short>("Position")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)13)
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<short>("SalaryType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("salary_type");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("status");
+
+                    b.Property<int?>("StoreId")
+                        .HasColumnType("integer")
+                        .HasColumnName("store_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Staff_Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("StoreId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("staff", (string)null);
+                });
+
+            modelBuilder.Entity("Store", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("AddressId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("address_id");
+
+                    b.Property<int>("BrandId")
+                        .HasColumnType("integer");
+
+                    b.Property<TimeSpan?>("CloseTime")
+                        .HasColumnType("interval")
+                        .HasColumnName("close_time");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("image_url");
+
+                    b.Property<bool>("MapVerified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("map_verified");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("OpenDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("open_date");
+
+                    b.Property<TimeSpan?>("OpenTime")
+                        .HasColumnType("interval")
+                        .HasColumnName("open_time");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<decimal?>("ShippingFeeFixed")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("shipping_fee_fixed");
+
+                    b.Property<decimal?>("ShippingFeePerKm")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("shipping_fee_per_km");
+
+                    b.Property<string>("Slug")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("slug");
+
+                    b.Property<byte?>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)1)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Store_Id");
+
+                    b.HasIndex("AddressId")
+                        .IsUnique();
+
+                    b.HasIndex("BrandId");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasFilter("slug IS NOT NULL");
+
+                    b.ToTable("store", (string)null);
+                });
+
+            modelBuilder.Entity("User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
+
+                    b.Property<bool>("EmailVerified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("email_verified");
+
+                    b.Property<DateTime?>("LastLogin")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("last_login");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("password_hash");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phone");
+
+                    b.Property<Guid>("PublicId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("public_id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("RefreshToken")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("refresh_token");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("refresh_token_expiry");
+
+                    b.Property<string>("ResetPasswordToken")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reset_password_token");
+
+                    b.Property<DateTime?>("ResetPasswordTokenExpiryTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("reset_password_token_expiry");
+
+                    b.Property<short>("RoleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)1)
+                        .HasColumnName("role_id");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("status");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("thumbnail_url");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id")
+                        .HasName("PK_User_Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("user", (string)null);
+                });
+
+            modelBuilder.Entity("UserVoucher", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTime>("ExpiryDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("expiry_date");
+
+                    b.Property<DateTime>("IssuedDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("issued_date")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<long?>("OrderIdUsed")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id_used");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)1)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UsedDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("used_date");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("VoucherCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("voucher_code");
+
+                    b.Property<int>("VoucherTemplateId")
+                        .HasColumnType("integer")
+                        .HasColumnName("voucher_template_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_UserVoucher_Id");
+
+                    b.HasIndex("OrderIdUsed");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VoucherCode")
+                        .IsUnique()
+                        .HasFilter("voucher_code IS NOT NULL");
+
+                    b.HasIndex("VoucherTemplateId");
+
+                    b.ToTable("user_voucher", (string)null);
+                });
+
+            modelBuilder.Entity("VoucherTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("coupon_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<short>("DiscountType")
+                        .HasColumnType("smallint")
+                        .HasColumnName("discount_type");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("discount_value");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("end_date");
+
+                    b.Property<decimal?>("MaxDiscountAmount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("max_discount_amount");
+
+                    b.Property<int?>("MembershipLevelId")
+                        .HasColumnType("integer")
+                        .HasColumnName("membership_level_id");
+
+                    b.Property<decimal?>("MinOrderValue")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("min_order_value");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("start_date");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)2)
+                        .HasColumnName("status");
+
+                    b.Property<int?>("TotalQuantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_quantity");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int?>("UsageLimitPerUser")
+                        .HasColumnType("integer")
+                        .HasColumnName("usage_limit_per_user");
+
+                    b.Property<int?>("UsedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("used_count");
+
+                    b.HasKey("Id")
+                        .HasName("PK_VoucherTemplate_Id");
+
+                    b.HasIndex("CouponCode")
+                        .IsUnique()
+                        .HasFilter("coupon_code IS NOT NULL");
+
+                    b.HasIndex("MembershipLevelId");
+
+                    b.ToTable("voucher_template", (string)null);
                 });
 
             modelBuilder.Entity("drinking_be.Models.Attendance", b =>
@@ -172,10 +1156,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("staff_id");
 
-                    b.Property<byte>("Status")
+                    b.Property<short?>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)5)
+                        .HasDefaultValue((short)5)
                         .HasColumnName("status");
 
                     b.Property<int>("StoreId")
@@ -215,28 +1199,35 @@ namespace drinking_be.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at");
 
+                    b.Property<DateTime?>("EndAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("end_at");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .IsUnicode(false)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("image_url");
 
+                    b.Property<bool>("IsClickable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_clickable");
+
                     b.Property<string>("LinkUrl")
                         .HasMaxLength(500)
-                        .IsUnicode(false)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("link_url");
 
                     b.Property<string>("Position")
                         .HasMaxLength(50)
-                        .IsUnicode(false)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("position");
 
@@ -246,10 +1237,14 @@ namespace drinking_be.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("sort_order");
 
-                    b.Property<byte>("Status")
+                    b.Property<DateTime?>("StartAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("start_at");
+
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
+                        .HasDefaultValue((short)2)
                         .HasColumnName("status");
 
                     b.Property<string>("Title")
@@ -258,108 +1253,14 @@ namespace drinking_be.Migrations
                         .HasColumnName("title");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasColumnName("updated_at");
 
-                    b.HasKey("Id")
-                        .HasName("PK_Banner_Id");
+                    b.HasKey("Id");
 
-                    b.HasIndex("SortOrder")
-                        .HasDatabaseName("IX_banner_sort_order");
-
-                    b.HasIndex("Position", "Status", "SortOrder")
-                        .HasDatabaseName("IX_banner_position_status_order");
+                    b.HasIndex("Position", "Status");
 
                     b.ToTable("banner", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Brand", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("address");
-
-                    b.Property<string>("CompanyName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("company_name");
-
-                    b.Property<string>("CopyrightText")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("copyright_text");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<string>("EmailSupport")
-                        .HasMaxLength(100)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("email_support");
-
-                    b.Property<DateTime?>("EstablishedDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("established_date");
-
-                    b.Property<string>("Hotline")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("hotline");
-
-                    b.Property<string>("LogoUrl")
-                        .HasMaxLength(500)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("logo_url");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Slogan")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("slogan");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
-                        .HasColumnName("status");
-
-                    b.Property<string>("TaxCode")
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("tax_code");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.HasKey("Id")
-                        .HasName("PK__Brand__3213E83F3D8FA9ED");
-
-                    b.ToTable("brand", (string)null);
                 });
 
             modelBuilder.Entity("drinking_be.Models.Cart", b =>
@@ -371,27 +1272,40 @@ namespace drinking_be.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
-                    b.Property<DateTime?>("UpdatedAt")
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)1)
+                        .HasColumnName("status");
+
+                    b.Property<int>("StoreId")
+                        .HasColumnType("integer")
+                        .HasColumnName("store_id");
+
+                    b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
 
-                    b.HasKey("Id")
-                        .HasName("PK__Cart__3213E83FED0FE127");
+                    b.HasKey("Id");
 
-                    b.HasIndex(new[] { "UserId" }, "UQ__Cart__B9BE370E2DCD722C")
+                    b.HasIndex("StoreId");
+
+                    b.HasIndex("UserId")
                         .IsUnique();
+
+                    b.HasIndex("UserId", "Status");
 
                     b.ToTable("cart", (string)null);
                 });
@@ -406,24 +1320,30 @@ namespace drinking_be.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<decimal>("BasePrice")
-                        .HasColumnType("decimal(18, 2)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("base_price");
 
                     b.Property<long>("CartId")
                         .HasColumnType("bigint")
                         .HasColumnName("cart_id");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
                     b.Property<decimal>("FinalPrice")
-                        .HasColumnType("decimal(18, 2)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("final_price");
 
-                    b.Property<byte?>("IceLevel")
+                    b.Property<short?>("IceLevel")
                         .HasColumnType("smallint")
                         .HasColumnName("ice_level");
 
                     b.Property<string>("Note")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
                     b.Property<long?>("ParentItemId")
@@ -442,12 +1362,17 @@ namespace drinking_be.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("size_id");
 
-                    b.Property<byte?>("SugarLevel")
+                    b.Property<short?>("SugarLevel")
                         .HasColumnType("smallint")
                         .HasColumnName("sugar_level");
 
-                    b.HasKey("Id")
-                        .HasName("PK__Cart_ite__3213E83F486E79A8");
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id");
 
                     b.HasIndex("CartId");
 
@@ -469,11 +1394,11 @@ namespace drinking_be.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
@@ -481,8 +1406,8 @@ namespace drinking_be.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
                     b.Property<int?>("ParentId")
@@ -491,35 +1416,32 @@ namespace drinking_be.Migrations
 
                     b.Property<string>("Slug")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(100)")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("slug");
 
                     b.Property<byte?>("SortOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)0)
                         .HasColumnName("sort_order");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
+                        .HasDefaultValue((short)2)
                         .HasColumnName("status");
 
-                    b.Property<DateTime?>("UpdatedAt")
+                    b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.HasKey("Id")
-                        .HasName("PK__Category__3213E83F5A39BDEA");
+                        .HasName("PK_Category_Id");
 
                     b.HasIndex("ParentId");
 
-                    b.HasIndex(new[] { "Slug" }, "UQ__Category__32DD1E4C00F59B8C")
+                    b.HasIndex("Slug")
                         .IsUnique();
 
                     b.ToTable("category", (string)null);
@@ -536,19 +1458,25 @@ namespace drinking_be.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
                         .HasColumnName("content");
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsEdited")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_edited");
 
                     b.Property<int>("NewsId")
                         .HasColumnType("integer")
@@ -558,24 +1486,21 @@ namespace drinking_be.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("parent_id");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasColumnName("updated_at");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
 
-                    b.HasKey("Id")
-                        .HasName("PK__Comment__3213E83FE8B13CD2");
+                    b.HasKey("Id");
 
                     b.HasIndex("NewsId");
 
@@ -647,7 +1572,6 @@ namespace drinking_be.Migrations
                         .HasColumnName("reviewer_id");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -672,46 +1596,6 @@ namespace drinking_be.Migrations
                     b.ToTable("franchise_request", (string)null);
                 });
 
-            modelBuilder.Entity("drinking_be.Models.Inventory", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("LastUpdated")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("last_updated")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<int>("MaterialId")
-                        .HasColumnType("integer")
-                        .HasColumnName("material_id");
-
-                    b.Property<int>("Quantity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("quantity");
-
-                    b.Property<int?>("StoreId")
-                        .HasColumnType("integer")
-                        .HasColumnName("store_id");
-
-                    b.HasKey("Id")
-                        .HasName("PK_Inventory_Id");
-
-                    b.HasIndex("StoreId");
-
-                    b.HasIndex(new[] { "MaterialId", "StoreId" }, "UQ_Inventory_Material_Store")
-                        .IsUnique();
-
-                    b.ToTable("inventory", (string)null);
-                });
-
             modelBuilder.Entity("drinking_be.Models.Material", b =>
                 {
                     b.Property<int>("Id")
@@ -721,37 +1605,30 @@ namespace drinking_be.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("BaseUnit")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                    b.Property<short>("BaseUnit")
+                        .HasColumnType("smallint")
                         .HasColumnName("base_unit");
 
                     b.Property<int>("ConversionRate")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasDefaultValue(1)
                         .HasColumnName("conversion_rate");
 
                     b.Property<decimal>("CostPerPurchaseUnit")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18, 2)")
-                        .HasDefaultValue(0m)
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("cost_per_purchase_unit");
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
+                        .HasColumnType("text")
                         .HasColumnName("description");
 
                     b.Property<string>("ImageUrl")
@@ -770,166 +1647,25 @@ namespace drinking_be.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
                     b.Property<Guid>("PublicId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                        .HasColumnName("public_id");
 
-                    b.Property<string>("PurchaseUnit")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                    b.Property<short?>("PurchaseUnit")
+                        .HasColumnType("smallint")
                         .HasColumnName("purchase_unit");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
+                    b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasColumnName("updated_at");
 
-                    b.HasKey("Id")
-                        .HasName("PK_Material_Id");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique();
+                    b.HasKey("Id");
 
                     b.ToTable("material", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Membership", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("CardCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("card_code");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<DateOnly?>("LastLevelSpentReset")
-                        .HasColumnType("date")
-                        .HasColumnName("last_level_spent_reset");
-
-                    b.Property<DateOnly>("LevelEndDate")
-                        .HasColumnType("date")
-                        .HasColumnName("level_end_date");
-
-                    b.Property<byte>("LevelId")
-                        .HasColumnType("smallint")
-                        .HasColumnName("level_id");
-
-                    b.Property<DateOnly?>("LevelStartDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("date")
-                        .HasColumnName("level_start_date")
-                        .HasDefaultValueSql("CURRENT_DATE");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
-                        .HasColumnName("status");
-
-                    b.Property<decimal?>("TotalSpent")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(12, 2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("total_spent");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("PK__Membersh__3213E83FF483D767");
-
-                    b.HasIndex("LevelId");
-
-                    b.HasIndex(new[] { "CardCode" }, "UQ__Membersh__81703D727EAE3828")
-                        .IsUnique();
-
-                    b.HasIndex(new[] { "UserId" }, "UQ__Membersh__B9BE370EFC41B82F")
-                        .IsUnique();
-
-                    b.ToTable("membership", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.MembershipLevel", b =>
-                {
-                    b.Property<byte>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<byte>("Id"));
-
-                    b.Property<string>("Benefits")
-                        .HasColumnType("text")
-                        .HasColumnName("benefits");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<short>("DurationDays")
-                        .HasColumnType("smallint")
-                        .HasColumnName("duration_days");
-
-                    b.Property<decimal>("MinSpendRequired")
-                        .HasColumnType("decimal(18, 2)")
-                        .HasColumnName("min_spend_required");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(35)
-                        .HasColumnType("character varying(35)")
-                        .HasColumnName("name");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.HasKey("Id")
-                        .HasName("PK__Membersh__3213E83F3901FC68");
-
-                    b.HasIndex(new[] { "Name" }, "UQ__Membersh__72E12F1BBCF20D34")
-                        .IsUnique();
-
-                    b.ToTable("membership_level", (string)null);
                 });
 
             modelBuilder.Entity("drinking_be.Models.News", b =>
@@ -946,23 +1682,23 @@ namespace drinking_be.Migrations
                         .HasColumnType("text")
                         .HasColumnName("content");
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at");
 
-                    b.Property<bool?>("IsFeatured")
+                    b.Property<bool>("IsFeatured")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_featured");
 
-                    b.Property<Guid?>("PublicId")
+                    b.Property<Guid>("PublicId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("public_id")
@@ -973,61 +1709,60 @@ namespace drinking_be.Migrations
                         .HasColumnName("published_date");
 
                     b.Property<string>("SeoDescription")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("seo_description");
 
                     b.Property<string>("Slug")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
                         .HasColumnName("slug");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
                     b.Property<string>("ThumbnailUrl")
-                        .HasMaxLength(500)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(500)")
+                        .HasColumnType("text")
                         .HasColumnName("thumbnail_url");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
                         .HasColumnName("title");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                    b.Property<short>("Type")
+                        .HasColumnType("smallint")
                         .HasColumnName("type");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasColumnName("updated_at");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
+                        .HasColumnType("integer");
 
-                    b.HasKey("Id")
-                        .HasName("PK__News__3213E83F6A9F9780");
+                    b.Property<int>("ViewCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("view_count");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex(new[] { "Slug" }, "UQ__News__32DD1E4C5A174899")
-                        .IsUnique();
-
-                    b.HasIndex(new[] { "PublicId" }, "UQ__News__5699A53062598161")
-                        .IsUnique();
-
-                    b.ToTable("news");
+                    b.ToTable("news", (string)null);
                 });
 
             modelBuilder.Entity("drinking_be.Models.Notification", b =>
@@ -1073,7 +1808,7 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("title");
 
-                    b.Property<byte>("Type")
+                    b.Property<short>("Type")
                         .HasColumnType("smallint")
                         .HasColumnName("type");
 
@@ -1108,23 +1843,31 @@ namespace drinking_be.Migrations
                     b.Property<long?>("AddressId")
                         .HasColumnType("bigint");
 
-                    b.Property<int?>("CoinsEarned")
-                        .ValueGeneratedOnAdd()
+                    b.Property<string>("CancelNote")
+                        .HasColumnType("text")
+                        .HasColumnName("cancel_note");
+
+                    b.Property<short?>("CancelReason")
+                        .HasColumnType("smallint")
+                        .HasColumnName("cancel_reason");
+
+                    b.Property<int?>("CancelledByUserId")
                         .HasColumnType("integer")
-                        .HasDefaultValue(0)
+                        .HasColumnName("cancelled_by_user_id");
+
+                    b.Property<int?>("CoinsEarned")
+                        .HasColumnType("integer")
                         .HasColumnName("coins_earned");
 
                     b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at");
 
-                    b.Property<long>("DeliveryAddressId")
+                    b.Property<long?>("DeliveryAddressId")
                         .HasColumnType("bigint")
                         .HasColumnName("delivery_address_id");
 
@@ -1133,42 +1876,44 @@ namespace drinking_be.Migrations
                         .HasColumnName("delivery_date");
 
                     b.Property<decimal?>("DiscountAmount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18, 2)")
-                        .HasDefaultValue(0m)
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("discount_amount");
 
                     b.Property<decimal>("GrandTotal")
-                        .HasColumnType("decimal(18, 2)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("grand_total");
 
                     b.Property<string>("OrderCode")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)")
+                        .HasColumnType("text")
                         .HasColumnName("order_code");
 
                     b.Property<DateTime?>("OrderDate")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("order_date")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasColumnName("order_date");
+
+                    b.Property<short>("OrderType")
+                        .HasColumnType("smallint")
+                        .HasColumnName("order_type");
 
                     b.Property<int?>("PaymentMethodId")
                         .HasColumnType("integer")
                         .HasColumnName("payment_method_id");
 
+                    b.Property<string>("PickupCode")
+                        .HasColumnType("text")
+                        .HasColumnName("pickup_code");
+
+                    b.Property<int?>("ShipperId")
+                        .HasColumnType("integer")
+                        .HasColumnName("shipper_id");
+
                     b.Property<decimal?>("ShippingFee")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8, 2)")
-                        .HasDefaultValue(0m)
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("shipping_fee");
 
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
+                    b.Property<short>("Status")
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
                         .HasColumnName("status");
 
                     b.Property<int>("StoreId")
@@ -1176,44 +1921,59 @@ namespace drinking_be.Migrations
                         .HasColumnName("store_id");
 
                     b.Property<string>("StoreName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
+                        .HasColumnType("text")
                         .HasColumnName("store_name");
 
+                    b.Property<int?>("TableId")
+                        .HasColumnType("integer")
+                        .HasColumnName("table_id");
+
                     b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18, 2)")
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("total_amount");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
 
                     b.Property<string>("UserNotes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasColumnType("text")
                         .HasColumnName("user_notes");
 
+                    b.Property<long?>("UserVoucherId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_voucher_id");
+
                     b.Property<string>("VoucherCodeUsed")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)")
+                        .HasColumnType("text")
                         .HasColumnName("voucher_code_used");
 
-                    b.HasKey("Id")
-                        .HasName("PK__Order__3213E83FDE5887F1");
+                    b.HasKey("Id");
 
                     b.HasIndex("AddressId");
 
                     b.HasIndex("DeliveryAddressId");
 
+                    b.HasIndex("OrderCode")
+                        .IsUnique();
+
                     b.HasIndex("PaymentMethodId");
+
+                    b.HasIndex("PickupCode");
+
+                    b.HasIndex("ShipperId");
 
                     b.HasIndex("StoreId");
 
+                    b.HasIndex("TableId");
+
                     b.HasIndex("UserId");
 
-                    b.HasIndex(new[] { "OrderCode" }, "UQ__Order__99D12D3FD8ECB07F")
-                        .IsUnique();
+                    b.HasIndex("UserVoucherId");
 
                     b.ToTable("order", (string)null);
                 });
@@ -1235,7 +1995,7 @@ namespace drinking_be.Migrations
                         .HasColumnType("decimal(18, 2)")
                         .HasColumnName("final_price");
 
-                    b.Property<byte>("IceLevel")
+                    b.Property<short>("IceLevel")
                         .HasColumnType("smallint")
                         .HasColumnName("ice_level");
 
@@ -1264,7 +2024,7 @@ namespace drinking_be.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("size_id");
 
-                    b.Property<byte>("SugarLevel")
+                    b.Property<short>("SugarLevel")
                         .HasColumnType("smallint")
                         .HasColumnName("sugar_level");
 
@@ -1319,10 +2079,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("payment_signature");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
                     b.Property<string>("TransactionCode")
@@ -1399,10 +2159,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("name");
 
-                    b.Property<byte>("PaymentType")
+                    b.Property<short>("PaymentType")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("payment_type");
 
                     b.Property<decimal?>("ProcessingFee")
@@ -1421,10 +2181,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("sort_order");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
+                        .HasDefaultValue((short)2)
                         .HasColumnName("status");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -1472,7 +2232,7 @@ namespace drinking_be.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("applied_overtime_rate");
 
-                    b.Property<byte>("AppliedSalaryType")
+                    b.Property<short>("AppliedSalaryType")
                         .HasColumnType("smallint")
                         .HasColumnName("applied_salary_type");
 
@@ -1523,10 +2283,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("staff_id");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
                     b.Property<decimal>("TaxAmount")
@@ -1575,6 +2335,67 @@ namespace drinking_be.Migrations
                     b.ToTable("payslip", (string)null);
                 });
 
+            modelBuilder.Entity("drinking_be.Models.PointHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("integer")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("BalanceAfter")
+                        .HasColumnType("integer")
+                        .HasColumnName("balance_after");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<long>("MembershipId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("membership_id");
+
+                    b.Property<long?>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("transaction_type");
+
+                    b.HasKey("Id")
+                        .HasName("PK_PointHistory_Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_point_history_created_at");
+
+                    b.HasIndex("MembershipId")
+                        .HasDatabaseName("IX_point_history_membership_id");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_point_history_order_id");
+
+                    b.HasIndex("TransactionType")
+                        .HasDatabaseName("IX_point_history_transaction_type");
+
+                    b.ToTable("point_history", (string)null);
+                });
+
             modelBuilder.Entity("drinking_be.Models.Policy", b =>
                 {
                     b.Property<int>("Id")
@@ -1609,10 +2430,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("slug");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
                     b.Property<int?>("StoreId")
@@ -1644,129 +2465,56 @@ namespace drinking_be.Migrations
                     b.ToTable("policy", (string)null);
                 });
 
-            modelBuilder.Entity("drinking_be.Models.Product", b =>
+            modelBuilder.Entity("drinking_be.Models.ProductStore", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<int>("ProductId")
                         .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnName("product_id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("BasePrice")
-                        .HasColumnType("decimal(18, 2)")
-                        .HasColumnName("base_price");
-
-                    b.Property<int>("CategoryId")
+                    b.Property<int>("StoreId")
                         .HasColumnType("integer")
-                        .HasColumnName("category_id");
+                        .HasColumnName("store_id");
 
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at");
 
-                    b.Property<string>("Description")
-                        .HasColumnType("text")
-                        .HasColumnName("description");
+                    b.Property<decimal?>("PriceOverride")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("price_override");
 
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(500)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("image_url");
-
-                    b.Property<string>("Ingredient")
-                        .HasColumnType("text")
-                        .HasColumnName("ingredient");
-
-                    b.Property<DateTime?>("LaunchDateTime")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("launch_date_time");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("ProductType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("product_type");
-
-                    b.Property<string>("PublicId")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(36)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("public_id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("slug");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
-                        .HasColumnName("status");
-
-                    b.Property<double?>("TotalRating")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double precision")
-                        .HasDefaultValue(0.0)
-                        .HasColumnName("total_rating");
-
-                    b.Property<int?>("TotalSold")
+                    b.Property<int>("SoldCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0)
-                        .HasColumnName("total_sold");
+                        .HasColumnName("sold_count");
+
+                    b.Property<byte?>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.Property<short>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)1)
+                        .HasColumnName("status");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("Id")
-                        .HasName("pk_product");
+                    b.HasKey("ProductId", "StoreId")
+                        .HasName("PK_ProductStore");
 
-                    b.HasIndex("CategoryId");
+                    b.HasIndex("StoreId");
 
-                    b.HasIndex("PublicId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_product_public_id");
-
-                    b.HasIndex("Slug")
-                        .IsUnique()
-                        .HasDatabaseName("ix_product_slug");
-
-                    b.ToTable("product", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.ProductSize", b =>
-                {
-                    b.Property<int>("ProductId")
-                        .HasColumnType("integer");
-
-                    b.Property<short>("SizeId")
-                        .HasColumnType("smallint");
-
-                    b.HasKey("ProductId", "SizeId");
-
-                    b.HasIndex("SizeId");
-
-                    b.ToTable("product_size", (string)null);
+                    b.ToTable("product_store", (string)null);
                 });
 
             modelBuilder.Entity("drinking_be.Models.Reservation", b =>
@@ -1837,10 +2585,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("reservation_datetime");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
                     b.Property<int>("StoreId")
@@ -1882,27 +2630,33 @@ namespace drinking_be.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AdminResponse")
-                        .HasColumnType("text")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
                         .HasColumnName("admin_response");
 
                     b.Property<string>("Content")
-                        .HasColumnType("text")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
                         .HasColumnName("content");
 
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at");
 
+                    b.Property<bool>("IsEdited")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_edited");
+
                     b.Property<string>("MediaUrl")
-                        .HasMaxLength(500)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(500)")
+                        .HasColumnType("text")
                         .HasColumnName("media_url");
 
                     b.Property<int>("ProductId")
@@ -1913,28 +2667,26 @@ namespace drinking_be.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("rating");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
+                        .HasColumnName("updated_at");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
 
-                    b.HasKey("Id")
-                        .HasName("PK__Review__3213E83F5E4BD5F0");
+                    b.HasKey("Id");
 
                     b.HasIndex("ProductId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "ProductId")
+                        .IsUnique();
 
                     b.ToTable("review", (string)null);
                 });
@@ -1987,10 +2739,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
+                        .HasDefaultValue((short)2)
                         .HasColumnName("status");
 
                     b.Property<int>("StoreId")
@@ -2051,10 +2803,10 @@ namespace drinking_be.Migrations
                     b.Property<int?>("RoomId")
                         .HasColumnType("integer");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
+                        .HasDefaultValue((short)2)
                         .HasColumnName("status");
 
                     b.Property<int>("StoreId")
@@ -2079,55 +2831,6 @@ namespace drinking_be.Migrations
                     b.ToTable("shop_table", (string)null);
                 });
 
-            modelBuilder.Entity("drinking_be.Models.Size", b =>
-                {
-                    b.Property<short>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<short>("Id"));
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("label");
-
-                    b.Property<decimal?>("PriceModifier")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18, 2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("price_modifier");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.HasKey("Id")
-                        .HasName("PK__Size__3213E83F985D1A04");
-
-                    b.ToTable("size", (string)null);
-                });
-
             modelBuilder.Entity("drinking_be.Models.SocialMedia", b =>
                 {
                     b.Property<int>("Id")
@@ -2137,7 +2840,7 @@ namespace drinking_be.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BrandId")
+                    b.Property<int?>("BrandId")
                         .HasColumnType("integer")
                         .HasColumnName("brand_id");
 
@@ -2157,24 +2860,21 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("icon_url");
 
-                    b.Property<string>("PlatformName")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(30)")
+                    b.Property<short>("Platform")
+                        .HasColumnType("smallint")
                         .HasColumnName("platform_name");
 
                     b.Property<byte?>("SortOrder")
                         .HasColumnType("smallint")
                         .HasColumnName("sort_order");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
+                        .HasDefaultValue((short)2)
                         .HasColumnName("status");
 
-                    b.Property<int>("StoreId")
+                    b.Property<int?>("StoreId")
                         .HasColumnType("integer")
                         .HasColumnName("store_id");
 
@@ -2199,235 +2899,6 @@ namespace drinking_be.Migrations
                     b.HasIndex("StoreId");
 
                     b.ToTable("social_media", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Staff", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("address");
-
-                    b.Property<decimal?>("BaseSalary")
-                        .HasColumnType("decimal(18, 2)")
-                        .HasColumnName("base_salary");
-
-                    b.Property<string>("CitizenId")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("citizen_id");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<DateTime?>("DateOfBirth")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("date_of_birth");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("full_name");
-
-                    b.Property<DateTime>("HireDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("hire_date");
-
-                    b.Property<decimal?>("HourlySalary")
-                        .HasColumnType("decimal(18, 2)")
-                        .HasColumnName("hourly_salary");
-
-                    b.Property<double?>("MaxOvertimeHoursPerMonth")
-                        .HasColumnType("double precision")
-                        .HasColumnName("max_overtime_hours_per_month");
-
-                    b.Property<double?>("MaxWorkHoursPerMonth")
-                        .HasColumnType("double precision")
-                        .HasColumnName("max_work_hours_per_month");
-
-                    b.Property<double?>("MinWorkHoursPerMonth")
-                        .HasColumnType("double precision")
-                        .HasColumnName("min_work_hours_per_month");
-
-                    b.Property<decimal?>("OvertimeHourlySalary")
-                        .HasColumnType("decimal(18, 2)")
-                        .HasColumnName("overtime_hourly_salary");
-
-                    b.Property<byte>("Position")
-                        .HasColumnType("smallint")
-                        .HasColumnName("position");
-
-                    b.Property<Guid>("PublicId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<byte>("SalaryType")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
-                        .HasColumnName("salary_type");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
-                        .HasColumnName("status");
-
-                    b.Property<int?>("StoreId")
-                        .HasColumnType("integer")
-                        .HasColumnName("store_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("PK_Staff_Id");
-
-                    b.HasIndex("StoreId");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.HasIndex(new[] { "PublicId" }, "UQ_Staff_PublicId")
-                        .IsUnique();
-
-                    b.ToTable("staff", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Store", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<long>("AddressId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("address_id");
-
-                    b.Property<int>("BrandId")
-                        .HasColumnType("integer")
-                        .HasColumnName("brand_id");
-
-                    b.Property<TimeSpan?>("CloseTime")
-                        .HasColumnType("interval")
-                        .HasColumnName("close_time");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(255)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("image_url");
-
-                    b.Property<bool?>("MapVerified")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("map_verified");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime?>("OpenDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("open_date");
-
-                    b.Property<TimeSpan?>("OpenTime")
-                        .HasColumnType("interval")
-                        .HasColumnName("open_time");
-
-                    b.Property<Guid?>("PublicId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<decimal?>("ShippingFeeFixed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(10, 2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("shipping_fee_fixed");
-
-                    b.Property<decimal?>("ShippingFeePerKm")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(10, 2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("shipping_fee_per_km");
-
-                    b.Property<string>("Slug")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("slug");
-
-                    b.Property<byte?>("SortOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)0)
-                        .HasColumnName("sort_order");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id")
-                        .HasName("PK__Store__3213E83FCF8EAB0E");
-
-                    b.HasIndex("AddressId")
-                        .IsUnique();
-
-                    b.HasIndex("BrandId");
-
-                    b.HasIndex(new[] { "Slug" }, "UQ__Store__32DD1E4C92725A74")
-                        .IsUnique();
-
-                    b.HasIndex(new[] { "PublicId" }, "UQ__Store__5699A53072383001")
-                        .IsUnique();
-
-                    b.ToTable("store", (string)null);
                 });
 
             modelBuilder.Entity("drinking_be.Models.SupplyOrder", b =>
@@ -2481,10 +2952,10 @@ namespace drinking_be.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("received_at");
 
-                    b.Property<byte>("Status")
+                    b.Property<short>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
+                        .HasDefaultValue((short)1)
                         .HasColumnName("status");
 
                     b.Property<int?>("StoreId")
@@ -2567,321 +3038,165 @@ namespace drinking_be.Migrations
                     b.ToTable("supply_order_item", (string)null);
                 });
 
-            modelBuilder.Entity("drinking_be.Models.User", b =>
+            modelBuilder.Entity("Address", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<int?>("CurrentCoins")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("current_coins");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("email");
-
-                    b.Property<bool?>("EmailVerified")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("email_verified");
-
-                    b.Property<DateTime?>("LastLogin")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("last_login");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("password_hash");
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("phone");
-
-                    b.Property<Guid?>("PublicId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("public_id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("RefreshToken")
-                        .HasMaxLength(500)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("refresh_token");
-
-                    b.Property<DateTime?>("RefreshTokenExpiryTime")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("refresh_token_expiry_time");
-
-                    b.Property<string>("ResetPasswordToken")
-                        .HasMaxLength(500)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("reset_password_token");
-
-                    b.Property<DateTime?>("ResetPasswordTokenExpiryTime")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("reset_password_token_expiry_time");
-
-                    b.Property<byte>("RoleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
-                        .HasColumnName("role_id");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
-                        .HasColumnName("status");
-
-                    b.Property<string>("ThumbnailUrl")
-                        .HasMaxLength(200)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("thumbnail_url");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("username");
-
-                    b.HasKey("Id")
-                        .HasName("PK__User__3213E83F0D985B4B");
-
-                    b.HasIndex(new[] { "PublicId" }, "UQ__User__5699A530AE2F5693")
-                        .IsUnique();
-
-                    b.HasIndex(new[] { "Email" }, "UQ__User__AB6E616418E7B215")
-                        .IsUnique();
-
-                    b.ToTable("user", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.UserVoucher", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("expiry_date");
-
-                    b.Property<DateTime?>("IssuedDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("issued_date")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<long?>("OrderIdUsed")
-                        .HasColumnType("bigint")
-                        .HasColumnName("order_id_used");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1)
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UsedDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("used_date");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("VoucherCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("voucher_code");
-
-                    b.Property<int>("VoucherTemplateId")
-                        .HasColumnType("integer")
-                        .HasColumnName("voucher_template_id");
-
-                    b.HasKey("Id")
-                        .HasName("PK__User_Vou__3213E83F950C18C0");
-
-                    b.HasIndex("OrderIdUsed");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("VoucherTemplateId");
-
-                    b.HasIndex(new[] { "VoucherCode" }, "UQ__User_Vou__21731069F90ADEF0")
-                        .IsUnique();
-
-                    b.ToTable("user_voucher", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.VoucherTemplate", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CouponCode")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("coupon_code");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("DiscountType")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("discount_type");
-
-                    b.Property<decimal>("DiscountValue")
-                        .HasColumnType("decimal(18, 2)")
-                        .HasColumnName("discount_value");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("end_date");
-
-                    b.Property<byte?>("LevelId")
-                        .HasColumnType("smallint")
-                        .HasColumnName("level_id");
-
-                    b.Property<decimal?>("MaxDiscountAmount")
-                        .HasColumnType("decimal(18, 2)")
-                        .HasColumnName("max_discount_amount");
-
-                    b.Property<decimal?>("MinOrderValue")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18, 2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("min_order_value");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<byte?>("QuantityPerLevel")
-                        .HasColumnType("smallint")
-                        .HasColumnName("quantity_per_level");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("start_date");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)2)
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("(NOW())");
-
-                    b.Property<int?>("UsageLimit")
-                        .HasColumnType("integer")
-                        .HasColumnName("usage_limit");
-
-                    b.Property<byte?>("UsageLimitPerUser")
-                        .HasColumnType("smallint")
-                        .HasColumnName("usage_limit_per_user");
-
-                    b.Property<int?>("UsedCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("used_count");
-
-                    b.HasKey("Id")
-                        .HasName("PK__Voucher___3213E83F0298D293");
-
-                    b.HasIndex("LevelId");
-
-                    b.HasIndex(new[] { "CouponCode" }, "UQ__Voucher___ADE5CBB794CB76DB")
-                        .IsUnique();
-
-                    b.ToTable("voucher_template", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Address", b =>
-                {
-                    b.HasOne("drinking_be.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("Addresses")
                         .HasForeignKey("UserId")
-                        .HasConstraintName("FK_Address_UserId");
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Inventory", b =>
+                {
+                    b.HasOne("drinking_be.Models.Material", "Material")
+                        .WithMany("Inventories")
+                        .HasForeignKey("MaterialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Material");
+
+                    b.Navigation("Store");
+                });
+
+            modelBuilder.Entity("Membership", b =>
+                {
+                    b.HasOne("MembershipLevel", "Level")
+                        .WithMany("Memberships")
+                        .HasForeignKey("MembershipLevelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("User", "User")
+                        .WithOne("Membership")
+                        .HasForeignKey("Membership", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Level");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Product", b =>
+                {
+                    b.HasOne("drinking_be.Models.Category", "Category")
+                        .WithMany("Products")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("ProductSize", b =>
+                {
+                    b.HasOne("Product", "Product")
+                        .WithMany("ProductSizes")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Size", "Size")
+                        .WithMany("ProductSizes")
+                        .HasForeignKey("SizeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Size");
+                });
+
+            modelBuilder.Entity("Staff", b =>
+                {
+                    b.HasOne("Store", "Store")
+                        .WithMany("Staffs")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("User", "User")
+                        .WithOne("Staff")
+                        .HasForeignKey("Staff", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Store", b =>
+                {
+                    b.HasOne("Address", "Address")
+                        .WithOne("Store")
+                        .HasForeignKey("Store", "AddressId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Brand", "Brand")
+                        .WithMany("Stores")
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Address");
+
+                    b.Navigation("Brand");
+                });
+
+            modelBuilder.Entity("UserVoucher", b =>
+                {
+                    b.HasOne("drinking_be.Models.Order", "OrderUsed")
+                        .WithMany()
+                        .HasForeignKey("OrderIdUsed")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("User", "User")
+                        .WithMany("UserVouchers")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VoucherTemplate", "VoucherTemplate")
+                        .WithMany("UserVouchers")
+                        .HasForeignKey("VoucherTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OrderUsed");
+
+                    b.Navigation("User");
+
+                    b.Navigation("VoucherTemplate");
+                });
+
+            modelBuilder.Entity("VoucherTemplate", b =>
+                {
+                    b.HasOne("MembershipLevel", "MembershipLevel")
+                        .WithMany("VoucherTemplates")
+                        .HasForeignKey("MembershipLevelId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("MembershipLevel");
+                });
+
             modelBuilder.Entity("drinking_be.Models.Attendance", b =>
                 {
-                    b.HasOne("drinking_be.Models.Staff", "Staff")
+                    b.HasOne("Staff", "Staff")
                         .WithMany()
                         .HasForeignKey("StaffId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("drinking_be.Models.Store", "Store")
+                    b.HasOne("Store", "Store")
                         .WithMany()
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -2894,12 +3209,19 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("drinking_be.Models.Cart", b =>
                 {
-                    b.HasOne("drinking_be.Models.User", "User")
+                    b.HasOne("Store", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("User", "User")
                         .WithOne("Cart")
                         .HasForeignKey("drinking_be.Models.Cart", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK__Cart__user_id__37703C52");
+                        .IsRequired();
+
+                    b.Navigation("Store");
 
                     b.Navigation("User");
                 });
@@ -2909,24 +3231,24 @@ namespace drinking_be.Migrations
                     b.HasOne("drinking_be.Models.Cart", "Cart")
                         .WithMany("CartItems")
                         .HasForeignKey("CartId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Cart_item__cart___3B40CD36");
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("drinking_be.Models.CartItem", "ParentItem")
                         .WithMany("InverseParentItem")
                         .HasForeignKey("ParentItemId")
-                        .HasConstraintName("FK__Cart_item__paren__3D2915A8");
+                        .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("drinking_be.Models.Product", "Product")
+                    b.HasOne("Product", "Product")
                         .WithMany("CartItems")
                         .HasForeignKey("ProductId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Cart_item__produ__3C34F16F");
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.HasOne("drinking_be.Models.Size", "Size")
+                    b.HasOne("Size", "Size")
                         .WithMany("CartItems")
                         .HasForeignKey("SizeId")
-                        .HasConstraintName("FK__Cart_item__size___3E1D39E1");
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Cart");
 
@@ -2942,7 +3264,7 @@ namespace drinking_be.Migrations
                     b.HasOne("drinking_be.Models.Category", "Parent")
                         .WithMany("InverseParent")
                         .HasForeignKey("ParentId")
-                        .HasConstraintName("FK__Category__parent__3C69FB99");
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
                 });
@@ -2952,19 +3274,19 @@ namespace drinking_be.Migrations
                     b.HasOne("drinking_be.Models.News", "News")
                         .WithMany("Comments")
                         .HasForeignKey("NewsId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Comment__news_id__06CD04F7");
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("drinking_be.Models.Comment", "Parent")
                         .WithMany("InverseParent")
                         .HasForeignKey("ParentId")
-                        .HasConstraintName("FK__Comment__parent___04E4BC85");
+                        .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("drinking_be.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("Comments")
                         .HasForeignKey("UserId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Comment__user_id__05D8E0BE");
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("News");
 
@@ -2975,7 +3297,7 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("drinking_be.Models.FranchiseRequest", b =>
                 {
-                    b.HasOne("drinking_be.Models.User", "Reviewer")
+                    b.HasOne("User", "Reviewer")
                         .WithMany()
                         .HasForeignKey("ReviewerId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -2984,58 +3306,20 @@ namespace drinking_be.Migrations
                     b.Navigation("Reviewer");
                 });
 
-            modelBuilder.Entity("drinking_be.Models.Inventory", b =>
-                {
-                    b.HasOne("drinking_be.Models.Material", "Material")
-                        .WithMany("Inventories")
-                        .HasForeignKey("MaterialId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("drinking_be.Models.Store", "Store")
-                        .WithMany()
-                        .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Material");
-
-                    b.Navigation("Store");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Membership", b =>
-                {
-                    b.HasOne("drinking_be.Models.MembershipLevel", "Level")
-                        .WithMany("Memberships")
-                        .HasForeignKey("LevelId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Membershi__level__51300E55");
-
-                    b.HasOne("drinking_be.Models.User", "User")
-                        .WithOne("Membership")
-                        .HasForeignKey("drinking_be.Models.Membership", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK__Membershi__user___503BEA1C");
-
-                    b.Navigation("Level");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("drinking_be.Models.News", b =>
                 {
-                    b.HasOne("drinking_be.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("News")
                         .HasForeignKey("UserId")
-                        .IsRequired()
-                        .HasConstraintName("FK__News__user_id__73BA3083");
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
 
             modelBuilder.Entity("drinking_be.Models.Notification", b =>
                 {
-                    b.HasOne("drinking_be.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("Notifications")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -3046,16 +3330,14 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("drinking_be.Models.Order", b =>
                 {
-                    b.HasOne("drinking_be.Models.Address", null)
+                    b.HasOne("Address", null)
                         .WithMany("Orders")
                         .HasForeignKey("AddressId");
 
-                    b.HasOne("drinking_be.Models.Address", "DeliveryAddress")
+                    b.HasOne("Address", "DeliveryAddress")
                         .WithMany()
                         .HasForeignKey("DeliveryAddressId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Order_DeliveryAddressId");
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("drinking_be.Models.PaymentMethod", "PaymentMethod")
                         .WithMany("Orders")
@@ -3063,24 +3345,44 @@ namespace drinking_be.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_Order_PaymentMethodId");
 
-                    b.HasOne("drinking_be.Models.Store", "Store")
+                    b.HasOne("User", "Shipper")
+                        .WithMany()
+                        .HasForeignKey("ShipperId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Store", "Store")
                         .WithMany("Orders")
                         .HasForeignKey("StoreId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Order__store_id__282DF8C2");
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.HasOne("drinking_be.Models.User", "User")
+                    b.HasOne("drinking_be.Models.ShopTable", "Table")
+                        .WithMany("Orders")
+                        .HasForeignKey("TableId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("User", "User")
                         .WithMany("Orders")
                         .HasForeignKey("UserId")
-                        .HasConstraintName("FK__Order__user_id__2739D489");
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("UserVoucher", "UserVoucher")
+                        .WithMany()
+                        .HasForeignKey("UserVoucherId");
 
                     b.Navigation("DeliveryAddress");
 
                     b.Navigation("PaymentMethod");
 
+                    b.Navigation("Shipper");
+
                     b.Navigation("Store");
 
+                    b.Navigation("Table");
+
                     b.Navigation("User");
+
+                    b.Navigation("UserVoucher");
                 });
 
             modelBuilder.Entity("drinking_be.Models.OrderItem", b =>
@@ -3096,13 +3398,13 @@ namespace drinking_be.Migrations
                         .HasForeignKey("ParentItemId")
                         .HasConstraintName("FK__Order_ite__paren__2EDAF651");
 
-                    b.HasOne("drinking_be.Models.Product", "Product")
+                    b.HasOne("Product", "Product")
                         .WithMany("OrderItems")
                         .HasForeignKey("ProductId")
                         .IsRequired()
                         .HasConstraintName("FK__Order_ite__produ__2DE6D218");
 
-                    b.HasOne("drinking_be.Models.Size", "Size")
+                    b.HasOne("Size", "Size")
                         .WithMany("OrderItems")
                         .HasForeignKey("SizeId")
                         .HasConstraintName("FK__Order_ite__size___2FCF1A8A");
@@ -3139,7 +3441,7 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("drinking_be.Models.Payslip", b =>
                 {
-                    b.HasOne("drinking_be.Models.Staff", "Staff")
+                    b.HasOne("Staff", "Staff")
                         .WithMany()
                         .HasForeignKey("StaffId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -3149,15 +3451,33 @@ namespace drinking_be.Migrations
                     b.Navigation("Staff");
                 });
 
+            modelBuilder.Entity("drinking_be.Models.PointHistory", b =>
+                {
+                    b.HasOne("Membership", "Membership")
+                        .WithMany("PointHistories")
+                        .HasForeignKey("MembershipId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("drinking_be.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Membership");
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("drinking_be.Models.Policy", b =>
                 {
-                    b.HasOne("drinking_be.Models.Brand", "Brand")
+                    b.HasOne("Brand", "Brand")
                         .WithMany("Policies")
                         .HasForeignKey("BrandId")
                         .IsRequired()
                         .HasConstraintName("FK__Policy__brand_id__5BE2A6F2");
 
-                    b.HasOne("drinking_be.Models.Store", "Store")
+                    b.HasOne("Store", "Store")
                         .WithMany("Policies")
                         .HasForeignKey("StoreId")
                         .HasConstraintName("FK_Policy_StoreId");
@@ -3167,37 +3487,23 @@ namespace drinking_be.Migrations
                     b.Navigation("Store");
                 });
 
-            modelBuilder.Entity("drinking_be.Models.Product", b =>
+            modelBuilder.Entity("drinking_be.Models.ProductStore", b =>
                 {
-                    b.HasOne("drinking_be.Models.Category", "Category")
-                        .WithMany("Products")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_product_category");
-
-                    b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.ProductSize", b =>
-                {
-                    b.HasOne("drinking_be.Models.Product", "Product")
-                        .WithMany("ProductSizes")
+                    b.HasOne("Product", "Product")
+                        .WithMany("ProductStores")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_ProductSize_ProductId");
+                        .IsRequired();
 
-                    b.HasOne("drinking_be.Models.Size", "Size")
-                        .WithMany("ProductSizes")
-                        .HasForeignKey("SizeId")
+                    b.HasOne("Store", "Store")
+                        .WithMany("ProductStores")
+                        .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_ProductSize_SizeId");
+                        .IsRequired();
 
                     b.Navigation("Product");
 
-                    b.Navigation("Size");
+                    b.Navigation("Store");
                 });
 
             modelBuilder.Entity("drinking_be.Models.Reservation", b =>
@@ -3207,13 +3513,13 @@ namespace drinking_be.Migrations
                         .HasForeignKey("AssignedTableId")
                         .HasConstraintName("FK__Reservati__assig__17C286CF");
 
-                    b.HasOne("drinking_be.Models.Store", "Store")
+                    b.HasOne("Store", "Store")
                         .WithMany("Reservations")
                         .HasForeignKey("StoreId")
                         .IsRequired()
                         .HasConstraintName("FK__Reservati__store__16CE6296");
 
-                    b.HasOne("drinking_be.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("Reservations")
                         .HasForeignKey("UserId")
                         .HasConstraintName("FK__Reservati__user___15DA3E5D");
@@ -3227,17 +3533,17 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("drinking_be.Models.Review", b =>
                 {
-                    b.HasOne("drinking_be.Models.Product", "Product")
+                    b.HasOne("Product", "Product")
                         .WithMany("Reviews")
                         .HasForeignKey("ProductId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Review__product___7F2BE32F");
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.HasOne("drinking_be.Models.User", "User")
+                    b.HasOne("User", "User")
                         .WithMany("Reviews")
                         .HasForeignKey("UserId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Review__user_id__00200768");
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Product");
 
@@ -3246,7 +3552,7 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("drinking_be.Models.Room", b =>
                 {
-                    b.HasOne("drinking_be.Models.Store", "Store")
+                    b.HasOne("Store", "Store")
                         .WithMany("Rooms")
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -3268,7 +3574,7 @@ namespace drinking_be.Migrations
                         .HasForeignKey("RoomId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("drinking_be.Models.Store", "Store")
+                    b.HasOne("Store", "Store")
                         .WithMany("ShopTables")
                         .HasForeignKey("StoreId")
                         .IsRequired()
@@ -3283,13 +3589,12 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("drinking_be.Models.SocialMedia", b =>
                 {
-                    b.HasOne("drinking_be.Models.Brand", "Brand")
+                    b.HasOne("Brand", "Brand")
                         .WithMany("SocialMedias")
                         .HasForeignKey("BrandId")
-                        .IsRequired()
                         .HasConstraintName("FK_SocialMedia_BrandId");
 
-                    b.HasOne("drinking_be.Models.Store", "Store")
+                    b.HasOne("Store", "Store")
                         .WithMany("SocialMedias")
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -3300,58 +3605,20 @@ namespace drinking_be.Migrations
                     b.Navigation("Store");
                 });
 
-            modelBuilder.Entity("drinking_be.Models.Staff", b =>
-                {
-                    b.HasOne("drinking_be.Models.Store", "Store")
-                        .WithMany("Staffs")
-                        .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("drinking_be.Models.User", "User")
-                        .WithOne("Staff")
-                        .HasForeignKey("drinking_be.Models.Staff", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Store");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Store", b =>
-                {
-                    b.HasOne("drinking_be.Models.Address", "Address")
-                        .WithOne("Store")
-                        .HasForeignKey("drinking_be.Models.Store", "AddressId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Store_AddressId");
-
-                    b.HasOne("drinking_be.Models.Brand", "Brand")
-                        .WithMany("Stores")
-                        .HasForeignKey("BrandId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Store__brand_id__5535A963");
-
-                    b.Navigation("Address");
-
-                    b.Navigation("Brand");
-                });
-
             modelBuilder.Entity("drinking_be.Models.SupplyOrder", b =>
                 {
-                    b.HasOne("drinking_be.Models.User", "ApprovedBy")
+                    b.HasOne("User", "ApprovedBy")
                         .WithMany()
                         .HasForeignKey("ApprovedByUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("drinking_be.Models.User", "CreatedBy")
+                    b.HasOne("User", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("drinking_be.Models.Store", "Store")
+                    b.HasOne("Store", "Store")
                         .WithMany()
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3382,57 +3649,103 @@ namespace drinking_be.Migrations
                     b.Navigation("SupplyOrder");
                 });
 
-            modelBuilder.Entity("drinking_be.Models.UserVoucher", b =>
-                {
-                    b.HasOne("drinking_be.Models.Order", "OrderUsed")
-                        .WithMany()
-                        .HasForeignKey("OrderIdUsed")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("FK_UserVoucher_OrderIdUsed");
-
-                    b.HasOne("drinking_be.Models.User", "User")
-                        .WithMany("UserVouchers")
-                        .HasForeignKey("UserId")
-                        .IsRequired()
-                        .HasConstraintName("FK__User_Vouc__order__65370702");
-
-                    b.HasOne("drinking_be.Models.VoucherTemplate", "VoucherTemplate")
-                        .WithMany("UserVouchers")
-                        .HasForeignKey("VoucherTemplateId")
-                        .IsRequired()
-                        .HasConstraintName("FK__User_Vouc__vouch__662B2B3B");
-
-                    b.Navigation("OrderUsed");
-
-                    b.Navigation("User");
-
-                    b.Navigation("VoucherTemplate");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.VoucherTemplate", b =>
-                {
-                    b.HasOne("drinking_be.Models.MembershipLevel", "Level")
-                        .WithMany("VoucherTemplates")
-                        .HasForeignKey("LevelId")
-                        .HasConstraintName("FK__Voucher_T__level__5E8A0973");
-
-                    b.Navigation("Level");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Address", b =>
+            modelBuilder.Entity("Address", b =>
                 {
                     b.Navigation("Orders");
 
                     b.Navigation("Store");
                 });
 
-            modelBuilder.Entity("drinking_be.Models.Brand", b =>
+            modelBuilder.Entity("Brand", b =>
                 {
                     b.Navigation("Policies");
 
                     b.Navigation("SocialMedias");
 
                     b.Navigation("Stores");
+                });
+
+            modelBuilder.Entity("Membership", b =>
+                {
+                    b.Navigation("PointHistories");
+                });
+
+            modelBuilder.Entity("MembershipLevel", b =>
+                {
+                    b.Navigation("Memberships");
+
+                    b.Navigation("VoucherTemplates");
+                });
+
+            modelBuilder.Entity("Product", b =>
+                {
+                    b.Navigation("CartItems");
+
+                    b.Navigation("OrderItems");
+
+                    b.Navigation("ProductSizes");
+
+                    b.Navigation("ProductStores");
+
+                    b.Navigation("Reviews");
+                });
+
+            modelBuilder.Entity("Size", b =>
+                {
+                    b.Navigation("CartItems");
+
+                    b.Navigation("OrderItems");
+
+                    b.Navigation("ProductSizes");
+                });
+
+            modelBuilder.Entity("Store", b =>
+                {
+                    b.Navigation("Orders");
+
+                    b.Navigation("Policies");
+
+                    b.Navigation("ProductStores");
+
+                    b.Navigation("Reservations");
+
+                    b.Navigation("Rooms");
+
+                    b.Navigation("ShopTables");
+
+                    b.Navigation("SocialMedias");
+
+                    b.Navigation("Staffs");
+                });
+
+            modelBuilder.Entity("User", b =>
+                {
+                    b.Navigation("Addresses");
+
+                    b.Navigation("Cart");
+
+                    b.Navigation("Comments");
+
+                    b.Navigation("Membership");
+
+                    b.Navigation("News");
+
+                    b.Navigation("Notifications");
+
+                    b.Navigation("Orders");
+
+                    b.Navigation("Reservations");
+
+                    b.Navigation("Reviews");
+
+                    b.Navigation("Staff");
+
+                    b.Navigation("UserVouchers");
+                });
+
+            modelBuilder.Entity("VoucherTemplate", b =>
+                {
+                    b.Navigation("UserVouchers");
                 });
 
             modelBuilder.Entity("drinking_be.Models.Cart", b =>
@@ -3464,13 +3777,6 @@ namespace drinking_be.Migrations
                     b.Navigation("SupplyOrderItems");
                 });
 
-            modelBuilder.Entity("drinking_be.Models.MembershipLevel", b =>
-                {
-                    b.Navigation("Memberships");
-
-                    b.Navigation("VoucherTemplates");
-                });
-
             modelBuilder.Entity("drinking_be.Models.News", b =>
                 {
                     b.Navigation("Comments");
@@ -3493,17 +3799,6 @@ namespace drinking_be.Migrations
                     b.Navigation("Orders");
                 });
 
-            modelBuilder.Entity("drinking_be.Models.Product", b =>
-                {
-                    b.Navigation("CartItems");
-
-                    b.Navigation("OrderItems");
-
-                    b.Navigation("ProductSizes");
-
-                    b.Navigation("Reviews");
-                });
-
             modelBuilder.Entity("drinking_be.Models.Room", b =>
                 {
                     b.Navigation("ShopTables");
@@ -3513,68 +3808,14 @@ namespace drinking_be.Migrations
                 {
                     b.Navigation("InverseMergedWithTable");
 
-                    b.Navigation("Reservations");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Size", b =>
-                {
-                    b.Navigation("CartItems");
-
-                    b.Navigation("OrderItems");
-
-                    b.Navigation("ProductSizes");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.Store", b =>
-                {
                     b.Navigation("Orders");
 
-                    b.Navigation("Policies");
-
                     b.Navigation("Reservations");
-
-                    b.Navigation("Rooms");
-
-                    b.Navigation("ShopTables");
-
-                    b.Navigation("SocialMedias");
-
-                    b.Navigation("Staffs");
                 });
 
             modelBuilder.Entity("drinking_be.Models.SupplyOrder", b =>
                 {
                     b.Navigation("SupplyOrderItems");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.User", b =>
-                {
-                    b.Navigation("Addresses");
-
-                    b.Navigation("Cart");
-
-                    b.Navigation("Comments");
-
-                    b.Navigation("Membership");
-
-                    b.Navigation("News");
-
-                    b.Navigation("Notifications");
-
-                    b.Navigation("Orders");
-
-                    b.Navigation("Reservations");
-
-                    b.Navigation("Reviews");
-
-                    b.Navigation("Staff");
-
-                    b.Navigation("UserVouchers");
-                });
-
-            modelBuilder.Entity("drinking_be.Models.VoucherTemplate", b =>
-                {
-                    b.Navigation("UserVouchers");
                 });
 #pragma warning restore 612, 618
         }

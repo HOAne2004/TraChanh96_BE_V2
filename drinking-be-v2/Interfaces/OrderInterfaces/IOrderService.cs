@@ -1,26 +1,31 @@
-﻿using drinking_be.Dtos.OrderDtos;
+﻿using drinking_be.Dtos.Common;
+using drinking_be.Dtos.OrderDtos;
 using drinking_be.Enums;
 
 namespace drinking_be.Interfaces.OrderInterfaces
 {
     public interface IOrderService
     {
-        // Tạo đơn hàng mới
-        Task<OrderReadDto> CreateOrderAsync(int userId, OrderCreateDto dto);
+        // 1. Tạo đơn
+        Task<OrderReadDto> CreateAtCounterOrderAsync(int? userId, AtCounterOrderCreateDto dto);
+        Task<OrderReadDto> CreateDeliveryOrderAsync(int? userId, DeliveryOrderCreateDto dto);
 
-        // Lấy chi tiết đơn hàng
-        Task<OrderReadDto?> GetOrderByIdAsync(long orderId);
+        // 2. Xử lý đơn
+        Task<OrderReadDto> UpdateOrderStatusAsync(long orderId, OrderStatusEnum newStatus);
+        Task<bool> CancelOrderAsync(long orderId, int? userId, OrderCancelDto cancelDto);
 
-        // Lấy danh sách đơn hàng của User (Lịch sử mua hàng)
-        Task<IEnumerable<OrderReadDto>> GetMyOrdersAsync(int userId, OrderStatusEnum? status);
+        // 3. Tra cứu
+        Task<PagedResult<OrderReadDto>> GetMyOrdersAsync(int userId, PagingRequest request);
+        Task<OrderReadDto> GetOrderByIdAsync(long id);
 
-        // Admin: Lấy tất cả đơn hàng (Quản lý)
-        Task<IEnumerable<OrderReadDto>> GetAllOrdersAsync(OrderStatusEnum? status, string? searchCode);
+        // 4. Vận hành (Shipper/Staff)
+        Task<bool> AssignShipperAsync(long orderId, int shipperId);
+        Task<bool> VerifyPickupCodeAsync(long orderId, string code);
 
-        // Cập nhật trạng thái đơn hàng (Duyệt, Giao, Hoàn thành...)
-        Task<OrderReadDto?> UpdateOrderStatusAsync(long orderId, OrderStatusEnum newStatus);
+        //5. Quản lý & Thống kê
+        Task<PagedResult<OrderReadDto>> GetOrdersByFilterAsync(OrderFilterDto filter);
+        Task<OrderQuickStatsDto> GetQuickStatsAsync(int? storeId, DateTime date);
 
-        // Hủy đơn hàng
-        Task<bool> CancelOrderAsync(long orderId, int userId, string reason);
+
     }
 }

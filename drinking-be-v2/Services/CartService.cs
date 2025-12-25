@@ -4,7 +4,7 @@ using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.OrderInterfaces;
 using drinking_be.Models;
-using drinking_be.Utils; // ✅ Dùng để gọi hàm GetDescription()
+using drinking_be.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace drinking_be.Services
@@ -24,15 +24,45 @@ namespace drinking_be.Services
 
         public async Task<CartReadDto> GetMyCartAsync(int userId)
         {
-            var cart = await GetOrCreateCartAsync(userId);
+            // ⭐️ FIX LỖI 500: Không tạo Cart rác nếu chỉ đang xem.
+            // Nếu chưa có, trả về object rỗng để FE không bị lỗi null.
+            var cartRepo = _unitOfWork.Repository<Cart>();
+            var cart = await cartRepo.GetFirstOrDefaultAsync(
+                filter: c => c.UserId == userId,
+                includeProperties: "CartItems,CartItems.Product,CartItems.Size,CartItems.InverseParentItem,CartItems.InverseParentItem.Product"
+            );
+
+            if (cart == null)
+            {
+                return new CartReadDto
+                {
+                    UserId = userId,
+                    Items = new List<CartItemReadDto>(),
+                    TotalAmount = 0
+                };
+            }
+
             return MapCartToReadDto(cart);
         }
 
         public async Task<CartReadDto> AddItemToCartAsync(int userId, CartItemCreateDto itemDto)
         {
-            var cart = await GetOrCreateCartAsync(userId);
+            // 1. Xác định StoreId cho Giỏ hàng (nếu chưa có)
+            // Lấy StoreId từ sản phẩm đang thêm vào
+            // Lưu ý: Logic này giả định sản phẩm thuộc 1 store hoặc lấy store đầu tiên tìm thấy
+            int targetStoreId = 1; // Fallback
+            var productStore = await _unitOfWork.Repository<ProductStore>()
+                .GetFirstOrDefaultAsync(ps => ps.ProductId == itemDto.ProductId);
 
-            // 1. Lấy Product & Size (Dùng Generic Repository)
+            if (productStore != null)
+            {
+                targetStoreId = productStore.StoreId;
+            }
+
+            // 2. Lấy hoặc Tạo giỏ hàng (kèm StoreId vừa tìm được)
+            var cart = await GetOrCreateCartAsync(userId, targetStoreId);
+
+            // 3. Logic thêm sản phẩm (Giữ nguyên logic cũ nhưng clean hơn)
             var productIds = new List<int> { itemDto.ProductId };
             if (itemDto.Toppings != null)
             {
@@ -45,19 +75,18 @@ namespace drinking_be.Services
             if (!allProductsMap.ContainsKey(itemDto.ProductId))
                 throw new Exception("Sản phẩm chính không tồn tại.");
 
-            // SizeId trong DTO là short, Size.Id cũng là short -> OK
             var size = await _unitOfWork.Repository<Size>().GetByIdAsync(itemDto.SizeId);
             if (size == null) throw new Exception("Size không hợp lệ.");
 
-            // 2. Tính giá tiền
+            // Tính giá
             var mainProduct = allProductsMap[itemDto.ProductId];
             decimal basePrice = mainProduct.BasePrice;
-            decimal sizeModifier = size.PriceModifier ?? 0; // ✅ Xử lý nullable decimal
+            decimal sizeModifier = size.PriceModifier ?? 0;
 
             decimal itemUnitPrice = basePrice + sizeModifier;
             decimal itemTotalPrice = itemUnitPrice * itemDto.Quantity;
 
-            // 3. Tạo CartItem (Món chính)
+            // Tạo CartItem
             var mainCartItem = new CartItem
             {
                 CartId = cart.Id,
@@ -65,26 +94,24 @@ namespace drinking_be.Services
                 Quantity = itemDto.Quantity,
                 BasePrice = basePrice,
                 FinalPrice = itemTotalPrice,
-
                 SizeId = itemDto.SizeId,
-
-                // ✅ Ép kiểu từ short (DTO) sang Enum (Entity)
                 SugarLevel = itemDto.SugarLevelId.HasValue ? (SugarLevelEnum)itemDto.SugarLevelId.Value : null,
                 IceLevel = itemDto.IceLevelId.HasValue ? (IceLevelEnum)itemDto.IceLevelId.Value : null,
-
                 Note = itemDto.Note,
-                ParentItemId = null
+                ParentItemId = null,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
-            // 4. Xử lý Topping (Món phụ)
+            // Topping
             if (itemDto.Toppings != null)
             {
                 foreach (var toppingDto in itemDto.Toppings)
                 {
                     if (!allProductsMap.ContainsKey(toppingDto.ProductId)) continue;
-
                     var toppingProduct = allProductsMap[toppingDto.ProductId];
 
+                    // Logic giá topping: Giá gốc * (Số lượng topping * Số lượng món chính)
                     int totalToppingQty = toppingDto.Quantity * itemDto.Quantity;
                     decimal toppingTotalPrice = toppingProduct.BasePrice * totalToppingQty;
 
@@ -95,7 +122,8 @@ namespace drinking_be.Services
                         Quantity = totalToppingQty,
                         BasePrice = toppingProduct.BasePrice,
                         FinalPrice = toppingTotalPrice,
-                        // ParentItem = mainCartItem (EF tự gán)
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
                     });
                 }
             }
@@ -103,14 +131,13 @@ namespace drinking_be.Services
             await _unitOfWork.Repository<CartItem>().AddAsync(mainCartItem);
             await _unitOfWork.SaveChangesAsync();
 
+            // Refresh lại cart để trả về full info
             return await GetMyCartAsync(userId);
         }
 
         public async Task<CartReadDto> UpdateItemQuantityAsync(int userId, CartItemUpdateDto updateDto)
         {
             var cartItemRepo = _unitOfWork.Repository<CartItem>();
-
-            // Lấy item cần sửa, include Size và Topping con
             var cartItem = await cartItemRepo.GetFirstOrDefaultAsync(
                 filter: ci => ci.Id == updateDto.CartItemId && ci.Cart.UserId == userId,
                 includeProperties: "Size,InverseParentItem"
@@ -123,26 +150,27 @@ namespace drinking_be.Services
 
             if (newQuantity <= 0)
             {
-                cartItemRepo.Delete(cartItem); // Xóa món chính -> Cascade xóa món con
+                cartItemRepo.Delete(cartItem);
             }
             else
             {
-                // Cập nhật món chính
                 decimal sizeModifier = cartItem.Size?.PriceModifier ?? 0;
                 decimal unitPrice = cartItem.BasePrice + sizeModifier;
 
                 cartItem.Quantity = newQuantity;
                 cartItem.FinalPrice = unitPrice * newQuantity;
+                cartItem.UpdatedAt = DateTime.UtcNow;
                 cartItemRepo.Update(cartItem);
 
-                // Cập nhật topping con theo tỉ lệ
                 if (cartItem.InverseParentItem != null)
                 {
                     foreach (var topping in cartItem.InverseParentItem)
                     {
-                        int toppingUnitQty = oldQuantity > 0 ? topping.Quantity / oldQuantity : 1;
-                        topping.Quantity = toppingUnitQty * newQuantity;
+                        // Tính tỉ lệ topping trên mỗi món chính cũ
+                        int toppingPerItem = oldQuantity > 0 ? topping.Quantity / oldQuantity : 1;
+                        topping.Quantity = toppingPerItem * newQuantity;
                         topping.FinalPrice = topping.BasePrice * topping.Quantity;
+                        topping.UpdatedAt = DateTime.UtcNow;
                         cartItemRepo.Update(topping);
                     }
                 }
@@ -164,7 +192,6 @@ namespace drinking_be.Services
                 cartItemRepo.Delete(cartItem);
                 await _unitOfWork.SaveChangesAsync();
             }
-
             return await GetMyCartAsync(userId);
         }
 
@@ -187,17 +214,25 @@ namespace drinking_be.Services
 
         // --- PRIVATE HELPER ---
 
-        private async Task<Cart> GetOrCreateCartAsync(int userId)
+        // ⭐️ FIX: Thêm tham số storeId để gán khi tạo mới
+        private async Task<Cart> GetOrCreateCartAsync(int userId, int storeId)
         {
             var cartRepo = _unitOfWork.Repository<Cart>();
             var cart = await cartRepo.GetFirstOrDefaultAsync(
                 filter: c => c.UserId == userId,
-                includeProperties: "CartItems,CartItems.Product,CartItems.Size,CartItems.InverseParentItem,CartItems.InverseParentItem.Product"
+                includeProperties: "CartItems" // Chỉ cần load items để add
             );
 
             if (cart == null)
             {
-                cart = new Cart { UserId = userId, CreatedAt = DateTime.UtcNow };
+                cart = new Cart
+                {
+                    UserId = userId,
+                    StoreId = storeId, // ✅ Quan trọng: Gán StoreId để tránh lỗi FK
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    Status = CartStatusEnum.Active
+                };
                 await cartRepo.AddAsync(cart);
                 await _unitOfWork.SaveChangesAsync();
             }
@@ -225,14 +260,16 @@ namespace drinking_be.Services
                     }
                     if (mainItem.Size != null) itemDto.SizeLabel = mainItem.Size.Label;
 
-                    // ⭐ [CẬP NHẬT] Dùng Enum Extensions để lấy Description tiếng Việt
+                    // ⭐ [CẬP NHẬT] Map cả ID và Label cho Enum
                     if (mainItem.SugarLevel.HasValue)
                     {
+                        itemDto.SugarLevelId = (short)mainItem.SugarLevel.Value; // ✅ Map ID
                         itemDto.SugarLabel = mainItem.SugarLevel.Value.GetDescription();
                     }
 
                     if (mainItem.IceLevel.HasValue)
                     {
+                        itemDto.IceLevelId = (short)mainItem.IceLevel.Value; // ✅ Map ID
                         itemDto.IceLabel = mainItem.IceLevel.Value.GetDescription();
                     }
 
@@ -250,7 +287,6 @@ namespace drinking_be.Services
                         }).ToList();
                     }
 
-                    // Tính tổng tiền hiển thị
                     decimal itemTotal = mainItem.FinalPrice;
                     if (mainItem.InverseParentItem != null)
                     {

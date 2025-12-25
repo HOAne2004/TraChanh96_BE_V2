@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using drinking_be.Interfaces;
+using System.ComponentModel.DataAnnotations;
 
 namespace drinking_be.Models;
 
@@ -14,7 +15,7 @@ public partial class Review : ISoftDelete
     public int UserId { get; set; }
 
     public string? Content { get; set; }
-
+    [Range(1, 5)]
     public byte Rating { get; set; }
 
     public ReviewStatusEnum Status { get; set; } = ReviewStatusEnum.Pending;
@@ -22,7 +23,7 @@ public partial class Review : ISoftDelete
     public string? MediaUrl { get; set; }
 
     public string? AdminResponse { get; set; }
-
+    public bool IsEdited { get; set; } = false;
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }

@@ -34,8 +34,10 @@ public partial class DBDrinkContext : DbContext
     public virtual DbSet<OrderPayment> OrderPayments { get; set; }
     public virtual DbSet<PaymentMethod> PaymentMethods { get; set; }
     public virtual DbSet<Policy> Policies { get; set; }
+    public virtual DbSet<PointHistory> PointHistories { get; set; }
     public virtual DbSet<Product> Products { get; set; }
     public virtual DbSet<ProductSize> ProductSizes { get; set; }
+    public DbSet<ProductStore> ProductStores { get; set; }
     public virtual DbSet<Reservation> Reservations { get; set; }
     public virtual DbSet<Review> Reviews { get; set; }
     public virtual DbSet<Room> Rooms { get; set; }
@@ -54,95 +56,88 @@ public partial class DBDrinkContext : DbContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<Address>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK_Address_Id"); 
-
             entity.ToTable("address");
 
-            // Bỏ UserId vì đã có trong cấu trúc Address trước đó
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_Address_Id");
 
-            // Các trường mới: Thông tin người nhận
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
+            entity.Property(e => e.UserId)
+                  .HasColumnName("user_id");
+
             entity.Property(e => e.RecipientName)
-                .HasMaxLength(100)
-                .HasColumnName("recipient_name");
+                  .HasMaxLength(200)
+                  .HasColumnName("recipient_name");
 
             entity.Property(e => e.RecipientPhone)
-                .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasColumnName("recipient_phone");
+                  .HasMaxLength(50)
+                  .HasColumnName("recipient_phone");
 
-            // Các trường địa chỉ chi tiết
             entity.Property(e => e.FullAddress)
-                .HasMaxLength(500)
-                .HasColumnName("full_address");
+                  .IsRequired()
+                  .HasMaxLength(1000)
+                  .HasColumnName("full_address");
 
             entity.Property(e => e.AddressDetail)
-                .HasMaxLength(255) // Giả định độ dài chi tiết
-                .HasColumnName("address_detail");
+                  .IsRequired()
+                  .HasMaxLength(500)
+                  .HasColumnName("address_detail");
 
-            // Phân cấp hành chính
             entity.Property(e => e.Province)
-                .HasMaxLength(100)
-                .HasColumnName("province");
+                  .IsRequired()
+                  .HasMaxLength(100)
+                  .HasColumnName("province");
 
             entity.Property(e => e.District)
-                .HasMaxLength(100)
-                .HasColumnName("district");
+                  .IsRequired()
+                  .HasMaxLength(100)
+                  .HasColumnName("district");
 
             entity.Property(e => e.Commune)
-                .HasMaxLength(100)
-                .HasColumnName("commune");
+                  .IsRequired()
+                  .HasMaxLength(100)
+                  .HasColumnName("commune");
 
-            // Tọa độ GPS (Bắt buộc)
             entity.Property(e => e.Latitude)
-                .HasColumnType("double precision") // Dùng double precision cho tọa độ
-                .HasColumnName("latitude");
+                  .HasColumnName("latitude");
 
             entity.Property(e => e.Longitude)
-                .HasColumnType("double precision")
-                .HasColumnName("longitude");
+                  .HasColumnName("longitude");
 
             entity.Property(e => e.IsDefault)
-                .HasDefaultValue(false)
-                .HasColumnName("is_default");
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
+                  .HasDefaultValue(false)
+                  .HasColumnName("is_default");
 
             entity.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasDefaultValue(PublicStatusEnum.Active) // Set giá trị mặc định là 1 (Active)
-                .HasConversion<byte>();
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
 
-            // Thiết lập khóa ngoại tới User (một User có nhiều Address)
-            entity.HasOne(d => d.User)
-                .WithMany(p => p.Addresses) // Giả định User có Navigation Property là Addresses
-                .HasForeignKey(d => d.UserId)
-                .IsRequired(false) // Cho phép địa chỉ Store không có UserId
-                .HasConstraintName("FK_Address_UserId");
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
 
-            entity.HasOne(d => d.Store)
-                .WithOne(p => p.Address) // Giả định Store có Navigation Property ngược là Address
-                .HasForeignKey<Store>(d => d.AddressId) // Khóa ngoại StoreId sẽ được tham chiếu ngược từ Store
-                .IsRequired(false) // Cho phép Address không thuộc Store
-                .HasConstraintName("FK_Address_StoreId");
-            entity.HasMany(d => d.Orders)
-                .WithOne(p => p.DeliveryAddress) // Giả định Order có DeliveryAddress
-                .HasForeignKey(d => d.DeliveryAddressId) // Khóa ngoại Order.DeliveryAddressId
-                .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("FK_Order_DeliveryAddressId");
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            // --- RELATIONSHIPS ---
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.Addresses)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Quan hệ 1-1 với Store, FK nằm ở Store.AddressId
+            //entity.HasOne(e => e.Store)
+            //      .WithOne(s => s.Address)
+            //      .HasForeignKey<Store>(s => s.AddressId)
+            //      .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Attendance>(entity =>
@@ -169,7 +164,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Status)
                 .HasColumnName("status")
                 .HasDefaultValue(AttendanceStatusEnum.Absent)
-                .HasConversion<byte>();
+                .HasConversion<short>();
 
             entity.Property(e => e.Note).HasMaxLength(500).HasColumnName("note");
 
@@ -202,271 +197,364 @@ public partial class DBDrinkContext : DbContext
 
         modelBuilder.Entity<Brand>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Brand__3213E83F3D8FA9ED");
-
             entity.ToTable("brand");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Address)
-                .HasMaxLength(255)
-                .HasColumnName("address");
-            entity.Property(e => e.CompanyName)
-                .HasMaxLength(100)
-                .HasColumnName("company_name");
-            entity.Property(e => e.CopyrightText)
-                .HasMaxLength(255)
-                .HasColumnName("copyright_text");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.EmailSupport)
-                .HasMaxLength(100)
-                .IsUnicode(false)
-                .HasColumnName("email_support");
-            entity.Property(e => e.EstablishedDate)
-                .HasColumnType("date")
-                .HasColumnName("established_date");
-            entity.Property(e => e.Hotline)
-                .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasColumnName("hotline");
-            entity.Property(e => e.LogoUrl)
-                .HasMaxLength(500)
-                .IsUnicode(false)
-                .HasColumnName("logo_url");
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_Brand_Id");
+
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
+            entity.Property(e => e.PublicId)
+                  .HasDefaultValueSql("gen_random_uuid()")
+                  .HasColumnName("public_id");
+
+            entity.HasIndex(e => e.PublicId)
+                  .IsUnique();
+
             entity.Property(e => e.Name)
-                .HasMaxLength(100)
-                .HasColumnName("name");
-            entity.Property(e => e.Slogan)
-                .HasMaxLength(255)
-                .HasColumnName("slogan");
-            entity.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasDefaultValue(PublicStatusEnum.Active) // Set giá trị mặc định là 1 (Active)
-                .HasConversion<byte>();
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("name");
+
+            entity.Property(e => e.LogoUrl)
+                  .HasColumnName("logo_url");
+
+            entity.Property(e => e.Address)
+                  .HasColumnName("address");
+
+            entity.Property(e => e.Hotline)
+                  .HasMaxLength(50)
+                  .HasColumnName("hotline");
+
+            entity.Property(e => e.EmailSupport)
+                  .HasMaxLength(200)
+                  .HasColumnName("email_support");
+
             entity.Property(e => e.TaxCode)
-                .HasMaxLength(30)
-                .IsUnicode(false)
-                .HasColumnName("tax_code");
+                  .HasMaxLength(50)
+                  .HasColumnName("tax_code");
+
+            entity.Property(e => e.CompanyName)
+                  .HasMaxLength(200)
+                  .HasColumnName("company_name");
+
+            entity.Property(e => e.Slogan)
+                  .HasMaxLength(300)
+                  .HasColumnName("slogan");
+
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.CopyrightText)
+                  .HasColumnName("copyright_text");
+
+            entity.Property(e => e.EstablishedDate)
+                  .HasColumnName("established_date");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
             entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
         });
 
         modelBuilder.Entity<Banner>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK_Banner_Id");
-
             entity.ToTable("banner");
 
+            entity.HasKey(e => e.Id);
+
             entity.Property(e => e.Id)
-                .HasColumnName("id")
-                .ValueGeneratedOnAdd();
+                  .HasColumnName("id");
 
             entity.Property(e => e.ImageUrl)
-                .IsRequired()
-                .HasMaxLength(500)
-                .IsUnicode(false)
-                .HasColumnName("image_url");
+                  .IsRequired()
+                  .HasMaxLength(500)
+                  .HasColumnName("image_url");
 
             entity.Property(e => e.Title)
-                .HasMaxLength(200)
-                .HasColumnName("title");
+                  .HasMaxLength(200)
+                  .HasColumnName("title");
 
             entity.Property(e => e.LinkUrl)
-                .HasMaxLength(500)
-                .IsUnicode(false)
-                .HasColumnName("link_url");
+                  .HasMaxLength(500)
+                  .HasColumnName("link_url");
 
             entity.Property(e => e.SortOrder)
-                .HasDefaultValue(0)
-                .HasColumnName("sort_order");
+                  .HasDefaultValue(0)
+                  .HasColumnName("sort_order");
 
             entity.Property(e => e.Position)
-                .HasMaxLength(50)
-                .IsUnicode(false)
-                .HasColumnName("position");
+                  .HasMaxLength(50)
+                  .HasColumnName("position");
 
             entity.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasDefaultValue(PublicStatusEnum.Active)
-                .HasConversion<byte>();
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.StartAt)
+                  .HasColumnName("start_at");
+
+            entity.Property(e => e.EndAt)
+                  .HasColumnName("end_at");
+
+            entity.Property(e => e.IsClickable)
+                  .HasDefaultValue(true)
+                  .HasColumnName("is_clickable");
 
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
             entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
+                  .HasColumnName("updated_at");
+
             entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
+                  .HasColumnName("deleted_at");
 
-            // Indexes
-            entity.HasIndex(e => new { e.Position, e.Status, e.SortOrder })
-                .HasDatabaseName("IX_banner_position_status_order");
-
-            entity.HasIndex(e => e.SortOrder)
-                .HasDatabaseName("IX_banner_sort_order");
+            // Index phục vụ query nhanh banner đang hiển thị
+            entity.HasIndex(e => new { e.Position, e.Status });
         });
 
         modelBuilder.Entity<Cart>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Cart__3213E83FED0FE127");
+            entity.ToTable("cart");
 
-            entity.ToTable("Cart");
+            entity.HasKey(e => e.Id);
 
-            entity.HasIndex(e => e.UserId, "UQ__Cart__B9BE370E2DCD722C").IsUnique();
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId)
+                  .HasColumnName("user_id")
+                  .IsRequired();
+
+            entity.Property(e => e.StoreId)
+                  .HasColumnName("store_id")
+                  .IsRequired();
+
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(CartStatusEnum.Active)
+                  .HasColumnName("status");
+
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
 
-            entity.HasOne(d => d.User).WithOne(p => p.Cart)
-                .HasForeignKey<Cart>(d => d.UserId)
-                .HasConstraintName("FK__Cart__user_id__37703C52");
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            // --- RELATIONSHIPS ---
+            entity.HasOne(e => e.User)
+                  .WithOne(u => u.Cart)
+                  .HasForeignKey<Cart>(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Store)
+                  .WithMany()
+                  .HasForeignKey(e => e.StoreId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // --- LOGICAL CONSTRAINT ---
+            entity.HasIndex(e => new { e.UserId, e.Status });
         });
 
         modelBuilder.Entity<CartItem>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Cart_ite__3213E83F486E79A8");
-
             entity.ToTable("cart_item");
 
+            entity.HasKey(e => e.Id);
+
             entity.Property(e => e.Id).HasColumnName("id");
+
+            entity.Property(e => e.CartId)
+                  .HasColumnName("cart_id")
+                  .IsRequired();
+
+            entity.Property(e => e.ProductId)
+                  .HasColumnName("product_id")
+                  .IsRequired();
+
+            entity.Property(e => e.SizeId)
+                  .HasColumnName("size_id");
+
+            entity.Property(e => e.Quantity)
+                  .HasColumnName("quantity")
+                  .IsRequired();
+
             entity.Property(e => e.BasePrice)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("base_price");
-            entity.Property(e => e.CartId).HasColumnName("cart_id");
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("base_price");
+
             entity.Property(e => e.FinalPrice)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("final_price");
-            entity.Property(e => e.Note)
-                .HasMaxLength(255)
-                .HasColumnName("note");
-            entity.Property(e => e.ParentItemId).HasColumnName("parent_item_id");
-            entity.Property(e => e.ProductId).HasColumnName("product_id");
-            entity.Property(e => e.Quantity).HasColumnName("quantity");
-            entity.Property(e => e.SizeId).HasColumnName("size_id");
-            
-            entity.Property(e => e.IceLevel)
-                .HasColumnName("ice_level")
-                .HasConversion<byte>();
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("final_price");
+
             entity.Property(e => e.SugarLevel)
-                .HasColumnName("sugar_level")
-                .HasConversion<byte>();
+                  .HasConversion<short>()
+                  .HasColumnName("sugar_level");
 
-            entity.HasOne(d => d.Cart).WithMany(p => p.CartItems)
-                .HasForeignKey(d => d.CartId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Cart_item__cart___3B40CD36");
+            entity.Property(e => e.IceLevel)
+                  .HasConversion<short>()
+                  .HasColumnName("ice_level");
 
-            entity.HasOne(d => d.ParentItem).WithMany(p => p.InverseParentItem)
-                .HasForeignKey(d => d.ParentItemId)
-                .HasConstraintName("FK__Cart_item__paren__3D2915A8");
+            entity.Property(e => e.Note)
+                  .HasMaxLength(500)
+                  .HasColumnName("note");
 
-            entity.HasOne(d => d.Product).WithMany(p => p.CartItems)
-                .HasForeignKey(d => d.ProductId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Cart_item__produ__3C34F16F");
+            entity.Property(e => e.ParentItemId)
+                  .HasColumnName("parent_item_id");
 
-            entity.HasOne(d => d.Size).WithMany(p => p.CartItems)
-                .HasForeignKey(d => d.SizeId)
-                .HasConstraintName("FK__Cart_item__size___3E1D39E1");
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            // --- RELATIONSHIPS ---
+            entity.HasOne(e => e.Cart)
+                  .WithMany(c => c.CartItems)
+                  .HasForeignKey(e => e.CartId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Product)
+                  .WithMany(p => p.CartItems)
+                  .HasForeignKey(e => e.ProductId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Size)
+                  .WithMany(s => s.CartItems)
+                  .HasForeignKey(e => e.SizeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.ParentItem)
+                  .WithMany(p => p.InverseParentItem)
+                  .HasForeignKey(e => e.ParentItemId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Category>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Category__3213E83F5A39BDEA");
-
             entity.ToTable("category");
 
-            entity.HasIndex(e => e.Slug, "UQ__Category__32DD1E4C00F59B8C").IsUnique();
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_Category_Id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.Name)
-                .HasMaxLength(100)
-                .HasColumnName("name");
-            entity.Property(e => e.ParentId).HasColumnName("parent_id");
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
+            entity.Property(e => e.ParentId)
+                  .HasColumnName("parent_id");
+
             entity.Property(e => e.Slug)
-                .HasMaxLength(100)
-                .IsUnicode(false)
-                .HasColumnName("slug");
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("slug");
+
+            entity.HasIndex(e => e.Slug)
+                  .IsUnique();
+
+            entity.Property(e => e.Name)
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("name");
+
             entity.Property(e => e.SortOrder)
-                .HasDefaultValue((byte)0)
-                .HasColumnName("sort_order");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
+                  .HasColumnName("sort_order");
+
             entity.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasDefaultValue(PublicStatusEnum.Active) // Set giá trị mặc định là 1 (Active)
-                .HasConversion<byte>();
-            entity.HasOne(d => d.Parent).WithMany(p => p.InverseParent)
-                .HasForeignKey(d => d.ParentId)
-                .HasConstraintName("FK__Category__parent__3C69FB99");
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            // --- SELF-REFERENCE (CATEGORY TREE) ---
+            entity.HasOne(e => e.Parent)
+                  .WithMany(e => e.InverseParent)
+                  .HasForeignKey(e => e.ParentId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Comment>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Comment__3213E83FE8B13CD2");
-
             entity.ToTable("comment");
 
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
+            entity.Property(e => e.UserId)
+                  .HasColumnName("user_id")
+                  .IsRequired();
+
+            entity.Property(e => e.NewsId)
+                  .HasColumnName("news_id")
+                  .IsRequired();
+
+            entity.Property(e => e.ParentId)
+                  .HasColumnName("parent_id");
+
             entity.Property(e => e.Content)
-                .HasMaxLength(500)
-                .HasColumnName("content");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
-            entity.Property(e => e.NewsId).HasColumnName("news_id");
-            entity.Property(e => e.ParentId).HasColumnName("parent_id");
+                  .HasColumnName("content")
+                  .HasMaxLength(2000)
+                  .IsRequired();
+
             entity.Property(e => e.Status)
-                .HasDefaultValue(ReviewStatusEnum.Pending)
-                .HasColumnName("status")
-                .HasConversion<byte>();
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+                  .HasConversion<short>()
+                  .HasDefaultValue(ReviewStatusEnum.Pending)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.IsEdited)
+                  .HasDefaultValue(false)
+                  .HasColumnName("is_edited");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
             entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-            entity.HasOne(d => d.News).WithMany(p => p.Comments)
-                .HasForeignKey(d => d.NewsId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Comment__news_id__06CD04F7");
+                  .HasColumnName("updated_at");
 
-            entity.HasOne(d => d.Parent).WithMany(p => p.InverseParent)
-                .HasForeignKey(d => d.ParentId)
-                .HasConstraintName("FK__Comment__parent___04E4BC85");
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
 
-            entity.HasOne(d => d.User).WithMany(p => p.Comments)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Comment__user_id__05D8E0BE");
+            // --- RELATIONSHIPS ---
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.Comments)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.News)
+                  .WithMany(n => n.Comments)
+                  .HasForeignKey(e => e.NewsId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Parent)
+                  .WithMany(p => p.InverseParent)
+                  .HasForeignKey(e => e.ParentId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<FranchiseRequest>(entity =>
@@ -552,257 +640,322 @@ public partial class DBDrinkContext : DbContext
 
         modelBuilder.Entity<Inventory>(entity =>
         {
-            // 1. Tên bảng & Khóa chính
             entity.ToTable("inventory");
-            entity.HasKey(e => e.Id).HasName("PK_Inventory_Id");
 
-            // 2. Mapping tên cột (Quan trọng để đồng bộ)
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.MaterialId).HasColumnName("material_id");
-            entity.Property(e => e.StoreId).HasColumnName("store_id");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
+            entity.Property(e => e.PublicId)
+                  .HasColumnName("public_id");
+
+            entity.Property(e => e.MaterialId)
+                  .HasColumnName("material_id")
+                  .IsRequired();
+
+            entity.Property(e => e.StoreId)
+                  .HasColumnName("store_id");
 
             entity.Property(e => e.Quantity)
-                .HasDefaultValue(0) // Mặc định tồn kho là 0
-                .HasColumnName("quantity");
+                  .HasColumnName("quantity")
+                  .IsRequired();
 
-            entity.Property(e => e.LastUpdated)
-                .HasDefaultValueSql("(NOW())") // Tự động lấy giờ hiện tại
-                .HasColumnName("last_updated");
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
 
-            // 3. Index Unique Phức hợp
-            // Đảm bảo 1 Material chỉ xuất hiện 1 lần tại 1 Store
-            entity.HasIndex(e => new { e.MaterialId, e.StoreId }, "UQ_Inventory_Material_Store")
+            entity.Property(e => e.RowVersion)
+                  .IsRowVersion()
+                  .HasColumnName("row_version");
+
+            // --- UNIQUE CONSTRAINT ---
+            entity.HasIndex(e => new { e.MaterialId, e.StoreId })
                   .IsUnique();
 
-            // 4. Relationships
-            // Quan hệ với Material
-            entity.HasOne(d => d.Material)
-                .WithMany(p => p.Inventories) // Đã có ICollection<Inventory> bên Material
-                .HasForeignKey(d => d.MaterialId)
-                .OnDelete(DeleteBehavior.Restrict); // Xóa Material không được nếu còn tồn kho
+            // --- RELATIONSHIPS ---
+            entity.HasOne(e => e.Material)
+                  .WithMany(m => m.Inventories)
+                  .HasForeignKey(e => e.MaterialId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
-            // Quan hệ với Store
-            entity.HasOne(d => d.Store)
-                .WithMany() // Store không cần list Inventory (hoặc thêm nếu muốn)
-                .HasForeignKey(d => d.StoreId)
-                .OnDelete(DeleteBehavior.Cascade); // Xóa Store -> Xóa luôn dòng tồn kho của Store đó
+            entity.HasOne(e => e.Store)
+                  .WithMany()
+                  .HasForeignKey(e => e.StoreId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Material>(entity =>
         {
-            entity.ToTable("material"); // Tên bảng trong DB
-            entity.HasKey(e => e.Id).HasName("PK_Material_Id");
+            entity.ToTable("material");
 
-            // --- ID & PublicId ---
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.HasKey(e => e.Id);
 
-            entity.HasIndex(e => e.PublicId).IsUnique();
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
             entity.Property(e => e.PublicId)
-                .HasDefaultValueSql("gen_random_uuid()") // Tự động sinh GUID
-                .HasColumnName("public_id");
+                  .HasColumnName("public_id");
 
-            // --- Thông tin cơ bản ---
             entity.Property(e => e.Name)
-                .IsRequired()
-                .HasMaxLength(200)
-                .HasColumnName("name");
+                  .HasMaxLength(255)
+                  .IsRequired()
+                  .HasColumnName("name");
 
             entity.Property(e => e.Description)
-                .HasMaxLength(1000) // Cho phép mô tả dài hơn chút
-                .HasColumnName("description");
+                  .HasColumnName("description");
 
             entity.Property(e => e.ImageUrl)
-                .HasColumnName("image_url");
+                  .HasColumnName("image_url");
 
-            // --- Đơn vị & Quy đổi ---
             entity.Property(e => e.BaseUnit)
-                .IsRequired()
-                .HasMaxLength(50)
-                .HasColumnName("base_unit");
+                  .HasConversion<short>()
+                  .HasColumnName("base_unit");
 
             entity.Property(e => e.PurchaseUnit)
-                .HasMaxLength(50)
-                .HasColumnName("purchase_unit");
+                  .HasConversion<short>()
+                  .HasColumnName("purchase_unit");
 
             entity.Property(e => e.ConversionRate)
-                .HasDefaultValue(1) // Mặc định 1:1 nếu không nhập
-                .HasColumnName("conversion_rate");
+                  .HasColumnName("conversion_rate");
 
-            // --- Giá vốn ---
             entity.Property(e => e.CostPerPurchaseUnit)
-                .HasColumnType("decimal(18, 2)") // Quan trọng cho tiền tệ
-                .HasDefaultValue(0m)
-                .HasColumnName("cost_per_purchase_unit");
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("cost_per_purchase_unit");
 
-            // ⭐ Bỏ qua thuộc tính tính toán (Computed Property) trong Database
-            // Dù đã có [NotMapped] nhưng khai báo rõ ràng ở đây càng tốt
-            entity.Ignore(e => e.CostPerBaseUnit);
-
-            // --- Quản trị ---
             entity.Property(e => e.MinStockAlert)
-                .HasColumnName("min_stock_alert");
+                  .HasColumnName("min_stock_alert");
 
             entity.Property(e => e.IsActive)
-                .HasDefaultValue(true)
-                .HasColumnName("is_active");
+                  .HasDefaultValue(true)
+                  .HasColumnName("is_active");
 
-            // --- Audit ---
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnName("created_at");
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
 
             entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnName("updated_at");
+                  .HasColumnName("updated_at");
 
             entity.Property(e => e.DeletedAt)
-                .HasColumnName("deleted_at");
+                  .HasColumnName("deleted_at");
 
-            // --- Relationships (Sẽ cấu hình chi tiết khi tạo Inventory và SupplyOrder) ---
-            // Hiện tại để mặc định EF Core tự hiểu hoặc cấu hình sau
+            // Relationships
+            entity.HasMany(e => e.Inventories)
+                  .WithOne(i => i.Material)
+                  .HasForeignKey(i => i.MaterialId);
+
+            entity.HasMany(e => e.SupplyOrderItems)
+                  .WithOne(s => s.Material)
+                  .HasForeignKey(s => s.MaterialId);
         });
 
         modelBuilder.Entity<Membership>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Membersh__3213E83FF483D767");
-
             entity.ToTable("membership");
 
-            entity.HasIndex(e => e.CardCode, "UQ__Membersh__81703D727EAE3828").IsUnique();
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_Membership_Id");
 
-            entity.HasIndex(e => e.UserId, "UQ__Membersh__B9BE370EFC41B82F").IsUnique();
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
+            // --- FK ---
+            entity.Property(e => e.UserId)
+                  .HasColumnName("user_id");
+
+            entity.Property(e => e.MembershipLevelId)
+                  .HasColumnName("membership_level_id");
+
+            entity.HasIndex(e => e.UserId)
+                  .IsUnique();
+
+            // --- Card ---
             entity.Property(e => e.CardCode)
-                .HasMaxLength(50)
-                .IsUnicode(false)
-                .HasColumnName("card_code");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
-            entity.Property(e => e.LastLevelSpentReset)
-                .HasColumnType("date")
-                .HasColumnName("last_level_spent_reset");
-            entity.Property(e => e.LevelEndDate)
-                .HasColumnType("date")
-                .HasColumnName("level_end_date");
-            entity.Property(e => e.LevelId).HasColumnName("level_id");
-            entity.Property(e => e.LevelStartDate)
-                .HasDefaultValueSql("CURRENT_DATE")
-                .HasColumnType("date")
-                .HasColumnName("level_start_date");
-            entity.Property(e => e.Status)
-                .HasDefaultValue(MembershipStatusEnum.Active)
-                .HasColumnName("status")
-                .HasConversion<byte>();
+                  .IsRequired()
+                  .HasMaxLength(50)
+                  .HasColumnName("card_code");
+
+            entity.HasIndex(e => e.CardCode)
+                  .IsUnique();
+
+            // --- Loyalty ---
+            entity.Property(e => e.CurrentCoins)
+                  .HasDefaultValue(0)
+                  .HasColumnName("current_coins");
+
             entity.Property(e => e.TotalSpent)
-                .HasDefaultValue(0m)
-                .HasColumnType("decimal(12, 2)")
-                .HasColumnName("total_spent");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+                  .HasColumnType("decimal(18,2)")
+                  .HasDefaultValue(0)
+                  .HasColumnName("total_spent");
 
-            entity.HasOne(d => d.Level).WithMany(p => p.Memberships)
-                .HasForeignKey(d => d.LevelId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Membershi__level__51300E55");
+            // --- Level lifecycle ---
+            entity.Property(e => e.LevelStartDate)
+                  .HasColumnName("level_start_date");
 
-            entity.HasOne(d => d.User).WithOne(p => p.Membership)
-                .HasForeignKey<Membership>(d => d.UserId)
-                .HasConstraintName("FK__Membershi__user___503BEA1C");
+            entity.Property(e => e.LevelEndDate)
+                  .HasColumnName("level_end_date");
+
+            entity.Property(e => e.LastLevelSpentReset)
+                  .HasColumnName("last_level_spent_reset");
+
+            // --- Status ---
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(MembershipStatusEnum.Active)
+                  .HasColumnName("status");
+
+            // --- Audit ---
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            // --- Relationships ---
+            entity.HasOne(e => e.User)
+                  .WithOne(u => u.Membership)
+                  .HasForeignKey<Membership>(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Level)
+                  .WithMany(l => l.Memberships)
+                  .HasForeignKey(e => e.MembershipLevelId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<MembershipLevel>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Membersh__3213E83F3901FC68");
+            entity.ToTable("membership_level");
 
-            entity.ToTable("membership_Level");
-
-            entity.HasIndex(e => e.Name, "UQ__Membersh__72E12F1BBCF20D34").IsUnique();
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_MembershipLevel_Id");
 
             entity.Property(e => e.Id)
-                .ValueGeneratedOnAdd()
-                .HasColumnName("id");
-            entity.Property(e => e.Benefits).HasColumnName("benefits");
-            entity.Property(e => e.Status)
-                .HasDefaultValue(PublicStatusEnum.Active)
-                .HasColumnName("status")
-                .HasConversion<byte>();
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
-            entity.Property(e => e.DurationDays).HasColumnName("duration_days");
-            entity.Property(e => e.MinSpendRequired)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("min_spend_required");
+                  .HasColumnName("id");
+
             entity.Property(e => e.Name)
-                .HasMaxLength(35)
-                .HasColumnName("name");
+                  .IsRequired()
+                  .HasMaxLength(100)
+                  .HasColumnName("name");
+
+            entity.Property(e => e.RankOrder)
+                  .HasColumnName("rank_order");
+
+            entity.HasIndex(e => e.RankOrder)
+                  .IsUnique();
+
+            entity.Property(e => e.MinCoinsRequired)
+                  .HasDefaultValue(0)
+                  .HasColumnName("min_coins_required");
+
+            entity.Property(e => e.DurationDays)
+                  .HasColumnName("duration_days");
+
+            entity.Property(e => e.Benefits)
+                  .HasMaxLength(1000)
+                  .HasColumnName("benefits");
+
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+            
+            entity.Property(e => e.PointEarningRate)
+                  .HasDefaultValue(0);
+
+            entity.Property(e => e.ResetReductionPercent)
+                  .HasDefaultValue(0);
         });
 
         modelBuilder.Entity<News>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__News__3213E83F6A9F9780");
+            entity.ToTable("news");
 
-            entity.HasIndex(e => e.Slug, "UQ__News__32DD1E4C5A174899").IsUnique();
+            entity.HasKey(e => e.Id);
 
-            entity.HasIndex(e => e.PublicId, "UQ__News__5699A53062598161").IsUnique();
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Content).HasColumnName("content");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.IsFeatured)
-                .HasDefaultValue(false)
-                .HasColumnName("is_featured");
             entity.Property(e => e.PublicId)
-                .HasDefaultValueSql("gen_random_uuid()")
-                .HasColumnName("public_id");
-            entity.Property(e => e.PublishedDate)
-                .HasColumnName("published_date");
-            entity.Property(e => e.SeoDescription)
-                .HasMaxLength(255)
-                .HasColumnName("seo_description");
-            entity.Property(e => e.Slug)
-                .HasMaxLength(200)
-                .HasColumnName("slug");
-            entity.Property(e => e.Status)
-                .HasDefaultValue(ContentStatusEnum.Draft)
-                .HasColumnName("status")
-                .HasConversion<byte>();
-            entity.Property(e => e.ThumbnailUrl)
-                .HasMaxLength(500)
-                .IsUnicode(false)
-                .HasColumnName("thumbnail_url");
-            entity.Property(e => e.Title)
-                .HasMaxLength(255)
-                .HasColumnName("title");
-            entity.Property(e => e.Type)
-                .HasMaxLength(50)
-                .HasColumnName("type");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+                  .HasDefaultValueSql("gen_random_uuid()")
+                  .HasColumnName("public_id");
 
-            entity.HasOne(d => d.User).WithMany(p => p.News)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__News__user_id__73BA3083");
+            entity.HasIndex(e => e.PublicId).IsUnique();
+
+            entity.Property(e => e.Slug)
+                  .IsRequired()
+                  .HasMaxLength(300)
+                  .HasColumnName("slug");
+
+            entity.HasIndex(e => e.Slug).IsUnique();
+
+            entity.Property(e => e.Type)
+                  .HasConversion<short>()
+                  .HasColumnName("type");
+
+            entity.Property(e => e.Title)
+                  .IsRequired()
+                  .HasMaxLength(300)
+                  .HasColumnName("title");
+
+            entity.Property(e => e.Content)
+                  .IsRequired()
+                  .HasColumnName("content");
+
+            entity.Property(e => e.ThumbnailUrl)
+                  .HasColumnName("thumbnail_url");
+
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(ContentStatusEnum.Draft)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.IsFeatured)
+                  .HasDefaultValue(false)
+                  .HasColumnName("is_featured");
+
+            entity.Property(e => e.ViewCount)
+                  .HasDefaultValue(0)
+                  .HasColumnName("view_count");
+
+            entity.Property(e => e.SeoDescription)
+                  .HasMaxLength(500)
+                  .HasColumnName("seo_description");
+
+            entity.Property(e => e.PublishedDate)
+                  .HasColumnName("published_date");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.News)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Notification>(entity =>
@@ -829,7 +982,7 @@ public partial class DBDrinkContext : DbContext
 
             entity.Property(e => e.Type)
                 .HasColumnName("type")
-                .HasConversion<byte>(); // Lưu Enum dưới dạng số (tinyint/smallint)
+                .HasConversion<short>(); // Lưu Enum dưới dạng số (tinyint/smallint)
 
             entity.Property(e => e.ReferenceId)
                 .HasMaxLength(100)
@@ -871,89 +1024,55 @@ public partial class DBDrinkContext : DbContext
 
         modelBuilder.Entity<Order>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Order__3213E83FDE5887F1");
+            entity.ToTable("order"); // Tên bảng
 
-            entity.ToTable("order");
-
-            entity.HasIndex(e => e.OrderCode, "UQ__Order__99D12D3FD8ECB07F").IsUnique();
-
+            // --- CẤU HÌNH TAY TỪNG CỘT (Snake Case) ---
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CoinsEarned)
-                .HasDefaultValue(0)
-                .HasColumnName("coins_earned");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
-            entity.Property(e => e.DeliveryDate)
-                .HasColumnName("delivery_date");
-            entity.Property(e => e.DiscountAmount)
-                .HasDefaultValue(0m)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("discount_amount");
-            entity.Property(e => e.GrandTotal)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("grand_total");
-            entity.Property(e => e.OrderCode)
-                .HasMaxLength(50)
-                .IsUnicode(false)
-                .HasColumnName("order_code");
-            entity.Property(e => e.OrderDate)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("order_date");
-            entity.Property(e => e.PaymentMethodId).HasColumnName("payment_method_id");
-            entity.Property(e => e.ShippingFee)
-                .HasDefaultValue(0m)
-                .HasColumnType("decimal(8, 2)")
-                .HasColumnName("shipping_fee");
-            entity.Property(e => e.Status)
-                .HasDefaultValue(OrderStatusEnum.New)
-                .HasColumnName("status")
-                .HasConversion<byte>();
-            entity.Property(e => e.StoreId).HasColumnName("store_id");
-            entity.Property(e => e.StoreName)
-                .HasMaxLength(200)
-                .HasColumnName("store_name");
-            entity.Property(e => e.TotalAmount)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("total_amount");
+            entity.Property(e => e.OrderCode).IsRequired().HasColumnName("order_code");
+
             entity.Property(e => e.UserId).HasColumnName("user_id");
-            entity.Property(e => e.UserNotes)
-                .HasMaxLength(500)
-                .HasColumnName("user_notes");
-            entity.Property(e => e.VoucherCodeUsed)
-                .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasColumnName("voucher_code_used");
-
-            entity.HasOne(d => d.PaymentMethod).WithMany(p => p.Orders)
-                .HasForeignKey(d => d.PaymentMethodId)
-                .HasConstraintName("FK__Order__payment_m__29221CFB");
-
-            entity.HasOne(d => d.Store).WithMany(p => p.Orders)
-                .HasForeignKey(d => d.StoreId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Order__store_id__282DF8C2");
-
-            entity.HasOne(d => d.User).WithMany(p => p.Orders)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("FK__Order__user_id__2739D489");
-
+            entity.Property(e => e.StoreId).HasColumnName("store_id");
+            entity.Property(e => e.TableId).HasColumnName("table_id");
+            entity.Property(e => e.ShipperId).HasColumnName("shipper_id");
+            entity.Property(e => e.PaymentMethodId).HasColumnName("payment_method_id");
             entity.Property(e => e.DeliveryAddressId).HasColumnName("delivery_address_id");
 
-            entity.HasOne(d => d.DeliveryAddress)
-                .WithMany() // Address không cần Navigation Property ngược từ Order
-                .HasForeignKey(d => d.DeliveryAddressId)
-                .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("FK_Order_DeliveryAddressId");
-            // ⭐ BỔ SUNG: Quan hệ One-to-Many tới OrderPayment
-            entity.HasMany(d => d.OrderPayments)
-                .WithOne(p => p.Order)
-                .HasForeignKey(d => d.OrderId)
-                .OnDelete(DeleteBehavior.Cascade) // Nếu Order bị xóa (Hard Delete), các giao dịch liên quan cũng bị xóa
-                .HasConstraintName("FK_Order_OrderPayments");
+            entity.Property(e => e.TotalAmount).HasColumnName("total_amount").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DiscountAmount).HasColumnName("discount_amount").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.ShippingFee).HasColumnName("shipping_fee").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.GrandTotal).HasColumnName("grand_total").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CoinsEarned).HasColumnName("coins_earned");
+
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.OrderType).HasColumnName("order_type"); // Mới
+            entity.Property(e => e.PickupCode).HasColumnName("pickup_code"); // Mới
+
+            entity.Property(e => e.OrderDate).HasColumnName("order_date");
+            entity.Property(e => e.DeliveryDate).HasColumnName("delivery_date");
+
+            entity.Property(e => e.UserVoucherId).HasColumnName("user_voucher_id");
+            entity.Property(e => e.VoucherCodeUsed).HasColumnName("voucher_code_used");
+            entity.Property(e => e.StoreName).HasColumnName("store_name");
+            entity.Property(e => e.UserNotes).HasColumnName("user_notes");
+
+            // Cancel info
+            entity.Property(e => e.CancelReason).HasColumnName("cancel_reason");
+            entity.Property(e => e.CancelNote).HasColumnName("cancel_note");
+            entity.Property(e => e.CancelledByUserId).HasColumnName("cancelled_by_user_id");
+
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            // Index & Quan hệ giữ nguyên như cũ
+            entity.HasIndex(e => e.OrderCode).IsUnique();
+            entity.HasIndex(e => e.PickupCode);
+
+            entity.HasOne(d => d.User).WithMany(p => p.Orders).HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.Store).WithMany(p => p.Orders).HasForeignKey(d => d.StoreId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.Table).WithMany(p => p.Orders).HasForeignKey(d => d.TableId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.DeliveryAddress).WithMany().HasForeignKey(d => d.DeliveryAddressId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.Shipper).WithMany().HasForeignKey(d => d.ShipperId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<OrderItem>(entity =>
@@ -980,10 +1099,10 @@ public partial class DBDrinkContext : DbContext
 
             entity.Property(e => e.IceLevel)
                 .HasColumnName("ice_level")
-                .HasConversion<byte>();
+                .HasConversion<short>();
             entity.Property(e => e.SugarLevel)
                 .HasColumnName("sugar_level")
-                .HasConversion<byte>();
+                .HasConversion<short>();
 
             entity.HasOne(d => d.Order).WithMany(p => p.OrderItems)
                 .HasForeignKey(d => d.OrderId)
@@ -1029,7 +1148,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Status)
                 .HasColumnName("status")
                 .HasDefaultValue(OrderPaymentStatusEnum.Pending)
-                .HasConversion<byte>();
+                .HasConversion<short>();
 
             entity.Property(e => e.PaymentDate)
                 .HasColumnType("timestamp without time zone")
@@ -1079,7 +1198,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.PaymentType)
                 .HasColumnName("payment_type")
                 .HasDefaultValue(PaymentTypeEnum.COD)
-                .HasConversion<byte>(); // Lưu dưới dạng byte (1, 2, 3...)
+                .HasConversion<short>(); // Lưu dưới dạng byte (1, 2, 3...)
 
             // --- Cấu hình các trường Chuyển khoản ---
             entity.Property(e => e.BankName)
@@ -1104,7 +1223,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Status)
                 .HasColumnName("status")
                 .HasDefaultValue(PublicStatusEnum.Active)
-                .HasConversion<byte>(); // Lưu Enum Status
+                .HasConversion<short>(); // Lưu Enum Status
                                         // ⭐ BỔ SUNG: Cấu hình CreatedAt
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("(NOW())")
@@ -1171,7 +1290,7 @@ public partial class DBDrinkContext : DbContext
 
             // --- Snapshot Cấu hình lương ---
             entity.Property(e => e.AppliedSalaryType)
-                .HasConversion<byte>()
+                .HasConversion<short>()
                 .HasColumnName("applied_salary_type");
 
             entity.Property(e => e.AppliedBaseSalary)
@@ -1235,7 +1354,7 @@ public partial class DBDrinkContext : DbContext
 
             // --- Quản trị ---
             entity.Property(e => e.Status)
-                .HasConversion<byte>()
+                .HasConversion<short>()
                 .HasDefaultValue(PayslipStatusEnum.Draft)
                 .HasColumnName("status");
 
@@ -1273,7 +1392,8 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.BrandId).HasColumnName("brand_id");
             entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
+                .HasDefaultValueSql("(NOW())")
+                .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
             entity.Property(e => e.DeletedAt)
                 .HasColumnType("timestamp without time zone")
@@ -1281,7 +1401,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Status)
                 .HasDefaultValue(PolicyReviewStatusEnum.Pending)
                 .HasColumnName("status")
-                .HasConversion<byte>();
+                .HasConversion<short>();
             entity.Property(e => e.Slug)
                 .HasMaxLength(100)
                 .HasColumnName("slug");
@@ -1306,130 +1426,247 @@ public partial class DBDrinkContext : DbContext
                 .HasConstraintName("FK_Policy_StoreId");
         });
 
+        modelBuilder.Entity<PointHistory>(entity =>
+        {
+            entity.ToTable("point_history");
+
+            // 1. Khóa chính
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_PointHistory_Id");
+
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
+            // 2. Các cột cơ bản
+            entity.Property(e => e.MembershipId)
+                  .IsRequired()
+                  .HasColumnName("membership_id");
+
+            entity.Property(e => e.OrderId)
+                  .HasColumnName("order_id");
+
+            entity.Property(e => e.Amount)
+                  .IsRequired()
+                  .HasColumnName("amount");
+
+            entity.Property(e => e.BalanceAfter)
+                  .IsRequired()
+                  .HasColumnName("balance_after");
+
+            // 3. Enum/string mapping
+            entity.Property(e => e.TransactionType)
+                  .IsRequired()
+                  .HasMaxLength(50)
+                  .HasColumnName("transaction_type")
+                  .HasConversion<string>(); // Lưu dưới dạng string
+
+            entity.Property(e => e.Description)
+                  .IsRequired()
+                  .HasMaxLength(500)
+                  .HasColumnName("description");
+
+            // 4. Thời gian
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            // 5. Indexes (quan trọng cho query)
+            entity.HasIndex(e => e.MembershipId)
+                  .HasDatabaseName("IX_point_history_membership_id");
+
+            entity.HasIndex(e => e.OrderId)
+                  .HasDatabaseName("IX_point_history_order_id");
+
+            entity.HasIndex(e => e.CreatedAt)
+                  .HasDatabaseName("IX_point_history_created_at");
+
+            entity.HasIndex(e => e.TransactionType)
+                  .HasDatabaseName("IX_point_history_transaction_type");
+
+            // 6. Quan hệ
+            entity.HasOne(e => e.Membership)
+                  .WithMany(m => m.PointHistories) // Cần thêm ICollection<PointHistory> vào Membership
+                  .HasForeignKey(e => e.MembershipId)
+                  .OnDelete(DeleteBehavior.Restrict); // Không xóa khi Membership bị xóa (giữ lịch sử)
+
+            entity.HasOne(e => e.Order)
+                  .WithMany() // Order không cần navigation property ngược
+                  .HasForeignKey(e => e.OrderId)
+                  .OnDelete(DeleteBehavior.SetNull); // Nếu xóa Order, set OrderId = null
+        });
+
         modelBuilder.Entity<Product>(entity =>
         {
             entity.ToTable("product");
 
-            entity.HasKey(e => e.Id).HasName("pk_product");
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_Product_Id");
 
-            // Indexes
-            entity.HasIndex(e => e.Slug)
-                .IsUnique()
-                .HasDatabaseName("ix_product_slug");
-
-            entity.HasIndex(e => e.PublicId)
-                .IsUnique()
-                .HasDatabaseName("ix_product_public_id");
-
-            // Properties
             entity.Property(e => e.Id)
-                .HasColumnName("id");
+                  .HasColumnName("id");
 
             entity.Property(e => e.PublicId)
-                .HasColumnName("public_id")
-                .HasMaxLength(36)
-                .IsUnicode(false)
-                .HasDefaultValueSql("gen_random_uuid()"); // Postgre function
+                  .HasDefaultValueSql("gen_random_uuid()")
+                  .HasColumnName("public_id");
 
-            entity.Property(e => e.CategoryId)
-                .HasColumnName("category_id");
+            entity.HasIndex(e => e.PublicId)
+                  .IsUnique();
 
             entity.Property(e => e.Slug)
-                .IsRequired()
-                .HasMaxLength(255)
-                .HasColumnName("slug");
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("slug");
 
             entity.Property(e => e.Name)
-                .IsRequired()
-                .HasMaxLength(255)
-                .HasColumnName("name");
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("name");
 
             entity.Property(e => e.ProductType)
-                .IsRequired()
-                .HasMaxLength(50) // Tăng lên 50 cho thoải mái
-                .HasColumnName("product_type");
+                  .HasConversion<short>()
+                  .HasColumnName("product_type");
 
             entity.Property(e => e.BasePrice)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("base_price");
-
-            entity.Property(e => e.ImageUrl)
-                .HasMaxLength(500)
-                .IsUnicode(false)
-                .HasColumnName("image_url");
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("base_price");
 
             entity.Property(e => e.Description)
-                .HasColumnType("text") // Postgre text (unlimited)
-                .HasColumnName("description");
+                  .HasColumnName("description");
+
+            entity.Property(e => e.ImageUrl)
+                  .HasColumnName("image_url");
 
             entity.Property(e => e.Ingredient)
-                .HasColumnType("text")
-                .HasColumnName("ingredient");
+                  .HasColumnName("ingredient");
 
-            // Enum Status (Byte)
             entity.Property(e => e.Status)
-                .HasConversion<byte>()
-                .HasDefaultValue(ProductStatusEnum.Active)
-                .HasColumnName("status");
+                  .HasConversion<short>()
+                  .HasDefaultValue(ProductStatusEnum.Active)
+                  .HasColumnName("status");
 
             entity.Property(e => e.TotalRating)
-                .HasDefaultValue(0.0)
-                .HasColumnName("total_rating");
+                  .HasColumnName("total_rating");
 
             entity.Property(e => e.TotalSold)
-                .HasDefaultValue(0)
-                .HasColumnName("total_sold");
+                  .HasColumnName("total_sold");
 
-            // SearchVector: Tạm thời bỏ qua nếu chưa dùng Full Text Search nâng cao
-            // Nếu muốn dùng, cần cài Npgsql.EntityFrameworkCore.PostgreSQL.Search
-            entity.Ignore(e => e.SearchVector);
+            entity.Property(e => e.SearchVector)
+                  .HasColumnName("search_vector");
 
-            // Timestamps
             entity.Property(e => e.LaunchDateTime)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("launch_date_time");
+                  .HasColumnName("launch_datetime");
 
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
 
             entity.Property(e => e.UpdatedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
 
             entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
+                  .HasColumnName("deleted_at");
 
-            // Relationships
-            entity.HasOne(d => d.Category)
-                .WithMany(p => p.Products)
-                .HasForeignKey(d => d.CategoryId)
-                .OnDelete(DeleteBehavior.Restrict) // An toàn: Không cho xóa Category nếu còn Product
-                .HasConstraintName("fk_product_category");
+            // --- RELATIONSHIP ---
+            entity.HasOne(e => e.Category)
+                  .WithMany(c => c.Products)
+                  .HasForeignKey(e => e.CategoryId);
         });
 
         modelBuilder.Entity<ProductSize>(entity =>
         {
-            // Đã đúng: Thiết lập khóa kép
-            entity.HasKey(p => new { p.ProductId, p.SizeId });
+            entity.ToTable("product_size");
 
-            entity.ToTable("product_size"); // ⭐ Tối ưu: Đảm bảo tên bảng là snake_case
+            // --- COMPOSITE KEY ---
+            entity.HasKey(e => new { e.ProductId, e.SizeId })
+                  .HasName("PK_ProductSize");
 
-            // ⭐ BỔ SUNG: Quan hệ tới Product
-            entity.HasOne(d => d.Product)
-                .WithMany(p => p.ProductSizes) // Giả định Product có ICollection<ProductSize>
-                .HasForeignKey(d => d.ProductId)
-                .OnDelete(DeleteBehavior.Cascade) // Nếu Product bị xóa, các liên kết Size sẽ bị xóa theo
-                .HasConstraintName("FK_ProductSize_ProductId");
+            entity.Property(e => e.ProductId)
+                  .HasColumnName("product_id");
 
-            // ⭐ BỔ SUNG: Quan hệ tới Size
-            entity.HasOne(d => d.Size)
-                .WithMany(p => p.ProductSizes) // Giả định Size có ICollection<ProductSize>
-                .HasForeignKey(d => d.SizeId)
-                .OnDelete(DeleteBehavior.Cascade) // Nếu Size bị xóa, các liên kết Product sẽ bị xóa theo
-                .HasConstraintName("FK_ProductSize_SizeId");
+            entity.Property(e => e.SizeId)
+                  .HasColumnName("size_id");
+
+            entity.Property(e => e.PriceOverride)
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("price_override");
+
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.SortOrder)
+                  .HasColumnName("sort_order");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            // --- RELATIONSHIPS ---
+            entity.HasOne(e => e.Product)
+                  .WithMany(p => p.ProductSizes)
+                  .HasForeignKey(e => e.ProductId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Size)
+                  .WithMany(s => s.ProductSizes)
+                  .HasForeignKey(e => e.SizeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductStore>(entity =>
+        {
+            entity.ToTable("product_store");
+
+            // --- COMPOSITE KEY ---
+            entity.HasKey(e => new { e.ProductId, e.StoreId })
+                  .HasName("PK_ProductStore");
+
+            entity.Property(e => e.ProductId)
+                  .HasColumnName("product_id");
+
+            entity.Property(e => e.StoreId)
+                  .HasColumnName("store_id");
+
+            entity.Property(e => e.SoldCount)
+                  .HasDefaultValue(0)
+                  .HasColumnName("sold_count");
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(ProductStoreStatusEnum.Available)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.PriceOverride)
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("price_override");
+
+            entity.Property(e => e.SortOrder)
+                  .HasColumnName("sort_order");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            // --- RELATIONSHIPS ---
+            entity.HasOne(e => e.Product)
+                  .WithMany(p => p.ProductStores)
+                  .HasForeignKey(e => e.ProductId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Store)
+                  .WithMany(s => s.ProductStores)
+                  .HasForeignKey(e => e.StoreId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Reservation>(entity =>
@@ -1478,7 +1715,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Status)
                 .HasDefaultValue(ReservationStatusEnum.Pending)
                 .HasColumnName("status")
-                .HasConversion<byte>();
+                .HasConversion<short>();
             entity.Property(e => e.StoreId).HasColumnName("store_id");
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
@@ -1501,45 +1738,69 @@ public partial class DBDrinkContext : DbContext
 
         modelBuilder.Entity<Review>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Review__3213E83F5E4BD5F0");
-
             entity.ToTable("review");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.AdminResponse).HasColumnName("admin_response");
-            entity.Property(e => e.Content).HasColumnName("content");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
-            entity.Property(e => e.MediaUrl)
-                .HasMaxLength(500)
-                .IsUnicode(false)
-                .HasColumnName("media_url");
-            entity.Property(e => e.ProductId).HasColumnName("product_id");
-            entity.Property(e => e.Rating).HasColumnName("rating");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
+            entity.Property(e => e.ProductId)
+                  .HasColumnName("product_id")
+                  .IsRequired();
+
+            entity.Property(e => e.UserId)
+                  .HasColumnName("user_id")
+                  .IsRequired();
+
+            entity.Property(e => e.Content)
+                  .HasColumnName("content")
+                  .HasMaxLength(2000);
+
+            entity.Property(e => e.Rating)
+                  .HasColumnName("rating")
+                  .IsRequired();
+
             entity.Property(e => e.Status)
-                .HasDefaultValue(ReviewStatusEnum.Pending)
-                .HasColumnName("status")
-                .HasConversion<byte>();
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+                  .HasConversion<short>()
+                  .HasDefaultValue(ReviewStatusEnum.Pending)
+                  .HasColumnName("status");
 
-            entity.HasOne(d => d.Product).WithMany(p => p.Reviews)
-                .HasForeignKey(d => d.ProductId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Review__product___7F2BE32F");
+            entity.Property(e => e.MediaUrl)
+                  .HasColumnName("media_url");
 
-            entity.HasOne(d => d.User).WithMany(p => p.Reviews)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Review__user_id__00200768");
+            entity.Property(e => e.AdminResponse)
+                  .HasColumnName("admin_response")
+                  .HasMaxLength(1000);
+
+            entity.Property(e => e.IsEdited)
+                  .HasDefaultValue(false)
+                  .HasColumnName("is_edited");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            // --- UNIQUE CONSTRAINT ---
+            entity.HasIndex(e => new { e.UserId, e.ProductId })
+                  .IsUnique();
+
+            // --- RELATIONSHIPS ---
+            entity.HasOne(e => e.Product)
+                  .WithMany(p => p.Reviews)
+                  .HasForeignKey(e => e.ProductId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.Reviews)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Room>(entity =>
@@ -1578,7 +1839,7 @@ public partial class DBDrinkContext : DbContext
 
             // --- Trạng thái ---
             entity.Property(e => e.Status)
-                .HasConversion<byte>()
+                .HasConversion<short>()
                 .HasDefaultValue(PublicStatusEnum.Active)
                 .HasColumnName("status");
 
@@ -1627,7 +1888,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Status)
                 .HasDefaultValue(PublicStatusEnum.Active)
                 .HasColumnName("status")
-                .HasConversion<byte>();
+                .HasConversion<short>();
             entity.Property(e => e.MergedWithTableId).HasColumnName("merged_with_table_id");
             entity.Property(e => e.Name)
                 .HasMaxLength(50)
@@ -1650,33 +1911,38 @@ public partial class DBDrinkContext : DbContext
 
         modelBuilder.Entity<Size>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Size__3213E83F985D1A04");
-
             entity.ToTable("size");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Status)
-                .HasDefaultValue(PublicStatusEnum.Active)
-                .HasColumnName("status")
-                .HasConversion<byte>();
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_Size_Id");
+
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
             entity.Property(e => e.Label)
-                .HasMaxLength(20)
-                .HasColumnName("label");
+                  .IsRequired()
+                  .HasMaxLength(50)
+                  .HasColumnName("label");
+
             entity.Property(e => e.PriceModifier)
-                .HasDefaultValue(0m)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("price_modifier");
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("price_modifier");
+
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
         });
 
         modelBuilder.Entity<SocialMedia>(entity =>
@@ -1703,9 +1969,8 @@ public partial class DBDrinkContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("deleted_at");
                 
-            entity.Property(e => e.PlatformName)
-                .HasMaxLength(30)
-                .IsUnicode(false)
+            entity.Property(e => e.Platform)
+                .HasConversion<short>()
                 .HasColumnName("platform_name");
 
             entity.Property(e => e.Url)
@@ -1724,7 +1989,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Status)
                 .HasColumnName("status")
                 .HasDefaultValue(PublicStatusEnum.Active)
-                .HasConversion<byte>();
+                .HasConversion<short>();
 
             // 1. Quan hệ với Brand (BẮT BUỘC)
             entity.HasOne(d => d.Brand)
@@ -1744,140 +2009,193 @@ public partial class DBDrinkContext : DbContext
 
         modelBuilder.Entity<Staff>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK_Staff_Id");
             entity.ToTable("staff");
 
-            // PublicId tự động tạo
-            entity.HasIndex(e => e.PublicId, "UQ_Staff_PublicId").IsUnique();
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_Staff_Id");
+
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
+
             entity.Property(e => e.PublicId)
-                .HasDefaultValueSql("gen_random_uuid()")
-                .HasColumnName("public_id");
+                  .HasDefaultValueSql("gen_random_uuid()")
+                  .HasColumnName("public_id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
-            entity.Property(e => e.StoreId).HasColumnName("store_id");
+            entity.HasIndex(e => e.PublicId)
+                  .IsUnique();
 
-            entity.Property(e => e.FullName).HasMaxLength(100).HasColumnName("full_name");
-            entity.Property(e => e.CitizenId).HasMaxLength(20).IsUnicode(false).HasColumnName("citizen_id");
-            entity.Property(e => e.Address).HasMaxLength(500).HasColumnName("address");
-            entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth");
-            entity.Property(e => e.HireDate).HasColumnName("hire_date");
+            entity.Property(e => e.UserId)
+                  .HasColumnName("user_id");
 
-            // Enum Mappings
+            entity.HasIndex(e => e.UserId)
+                  .IsUnique();
+
+            entity.Property(e => e.StoreId)
+                  .HasColumnName("store_id");
+
+            entity.Property(e => e.FullName)
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("full_name");
+
+            entity.Property(e => e.CitizenId)
+                  .HasMaxLength(50)
+                  .HasColumnName("citizen_id");
+
+            entity.Property(e => e.DateOfBirth)
+                  .HasColumnName("date_of_birth");
+
+            entity.Property(e => e.Address)
+                  .HasMaxLength(500)
+                  .HasColumnName("address");
+
             entity.Property(e => e.Position)
-                .HasColumnName("position")
-                .HasConversion<byte>();
+                  .HasConversion<short>()
+                  .HasDefaultValue(StaffPositionEnum.Server)
+                  .HasColumnName("position");
 
             entity.Property(e => e.SalaryType)
-                .HasColumnName("salary_type")
-                .HasDefaultValue(SalaryTypeEnum.PartTime)
-                .HasConversion<byte>();
+                  .HasConversion<short>()
+                  .HasDefaultValue(SalaryTypeEnum.PartTime)
+                  .HasColumnName("salary_type");
+
+            entity.Property(e => e.BaseSalary)
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("base_salary");
+
+            entity.Property(e => e.HourlySalary)
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("hourly_salary");
+
+            entity.Property(e => e.OvertimeHourlySalary)
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("overtime_hourly_salary");
+
+            entity.Property(e => e.MinWorkHoursPerMonth)
+                  .HasColumnName("min_work_hours_per_month");
+
+            entity.Property(e => e.MaxWorkHoursPerMonth)
+                  .HasColumnName("max_work_hours_per_month");
+
+            entity.Property(e => e.MaxOvertimeHoursPerMonth)
+                  .HasColumnName("max_overtime_hours_per_month");
 
             entity.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasDefaultValue(PublicStatusEnum.Active)
-                .HasConversion<byte>();
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
 
-            // Salary Fields
-            entity.Property(e => e.BaseSalary).HasColumnType("decimal(18, 2)").HasColumnName("base_salary");
-            entity.Property(e => e.HourlySalary).HasColumnType("decimal(18, 2)").HasColumnName("hourly_salary");
-            entity.Property(e => e.OvertimeHourlySalary).HasColumnType("decimal(18, 2)").HasColumnName("overtime_hourly_salary");
+            entity.Property(e => e.HireDate)
+                  .HasColumnName("hire_date");
 
-            // Constraints
-            entity.Property(e => e.MinWorkHoursPerMonth).HasColumnName("min_work_hours_per_month");
-            entity.Property(e => e.MaxWorkHoursPerMonth).HasColumnName("max_work_hours_per_month");
-            entity.Property(e => e.MaxOvertimeHoursPerMonth).HasColumnName("max_overtime_hours_per_month");
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
 
-            // Audit
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(NOW())").HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(NOW())").HasColumnName("updated_at");
-            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
 
-            // Relationships
-            // 1-1 với User (Staff phụ thuộc vào User)
-            entity.HasOne(d => d.User)
-                .WithOne(p => p.Staff) // Cần thêm property Staff vào User.cs
-                .HasForeignKey<Staff>(d => d.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
 
-            // N-1 với Store (Tùy chọn)
-            entity.HasOne(d => d.Store)
-                .WithMany(p => p.Staffs) // Cần thêm property Staffs vào Store.cs
-                .HasForeignKey(d => d.StoreId)
-                .OnDelete(DeleteBehavior.SetNull); // Nếu Store bị xóa, Staff trở thành nhân viên tự do (hoặc chuyển Store khác)
+            entity.HasOne(e => e.User)
+                  .WithOne(u => u.Staff)
+                  .HasForeignKey<Staff>(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Store)
+                  .WithMany(s => s.Staffs)
+                  .HasForeignKey(e => e.StoreId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Store>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Store__3213E83FCF8EAB0E");
-
             entity.ToTable("store");
 
-            entity.HasIndex(e => e.Slug, "UQ__Store__32DD1E4C92725A74").IsUnique();
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_Store_Id");
 
-            entity.HasIndex(e => e.PublicId, "UQ__Store__5699A53072383001").IsUnique();
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            
-            entity.Property(e => e.BrandId).HasColumnName("brand_id");
-            entity.Property(e => e.CloseTime).HasColumnName("close_time");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.ImageUrl)
-                .HasMaxLength(255)
-                .IsUnicode(false)
-                .HasColumnName("image_url");
-            entity.Property(e => e.Status)
-                .HasColumnName("status")
-                .HasDefaultValue(StoreStatusEnum.ComingSoon) 
-                .HasConversion<byte>(); // ⭐ Quan trọng: Chuyển đổi Enum thành byte trong DB
-            
-            entity.Property(e => e.MapVerified)
-                .HasDefaultValue(false)
-                .HasColumnName("map_verified");
-            entity.Property(e => e.Name)
-                .HasMaxLength(200)
-                .HasColumnName("name");
-            entity.Property(e => e.OpenTime).HasColumnName("open_time");
             entity.Property(e => e.PublicId)
-                .HasDefaultValueSql("gen_random_uuid()")
-                .HasColumnName("public_id");
-            entity.Property(e => e.Slug)
-                .HasMaxLength(200)
-                .HasColumnName("slug");
-            entity.Property(e => e.SortOrder)
-                .HasDefaultValue((byte)0)
-                .HasColumnName("sort_order");
-            entity.Property(e => e.OpenDate)
-                .HasColumnType("timestamp without time zone") // Hoặc "date" nếu chỉ cần ngày
-                .HasColumnName("open_date");
-            entity.HasOne(d => d.Brand).WithMany(p => p.Stores)
-                .HasForeignKey(d => d.BrandId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Store__brand_id__5535A963");
-            // Bổ sung khóa ngoại AddressId
-            entity.Property(e => e.AddressId).HasColumnName("address_id");
+                  .HasDefaultValueSql("gen_random_uuid()")
+                  .HasColumnName("public_id");
 
-            // Bổ sung các trường phí ship
+            entity.HasIndex(e => e.PublicId)
+                  .IsUnique();
+
+            entity.Property(e => e.Slug)
+                  .HasMaxLength(200)
+                  .HasColumnName("slug");
+
+            entity.HasIndex(e => e.Slug)
+                  .IsUnique()
+                  .HasFilter("slug IS NOT NULL");
+
+            entity.Property(e => e.Name)
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("name");
+
+            entity.Property(e => e.ImageUrl)
+                  .HasColumnName("image_url");
+
+            entity.Property(e => e.OpenDate)
+                  .HasColumnName("open_date");
+
+            entity.Property(e => e.OpenTime)
+                  .HasColumnName("open_time");
+
+            entity.Property(e => e.CloseTime)
+                  .HasColumnName("close_time");
+
             entity.Property(e => e.ShippingFeeFixed)
-                .HasDefaultValue(0m)
-                .HasColumnType("decimal(10, 2)") // Phí cố định
-                .HasColumnName("shipping_fee_fixed");
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("shipping_fee_fixed");
 
             entity.Property(e => e.ShippingFeePerKm)
-                .HasDefaultValue(0m)
-                .HasColumnType("decimal(10, 2)") // Phí trên mỗi KM
-                .HasColumnName("shipping_fee_per_km");
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("shipping_fee_per_km");
 
-            // Thiết lập quan hệ 1-N: Một Address có thể được sử dụng bởi nhiều Store (ít phổ biến nhưng linh hoạt)
-            // Hoặc 1-1: Một Store có một Address duy nhất (Nếu đây là Store chính)
-            entity.HasOne(d => d.Address) // NP trong Store
-                .WithOne(p => p.Store) // ⭐ CHỈ ĐỊNH NP ngược trong Address
-                .HasForeignKey<Store>(d => d.AddressId) // Khóa ngoại nằm ở Store
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired()
-                .HasConstraintName("FK_Store_AddressId");
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(StoreStatusEnum.ComingSoon)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.SortOrder)
+                  .HasColumnName("sort_order");
+
+            entity.Property(e => e.MapVerified)
+                  .HasDefaultValue(false)
+                  .HasColumnName("map_verified");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            entity.Property(e => e.AddressId)
+                  .HasColumnName("address_id");
+
+            entity.HasOne(s => s.Address)
+                  .WithOne(a => a.Store)  // Address.Store có thể null
+                  .HasForeignKey<Store>(s => s.AddressId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .IsRequired();
+
+            entity.HasOne(e => e.Brand)
+                  .WithMany(b => b.Stores)
+                  .HasForeignKey(e => e.BrandId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<SupplyOrder>(entity =>
@@ -1900,7 +2218,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Status)
                 .HasDefaultValue(SupplyOrderStatusEnum.Pending)
                 .HasColumnName("status")
-                .HasConversion<byte>();
+                .HasConversion<short>();
 
             entity.Property(e => e.StoreId).HasColumnName("store_id");
             entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
@@ -1960,194 +2278,249 @@ public partial class DBDrinkContext : DbContext
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__User__3213E83F0D985B4B");
-
             entity.ToTable("user");
 
-            entity.HasIndex(e => e.PublicId, "UQ__User__5699A530AE2F5693").IsUnique();
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_User_Id");
 
-            entity.HasIndex(e => e.Email, "UQ__User__AB6E616418E7B215").IsUnique();
+            // --- Keys ---
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");   
-            entity.Property(e => e.CurrentCoins)
-                .HasDefaultValue(0)
-                .HasColumnName("current_coins");
-            entity.Property(e => e.Email)
-                .HasMaxLength(100)
-                .IsUnicode(false)
-                .HasColumnName("email");
-            entity.Property(e => e.EmailVerified)
-                .HasDefaultValue(false)
-                .HasColumnName("email_verified");
-            entity.Property(e => e.LastLogin)
-                .HasColumnName("last_login");
-            entity.Property(e => e.PasswordHash)
-                .HasMaxLength(255)
-                .IsUnicode(false)
-                .HasColumnName("password_hash");
-            entity.Property(e => e.Phone)
-                .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasColumnName("phone");
             entity.Property(e => e.PublicId)
-                .HasDefaultValueSql("gen_random_uuid()")
-                .HasColumnName("public_id");
-            entity.Property(e => e.RoleId)
-                .HasDefaultValue(UserRoleEnum.Customer)
-                .HasColumnName("role_id");
-            entity.Property(e => e.Status)
-                .HasDefaultValue(UserStatusEnum.Active)
-                .HasColumnName("status")
-                .HasConversion<byte>();
-            entity.Property(e => e.ThumbnailUrl)
-                .HasMaxLength(200)
-                .IsUnicode(false)
-                .HasColumnName("thumbnail_url");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
+                  .HasColumnName("public_id")
+                  .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.HasIndex(e => e.PublicId)
+                  .IsUnique();
+
+            // --- Identity ---
             entity.Property(e => e.Username)
-                .HasMaxLength(50)
-                .IsUnicode(false)
-                .HasColumnName("username");
-            // ⭐ CÁC THUỘC TÍNH AUTH MỚI THÊM
+                  .IsRequired()
+                  .HasMaxLength(100)
+                  .HasColumnName("username");
+
+            entity.HasIndex(e => e.Username)
+                  .IsUnique();
+
+            entity.Property(e => e.Email)
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("email");
+
+            entity.HasIndex(e => e.Email)
+                  .IsUnique();
+
+            entity.Property(e => e.Phone)
+                  .HasMaxLength(20)
+                  .HasColumnName("phone");
+
+            entity.Property(e => e.ThumbnailUrl)
+                  .HasMaxLength(500)
+                  .HasColumnName("thumbnail_url");
+
+            entity.Property(e => e.PasswordHash)
+                  .IsRequired()
+                  .HasMaxLength(500)
+                  .HasColumnName("password_hash");
+
+            // --- Enum ---
+            entity.Property(e => e.RoleId)
+                  .HasColumnName("role_id")
+                  .HasConversion<short>()
+                  .HasDefaultValue(UserRoleEnum.Customer);
+
+            entity.Property(e => e.Status)
+                  .HasColumnName("status")
+                  .HasConversion<short>()
+                  .HasDefaultValue(UserStatusEnum.Active);
+
+            // --- Auth ---
+            entity.Property(e => e.EmailVerified)
+                  .HasDefaultValue(false)
+                  .HasColumnName("email_verified");
+
             entity.Property(e => e.RefreshToken)
-                .HasColumnName("refresh_token")
-                .HasMaxLength(500)
-                .IsUnicode(false);
+                  .HasMaxLength(500)
+                  .HasColumnName("refresh_token");
 
             entity.Property(e => e.RefreshTokenExpiryTime)
-                .HasColumnName("refresh_token_expiry_time")
-                .HasColumnType("timestamp without time zone");
+                  .HasColumnName("refresh_token_expiry");
 
             entity.Property(e => e.ResetPasswordToken)
-                .HasColumnName("reset_password_token")
-                .HasMaxLength(500)
-                .IsUnicode(false);
+                  .HasMaxLength(500)
+                  .HasColumnName("reset_password_token");
 
             entity.Property(e => e.ResetPasswordTokenExpiryTime)
-                .HasColumnName("reset_password_token_expiry_time")
-                .HasColumnType("timestamp without time zone");
+                  .HasColumnName("reset_password_token_expiry");
+
+            // --- Audit ---
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
+
+            entity.Property(e => e.LastLogin)
+                  .HasColumnName("last_login");
+
+            // --- Relationships ---
+            entity.HasOne(e => e.Membership)
+                  .WithOne(m => m.User)
+                  .HasForeignKey<Membership>(m => m.UserId);
+
+            entity.HasOne(e => e.Staff)
+                  .WithOne(s => s.User)
+                  .HasForeignKey<Staff>(s => s.UserId);
         });
 
         modelBuilder.Entity<UserVoucher>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__User_Vou__3213E83F950C18C0");
+            entity.ToTable("user_voucher");
 
-            entity.ToTable("user_Voucher");
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_UserVoucher_Id");
 
-            entity.HasIndex(e => e.VoucherCode, "UQ__User_Vou__21731069F90ADEF0").IsUnique();
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
-            entity.Property(e => e.ExpiryDate)
-                .HasColumnName("expiry_date");
+            entity.Property(e => e.UserId)
+                  .HasColumnName("user_id");
+
+            entity.Property(e => e.VoucherTemplateId)
+                  .HasColumnName("voucher_template_id");
+
+            entity.Property(e => e.VoucherCode)
+                  .HasMaxLength(50)
+                  .HasColumnName("voucher_code");
+
+            entity.HasIndex(e => e.VoucherCode)
+                  .IsUnique()
+                  .HasFilter("voucher_code IS NOT NULL");
+
             entity.Property(e => e.IssuedDate)
-                .HasDefaultValueSql("(NOW())").HasColumnType("timestamp without time zone")
-                .HasColumnName("issued_date");
-            entity.Property(e => e.OrderIdUsed).HasColumnName("order_id_used");
-            
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("issued_date");
+
+            entity.Property(e => e.ExpiryDate)
+                  .HasColumnName("expiry_date");
+
             entity.Property(e => e.Status)
-                .HasDefaultValue(UserVoucherStatusEnum.Unused)
-                .HasColumnName("status")
-                .HasConversion<byte>();
+                  .HasConversion<short>()
+                  .HasDefaultValue(UserVoucherStatusEnum.Unused)
+                  .HasColumnName("status");
 
             entity.Property(e => e.UsedDate)
-                .HasColumnName("used_date");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
-            entity.Property(e => e.VoucherCode)
-                .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasColumnName("voucher_code");
-            entity.Property(e => e.VoucherTemplateId).HasColumnName("voucher_template_id");
+                  .HasColumnName("used_date");
 
-            entity.HasOne(d => d.User).WithMany(p => p.UserVouchers)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__User_Vouc__order__65370702");
+            entity.Property(e => e.OrderIdUsed)
+                  .HasColumnName("order_id_used");
 
-            entity.HasOne(d => d.VoucherTemplate).WithMany(p => p.UserVouchers)
-                .HasForeignKey(d => d.VoucherTemplateId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__User_Vouc__vouch__662B2B3B");
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
 
-            entity.HasOne(d => d.OrderUsed) // Giả định bạn có Navigation Property là OrderUsed trong Model
-                .WithMany() // Order không cần Navigation Property ngược từ UserVoucher
-                .HasForeignKey(d => d.OrderIdUsed)
-                .IsRequired(false) // Cho phép OrderIdUsed là null (khi chưa sử dụng)
-                .OnDelete(DeleteBehavior.Restrict) // Không cho xóa Order nếu UserVoucher đã sử dụng nó
-                .HasConstraintName("FK_UserVoucher_OrderIdUsed");
+            // --- Relationships ---
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.UserVouchers)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.VoucherTemplate)
+                  .WithMany(v => v.UserVouchers)
+                  .HasForeignKey(e => e.VoucherTemplateId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.OrderUsed)
+                  .WithMany()
+                  .HasForeignKey(e => e.OrderIdUsed)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<VoucherTemplate>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Voucher___3213E83F0298D293");
+            entity.ToTable("voucher_template");
 
-            entity.ToTable("voucher_Template");
+            entity.HasKey(e => e.Id)
+                  .HasName("PK_VoucherTemplate_Id");
 
-            entity.HasIndex(e => e.CouponCode, "UQ__Voucher___ADE5CBB794CB76DB").IsUnique();
+            entity.Property(e => e.Id)
+                  .HasColumnName("id");
 
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CouponCode)
-                .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasColumnName("coupon_code");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("(NOW())")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("updated_at");
-            entity.Property(e => e.DeletedAt)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("deleted_at");
-            entity.Property(e => e.DiscountType)
-                .HasMaxLength(10)
-                .IsUnicode(false)
-                .HasColumnName("discount_type");
-            entity.Property(e => e.DiscountValue)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("discount_value");
-            entity.Property(e => e.EndDate)
-                .HasColumnName("end_date");
-            entity.Property(e => e.Status)
-                .HasDefaultValue(PublicStatusEnum.Active)
-                .HasColumnName("status")
-                .HasConversion<byte>();
-            entity.Property(e => e.LevelId).HasColumnName("level_id");
-            entity.Property(e => e.MaxDiscountAmount)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("max_discount_amount");
-            entity.Property(e => e.MinOrderValue)
-                .HasDefaultValue(0m)
-                .HasColumnType("decimal(18, 2)")
-                .HasColumnName("min_order_value");
             entity.Property(e => e.Name)
-                .HasMaxLength(100)
-                .HasColumnName("name");
-            entity.Property(e => e.QuantityPerLevel).HasColumnName("quantity_per_level");
-            entity.Property(e => e.StartDate)
-                .HasColumnName("start_date");
-            entity.Property(e => e.UsageLimit).HasColumnName("usage_limit");
-            entity.Property(e => e.UsageLimitPerUser).HasColumnName("usage_limit_per_user");
-            entity.Property(e => e.UsedCount)
-                .HasDefaultValue(0)
-                .HasColumnName("used_count");
+                  .IsRequired()
+                  .HasMaxLength(200)
+                  .HasColumnName("name");
 
-            entity.HasOne(d => d.Level).WithMany(p => p.VoucherTemplates)
-                .HasForeignKey(d => d.LevelId)
-                .HasConstraintName("FK__Voucher_T__level__5E8A0973");
+            entity.Property(e => e.MembershipLevelId)
+                  .HasColumnName("membership_level_id");
+
+            entity.HasOne(e => e.MembershipLevel)
+                  .WithMany(l => l.VoucherTemplates)
+                  .HasForeignKey(e => e.MembershipLevelId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(e => e.DiscountType)
+                  .HasConversion<short>()
+                  .HasColumnName("discount_type");
+
+            entity.Property(e => e.DiscountValue)
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("discount_value");
+
+            entity.Property(e => e.MinOrderValue)
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("min_order_value");
+
+            entity.Property(e => e.MaxDiscountAmount)
+                  .HasColumnType("decimal(18,2)")
+                  .HasColumnName("max_discount_amount");
+
+            entity.Property(e => e.TotalQuantity)
+                  .HasColumnName("total_quantity");
+
+            entity.Property(e => e.UsedCount)
+                  .HasDefaultValue(0)
+                  .HasColumnName("used_count");
+
+            entity.Property(e => e.UsageLimitPerUser)
+                  .HasColumnName("usage_limit_per_user");
+
+            entity.Property(e => e.CouponCode)
+                  .HasMaxLength(50)
+                  .HasColumnName("coupon_code");
+
+            entity.HasIndex(e => e.CouponCode)
+                  .IsUnique()
+                  .HasFilter("coupon_code IS NOT NULL");
+
+            entity.Property(e => e.StartDate)
+                  .HasColumnName("start_date");
+
+            entity.Property(e => e.EndDate)
+                  .HasColumnName("end_date");
+
+            entity.Property(e => e.Status)
+                  .HasConversion<short>()
+                  .HasDefaultValue(PublicStatusEnum.Active)
+                  .HasColumnName("status");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("created_at");
+
+            entity.Property(e => e.UpdatedAt)
+                  .HasDefaultValueSql("NOW()")
+                  .HasColumnName("updated_at");
+
+            entity.Property(e => e.DeletedAt)
+                  .HasColumnName("deleted_at");
         });
+
 
 
         OnModelCreatingPartial(modelBuilder);

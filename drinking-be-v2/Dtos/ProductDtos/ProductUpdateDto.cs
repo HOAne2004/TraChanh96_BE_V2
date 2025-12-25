@@ -12,7 +12,7 @@ namespace drinking_be.Dtos.ProductDtos
         public string? Name { get; set; }
 
         public int? CategoryId { get; set; }
-        public string Slug { get; set; } = null!;
+        public string? Slug { get; set; } = null!;
 
         [MaxLength(20)]
         public string? ProductType { get; set; }
@@ -29,6 +29,6 @@ namespace drinking_be.Dtos.ProductDtos
         public DateTime? LaunchDateTime { get; set; }
 
         // ⭐ Cập nhật các liên kết Size: Nếu gửi list này, Service sẽ xóa và tạo lại các ProductSize
-        public ICollection<short>? SizeIds { get; set; }
+        public ICollection<ProductSizeCreateDto>? ProductSizes { get; set; }
     }
 }

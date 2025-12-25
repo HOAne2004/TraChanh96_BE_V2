@@ -19,7 +19,7 @@ namespace drinking_be.Interfaces
             Expression<Func<T, bool>> filter,
             string? includeProperties = null
         );
-
+        IQueryable<T> Find(Expression<Func<T, bool>> expression);
         Task AddAsync(T entity);
         Task AddRangeAsync(IEnumerable<T> entities);
 
@@ -32,5 +32,7 @@ namespace drinking_be.Interfaces
         Task<bool> ExistsAsync(Expression<Func<T, bool>> filter);
 
         Task<int> CountAsync(Expression<Func<T, bool>>? filter = null);
+
+        IQueryable<T> GetQueryable();
     }
 }
