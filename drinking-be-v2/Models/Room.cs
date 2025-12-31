@@ -12,7 +12,7 @@ public partial class Room : ISoftDelete
     public int StoreId { get; set; }
 
     public string Name { get; set; } = null!; // Ví dụ: "Tầng 2", "Sân vườn", "Phòng lạnh VIP"
-
+    public string? ImageUrl { get; set; } = null!; // Ảnh đại diện cho phòng này
     public string? Description { get; set; }
 
     public int? Capacity { get; set; } // Sức chứa tối đa (số người) của phòng này

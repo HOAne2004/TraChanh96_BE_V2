@@ -39,7 +39,7 @@ public partial class User : ISoftDelete
     public DateTime? DeletedAt { get; set; }
 
     // --- Navigation ---
-    public virtual Cart? Cart { get; set; }
+    public virtual ICollection<Cart> Carts { get; set; } = new List<Cart>();
     public virtual Membership? Membership { get; set; }
     public virtual Staff? Staff { get; set; }
 

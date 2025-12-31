@@ -8,6 +8,7 @@ using drinking_be.Interfaces.OrderInterfaces;
 using drinking_be.Interfaces.PolicyInterfaces;
 using drinking_be.Interfaces.ProductInterfaces;
 using drinking_be.Interfaces.StoreInterfaces;
+using drinking_be.Hubs;
 using drinking_be.Models;
 using drinking_be.Repositories;
 using drinking_be.Services;
@@ -16,14 +17,18 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Supabase;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using Supabase;
 
 // Fix lỗi timestamp của PostgreSQL
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+// Thêm dịch vụ SignalR dùng trong thông báo real-time
+builder.Services.AddSignalR();
+
 
 // --- 1. CẤU HÌNH DATABASE ---
 //var runtimeConnection = builder.Configuration.GetConnectionString("RuntimeConnection");
@@ -97,6 +102,7 @@ builder.Services.AddSwaggerGen(option =>
 });
 
 builder.Services.AddHostedService<drinking_be.Services.Background.SoftDeleteCleanupService>();
+builder.Services.AddHostedService<drinking_be.Services.Background.AutoCancelOrderService>();
 
 // ==================================================================
 // 4. ĐĂNG KÝ DEPENDENCY INJECTION (DI)
@@ -135,6 +141,7 @@ builder.Services.AddScoped<ISupplyOrderService, SupplyOrderService>();
 // --- E. ORDER & PAYMENT ---
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IOrderPaymentService, OrderPaymentService>();
 builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
 
 // --- F. MARKETING & CONTENT ---
@@ -177,7 +184,28 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = config["JwtSettings:Audience"],
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.Zero,
+        RoleClaimType = ClaimTypes.Role
+    };
+    opt.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // 1. Tìm token trong Query String (tên tham số mặc định là access_token)
+            var accessToken = context.Request.Query["access_token"];
+
+            // 2. Lấy đường dẫn request
+            var path = context.HttpContext.Request.Path;
+
+            // 3. Nếu có token VÀ đường dẫn bắt đầu bằng /hub/notifications
+            if (!string.IsNullOrEmpty(accessToken) &&
+                (path.StartsWithSegments("/hub/notifications")))
+            {
+                // Gán token lấy được vào Context để xác thực
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -188,9 +216,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: MyAllowSpecificOrigins,
         policy =>
         {
-            policy.AllowAnyOrigin()
+            policy.WithOrigins("http://localhost:5173")
                   .AllowAnyMethod()
-                  .AllowAnyHeader();
+                  .AllowAnyHeader()
+                  .AllowCredentials();
         });
 });
 
@@ -208,6 +237,8 @@ app.UseCors(MyAllowSpecificOrigins);
 
 app.UseAuthentication();
 app.UseAuthorization();
+// Đăng ký endpoint cho SignalR Hub
+app.MapHub<NotificationHub>("/hub/notifications");
 
 // --- 8. MIGRATION & SEED DATA ---
 using (var scope = app.Services.CreateScope())

@@ -45,7 +45,7 @@ public partial class Store : ISoftDelete
     public virtual ICollection<SocialMedia> SocialMedias { get; set; } = new List<SocialMedia>();
     public virtual ICollection<Room> Rooms { get; set; } = new List<Room>();
     public virtual ICollection<Staff> Staffs { get; set; } = new List<Staff>();
-    public virtual ICollection<ProductStore> ProductStores { get; set; }
-    = new List<ProductStore>();
+    public virtual ICollection<ProductStore> ProductStores { get; set; } = new List<ProductStore>();
+    public virtual ICollection<Cart> Carts { get; set; } = new List<Cart>();
 
 }

@@ -5,13 +5,14 @@ namespace drinking_be.Dtos.CartDtos
     public class CartItemCreateDto
     {
         [Required]
+        public int StoreId { get; set; }
+        [Required]
         public int ProductId { get; set; }
 
         [Range(1, 100, ErrorMessage = "Số lượng phải ít nhất là 1.")]
         public int Quantity { get; set; }
 
-        [Required]
-        public short SizeId { get; set; }
+        public short? SizeId { get; set; }
 
         public short? SugarLevelId { get; set; }
         public short? IceLevelId { get; set; }

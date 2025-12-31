@@ -21,25 +21,7 @@ namespace drinking_be.Controllers
         // Helper lấy UserID từ Token
         private int GetUserId()
         {
-            // 1. Thử tìm Claim chứa ID (thường là "nameid" hoặc đường dẫn dài XML...)
-            // Ta sẽ tìm claim nào có Key là "nameid" HOẶC "NameIdentifier" và Giá trị là số nguyên
-            var idClaim = User.Claims.FirstOrDefault(c =>
-                (c.Type == "nameid" || c.Type == ClaimTypes.NameIdentifier)
-                && int.TryParse(c.Value, out _));
-
-            // 2. Nếu tìm thấy và parse được ra số int
-            if (idClaim != null && int.TryParse(idClaim.Value, out int userId))
-            {
-                return userId;
-            }
-
-            // 3. 🆘 NẾU VẪN LỖI: In toàn bộ danh sách Claim ra để Debug
-            // Giúp ta biết Server đang nhìn thấy những gì
-            var debugInfo = string.Join(" | ", User.Claims.Select(c => $"{c.Type}={c.Value}"));
-
-            throw new UnauthorizedAccessException(
-                $"Token hợp lệ nhưng không trích xuất được User ID. " +
-                $"Các Claims Server nhận được là: [{debugInfo}]");
+            return User.GetUserId();
         }
 
         // GET: api/users/addresses

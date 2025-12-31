@@ -71,11 +71,11 @@ namespace drinking_be.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_default");
 
-                    b.Property<double>("Latitude")
+                    b.Property<double?>("Latitude")
                         .HasColumnType("double precision")
                         .HasColumnName("latitude");
 
-                    b.Property<double>("Longitude")
+                    b.Property<double?>("Longitude")
                         .HasColumnType("double precision")
                         .HasColumnName("longitude");
 
@@ -1302,10 +1302,8 @@ namespace drinking_be.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.HasIndex("UserId")
+                    b.HasIndex("UserId", "StoreId", "Status")
                         .IsUnique();
-
-                    b.HasIndex("UserId", "Status");
 
                     b.ToTable("cart", (string)null);
                 });
@@ -1478,6 +1476,12 @@ namespace drinking_be.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_edited");
 
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LikeCount")
+                        .HasColumnType("integer");
+
                     b.Property<int>("NewsId")
                         .HasColumnType("integer")
                         .HasColumnName("news_id");
@@ -1509,6 +1513,24 @@ namespace drinking_be.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("comment", (string)null);
+                });
+
+            modelBuilder.Entity("drinking_be.Models.CommentLike", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CommentId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("UserId", "CommentId");
+
+                    b.HasIndex("CommentId");
+
+                    b.ToTable("commentlikes");
                 });
 
             modelBuilder.Entity("drinking_be.Models.FranchiseRequest", b =>
@@ -1844,7 +1866,8 @@ namespace drinking_be.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("CancelNote")
-                        .HasColumnType("text")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("cancel_note");
 
                     b.Property<short?>("CancelReason")
@@ -1859,7 +1882,7 @@ namespace drinking_be.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("coins_earned");
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
@@ -1885,7 +1908,8 @@ namespace drinking_be.Migrations
 
                     b.Property<string>("OrderCode")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("order_code");
 
                     b.Property<DateTime?>("OrderDate")
@@ -1896,17 +1920,38 @@ namespace drinking_be.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("order_type");
 
+                    b.Property<short>("PaymentFlow")
+                        .HasColumnType("smallint")
+                        .HasColumnName("payment_flow");
+
                     b.Property<int?>("PaymentMethodId")
                         .HasColumnType("integer")
                         .HasColumnName("payment_method_id");
 
+                    b.Property<string>("PaymentMethodName")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("PickupCode")
-                        .HasColumnType("text")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("pickup_code");
+
+                    b.Property<string>("RecipientName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RecipientPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<int?>("ShipperId")
                         .HasColumnType("integer")
                         .HasColumnName("shipper_id");
+
+                    b.Property<string>("ShippingAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<decimal?>("ShippingFee")
                         .HasColumnType("decimal(18,2)")
@@ -1921,7 +1966,8 @@ namespace drinking_be.Migrations
                         .HasColumnName("store_id");
 
                     b.Property<string>("StoreName")
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("store_name");
 
                     b.Property<int?>("TableId")
@@ -1941,7 +1987,8 @@ namespace drinking_be.Migrations
                         .HasColumnName("user_id");
 
                     b.Property<string>("UserNotes")
-                        .HasColumnType("text")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
                         .HasColumnName("user_notes");
 
                     b.Property<long?>("UserVoucherId")
@@ -1949,7 +1996,8 @@ namespace drinking_be.Migrations
                         .HasColumnName("user_voucher_id");
 
                     b.Property<string>("VoucherCodeUsed")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("voucher_code_used");
 
                     b.HasKey("Id");
@@ -2016,6 +2064,15 @@ namespace drinking_be.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("product_id");
 
+                    b.Property<string>("ProductImage")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
@@ -2023,6 +2080,13 @@ namespace drinking_be.Migrations
                     b.Property<short?>("SizeId")
                         .HasColumnType("smallint")
                         .HasColumnName("size_id");
+
+                    b.Property<string>("SizeName")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal?>("SizePrice")
+                        .HasColumnType("numeric");
 
                     b.Property<short>("SugarLevel")
                         .HasColumnType("smallint")
@@ -2073,6 +2137,12 @@ namespace drinking_be.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("payment_method_id");
 
+                    b.Property<string>("PaymentMethodName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("payment_method_name");
+
                     b.Property<string>("PaymentSignature")
                         .HasMaxLength(500)
                         .IsUnicode(false)
@@ -2091,18 +2161,18 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("transaction_code");
 
+                    b.Property<short>("Type")
+                        .HasColumnType("smallint")
+                        .HasColumnName("type");
+
                     b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("NOW()");
+                        .HasColumnName("updated_at");
 
                     b.HasKey("Id")
                         .HasName("PK_OrderPayment_Id");
 
                     b.HasIndex("OrderId");
-
-                    b.HasIndex("PaymentMethodId");
 
                     b.ToTable("order_payment", (string)null);
                 });
@@ -2639,7 +2709,7 @@ namespace drinking_be.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("content");
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at")
@@ -2658,6 +2728,9 @@ namespace drinking_be.Migrations
                     b.Property<string>("MediaUrl")
                         .HasColumnType("text")
                         .HasColumnName("media_url");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("integer")
@@ -2682,6 +2755,8 @@ namespace drinking_be.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
 
                     b.HasIndex("ProductId");
 
@@ -2752,6 +2827,10 @@ namespace drinking_be.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
+
+                    b.Property<string>("imageUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id")
                         .HasName("pk_room_td");
@@ -3210,14 +3289,14 @@ namespace drinking_be.Migrations
             modelBuilder.Entity("drinking_be.Models.Cart", b =>
                 {
                     b.HasOne("Store", "Store")
-                        .WithMany()
+                        .WithMany("Carts")
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("User", "User")
-                        .WithOne("Cart")
-                        .HasForeignKey("drinking_be.Models.Cart", "UserId")
+                        .WithMany("Carts")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -3295,6 +3374,25 @@ namespace drinking_be.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("drinking_be.Models.CommentLike", b =>
+                {
+                    b.HasOne("drinking_be.Models.Comment", "Comment")
+                        .WithMany("Likes")
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Comment");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("drinking_be.Models.FranchiseRequest", b =>
                 {
                     b.HasOne("User", "Reviewer")
@@ -3337,7 +3435,7 @@ namespace drinking_be.Migrations
                     b.HasOne("Address", "DeliveryAddress")
                         .WithMany()
                         .HasForeignKey("DeliveryAddressId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("drinking_be.Models.PaymentMethod", "PaymentMethod")
                         .WithMany("Orders")
@@ -3358,8 +3456,7 @@ namespace drinking_be.Migrations
 
                     b.HasOne("drinking_be.Models.ShopTable", "Table")
                         .WithMany("Orders")
-                        .HasForeignKey("TableId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("TableId");
 
                     b.HasOne("User", "User")
                         .WithMany("Orders")
@@ -3368,7 +3465,8 @@ namespace drinking_be.Migrations
 
                     b.HasOne("UserVoucher", "UserVoucher")
                         .WithMany()
-                        .HasForeignKey("UserVoucherId");
+                        .HasForeignKey("UserVoucherId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("DeliveryAddress");
 
@@ -3398,11 +3496,11 @@ namespace drinking_be.Migrations
                         .HasForeignKey("ParentItemId")
                         .HasConstraintName("FK__Order_ite__paren__2EDAF651");
 
-                    b.HasOne("Product", "Product")
+                    b.HasOne("Product", null)
                         .WithMany("OrderItems")
                         .HasForeignKey("ProductId")
-                        .IsRequired()
-                        .HasConstraintName("FK__Order_ite__produ__2DE6D218");
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Size", "Size")
                         .WithMany("OrderItems")
@@ -3412,8 +3510,6 @@ namespace drinking_be.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("ParentItem");
-
-                    b.Navigation("Product");
 
                     b.Navigation("Size");
                 });
@@ -3427,16 +3523,7 @@ namespace drinking_be.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_OrderPayment_OrderId");
 
-                    b.HasOne("drinking_be.Models.PaymentMethod", "PaymentMethod")
-                        .WithMany()
-                        .HasForeignKey("PaymentMethodId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_OrderPayment_PaymentMethodId");
-
                     b.Navigation("Order");
-
-                    b.Navigation("PaymentMethod");
                 });
 
             modelBuilder.Entity("drinking_be.Models.Payslip", b =>
@@ -3533,6 +3620,12 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("drinking_be.Models.Review", b =>
                 {
+                    b.HasOne("drinking_be.Models.Order", "Order")
+                        .WithMany("Reviews")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Product", "Product")
                         .WithMany("Reviews")
                         .HasForeignKey("ProductId")
@@ -3544,6 +3637,8 @@ namespace drinking_be.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Order");
 
                     b.Navigation("Product");
 
@@ -3701,6 +3796,8 @@ namespace drinking_be.Migrations
 
             modelBuilder.Entity("Store", b =>
                 {
+                    b.Navigation("Carts");
+
                     b.Navigation("Orders");
 
                     b.Navigation("Policies");
@@ -3722,7 +3819,7 @@ namespace drinking_be.Migrations
                 {
                     b.Navigation("Addresses");
 
-                    b.Navigation("Cart");
+                    b.Navigation("Carts");
 
                     b.Navigation("Comments");
 
@@ -3768,6 +3865,8 @@ namespace drinking_be.Migrations
             modelBuilder.Entity("drinking_be.Models.Comment", b =>
                 {
                     b.Navigation("InverseParent");
+
+                    b.Navigation("Likes");
                 });
 
             modelBuilder.Entity("drinking_be.Models.Material", b =>
@@ -3787,6 +3886,8 @@ namespace drinking_be.Migrations
                     b.Navigation("OrderItems");
 
                     b.Navigation("OrderPayments");
+
+                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("drinking_be.Models.OrderItem", b =>

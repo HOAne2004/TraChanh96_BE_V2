@@ -784,6 +784,50 @@ namespace drinking_be.Data
                 await context.SaveChangesAsync();
             }
 
+            // --- 11. Payment Methods (MỚI) ---
+            if (!await context.PaymentMethods.AnyAsync())
+            {
+                context.PaymentMethods.AddRange(
+                    new PaymentMethod
+                    {
+                        Name = "Thanh toán khi nhận hàng (COD)",
+                        PaymentType = PaymentTypeEnum.COD,
+                        ImageUrl = "https://cdn-icons-png.flaticon.com/512/2331/2331941.png",
+                        ProcessingFee = 0,
+                        SortOrder = 1,
+                        Status = PublicStatusEnum.Active,
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new PaymentMethod
+                    {
+                        Name = "Chuyển khoản Ngân hàng (VietQR)",
+                        PaymentType = PaymentTypeEnum.BankTransfer,
+                        ImageUrl = "https://img.vietqr.io/image/MB-123456789-compact2.png", // Demo
+                        // Cấu hình VietQR
+                        BankName = "MB Bank",
+                        BankAccountNumber = "0393742967",
+                        BankAccountName = "LÊ HUY HOÀN" ,
+                        QRTplUrl = "compact2",
+                        Instructions = "Vui lòng ghi nội dung chuyển khoản là Mã đơn hàng.",
+                        ProcessingFee = 0,
+                        SortOrder = 2,
+                        Status = PublicStatusEnum.Active,
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new PaymentMethod
+                    {
+                        Name = "Ví MoMo",
+                        PaymentType = PaymentTypeEnum.EWallet,
+                        ImageUrl = "https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png",
+                        ProcessingFee = 0,
+                        SortOrder = 3,
+                        Status = PublicStatusEnum.Inactive, // Tạm tắt để demo tính năng Toggle
+                        CreatedAt = DateTime.UtcNow
+                    }
+                );
+                await context.SaveChangesAsync();
+                Console.WriteLine("--> Đã tạo Payment Methods");
+            }
             Console.WriteLine("✅ Database seeding completed successfully!");
         }
     }

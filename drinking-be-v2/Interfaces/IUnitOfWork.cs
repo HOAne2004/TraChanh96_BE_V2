@@ -11,6 +11,9 @@ namespace drinking_be.Interfaces
         IGenericRepository<ShopTable> ShopTables { get; }
         IGenericRepository<Product> Products { get; }
         IGenericRepository<ProductSize> ProductSizes { get; }
+        IGenericRepository<OrderItem> OrderItems { get; }
+        IGenericRepository<OrderPayment> OrderPayments { get; }
+        IGenericRepository<PaymentMethod> PaymentMethods { get; }
         Task<int> SaveChangesAsync();
         Task<int> CompleteAsync();
         IGenericRepository<T> Repository<T>() where T : class;

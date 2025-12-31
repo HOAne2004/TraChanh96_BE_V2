@@ -20,8 +20,7 @@ namespace drinking_be.Controllers
 
         private int GetUserId()
         {
-            var claim = User.FindFirst("nameid") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-            return (claim != null && int.TryParse(claim.Value, out int id)) ? id : 0;
+            return User.GetUserId();
         }
 
         [HttpGet]
@@ -44,6 +43,14 @@ namespace drinking_be.Controllers
         {
             await _notiService.MarkAsReadAsync(id, GetUserId());
             return NoContent();
+        }
+
+        [HttpGet("manage")]
+        [Authorize(Roles = "Admin,Manager")] // Chỉ cho phép quản lý
+        public async Task<IActionResult> GetListForAdmin([FromQuery] NotificationFilterDto filter)
+        {
+            var result = await _notiService.GetNotificationsByFilterAsync(filter);
+            return Ok(result);
         }
     }
 }

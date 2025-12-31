@@ -14,6 +14,7 @@ public partial class OrderPayment
 
     // Khóa ngoại tới phương thức thanh toán
     public int PaymentMethodId { get; set; }
+    public string PaymentMethodName { get; set; } = null!;
 
     // Thông tin giao dịch
     public decimal Amount { get; set; } // Số tiền của giao dịch này (có thể là tiền cọc, hoàn tiền, hoặc tổng)
@@ -22,6 +23,8 @@ public partial class OrderPayment
 
     // ⭐ Trạng thái (Sử dụng Enum đã tạo)
     public OrderPaymentStatusEnum Status { get; set; } = OrderPaymentStatusEnum.Pending;
+    public OrderPaymentTypeEnum Type { get; set; }
+    // Charge / Refund / Adjustment
 
     public DateTime? PaymentDate { get; set; } // Thời điểm thanh toán thành công
 
@@ -31,5 +34,4 @@ public partial class OrderPayment
 
     // Navigation Properties
     public virtual Order Order { get; set; } = null!;
-    public virtual PaymentMethod PaymentMethod { get; set; } = null!;
 }

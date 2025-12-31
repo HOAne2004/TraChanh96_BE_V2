@@ -22,9 +22,7 @@ namespace drinking_be.Controllers
         // Helper GetUserId
         private int GetUserId()
         {
-            var claim = User.FindFirst("nameid") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-            if (claim != null && int.TryParse(claim.Value, out int userId)) return userId;
-            throw new UnauthorizedAccessException("Token không hợp lệ.");
+            return User.GetUserId();
         }
 
         // POST: api/supplyorders

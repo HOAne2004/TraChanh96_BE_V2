@@ -1,31 +1,28 @@
-﻿// File: Dtos/OrderItemDtos/OrderItemReadDto.cs
-
-using drinking_be.Enums;
-using System.Collections.Generic;
-
-namespace drinking_be.Dtos.OrderItemDtos
+﻿namespace drinking_be.Dtos.OrderItemDtos
 {
     public class OrderItemReadDto
     {
         public long Id { get; set; }
-        public long OrderId { get; set; }
         public int ProductId { get; set; }
 
-        public string ProductName { get; set; } = null!; // Cần Include Product
-        public int Quantity { get; set; }
+        // --- Snapshot Info ---
+        public string ProductName { get; set; } = null!;
+        public string? ProductImage { get; set; }
 
-        public decimal BasePrice { get; set; }
-        public decimal FinalPrice { get; set; }
+        // --- Price & Quantity ---
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }  // Giá đơn vị (Base + Size) lúc mua
+        public decimal TotalPrice { get; set; } // Quantity * UnitPrice
+
+        // --- Options ---
         public string? Note { get; set; }
 
-        // --- Tùy chọn dưới dạng Label/String ---
-        public short? SizeId { get; set; }
-        public string? SizeLabel { get; set; } // Cần Include Size
+        public string? SizeName { get; set; } // Tên size (S, M, L)
+        public string SugarLevel { get; set; } = null!; // Label (100% Đường)
+        public string IceLevel { get; set; } = null!;   // Label (100% Đá)
 
-        public string SugarLabel { get; set; } = null!; // Lấy từ Enum.ToString()
-        public string IceLabel { get; set; } = null!;   // Lấy từ Enum.ToString()
-
-        // ⭐ Quan hệ đệ quy: Topping (Cũng là OrderItem, nhưng dùng DTO đơn giản hơn)
-        public ICollection<OrderToppingReadDto> Toppings { get; set; } = new List<OrderToppingReadDto>();
+        // --- Toppings ---
+        // 🟢 CẬP NHẬT: Dùng DTO riêng cho topping để gọn nhẹ JSON trả về
+        public List<OrderToppingReadDto> Toppings { get; set; } = new();
     }
 }

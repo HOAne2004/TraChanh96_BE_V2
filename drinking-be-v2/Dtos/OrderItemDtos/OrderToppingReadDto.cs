@@ -2,7 +2,7 @@
 
 namespace drinking_be.Dtos.OrderItemDtos
 {
-    public class OrderToppingReadDto
+    public class OrderToppingReadDto 
     {
         public long Id { get; set; }
         public int ProductId { get; set; }

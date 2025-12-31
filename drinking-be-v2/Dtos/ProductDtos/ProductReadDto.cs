@@ -31,5 +31,6 @@ namespace drinking_be.Dtos.ProductDtos
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public ICollection<ProductSizeReadDto> ProductSizes { get; set; } = new List<ProductSizeReadDto>();
+        public List<int> StoreIds { get; set; } = new List<int>();
     }
 }

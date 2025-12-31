@@ -1,50 +1,87 @@
 ﻿using drinking_be.Enums;
 using drinking_be.Interfaces;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace drinking_be.Models;
 
 public partial class Order : ISoftDelete
 {
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public long Id { get; set; }
 
     // --- ĐỊNH DANH & PHÂN LOẠI ---
-    public string OrderCode { get; set; } = null!; // Mã đơn hệ thống (Unique)
-    public string? PickupCode { get; set; }        // Mã lấy đồ/giao hàng (Ngắn gọn)
+    [Required]
+    [MaxLength(50)]
+    public string OrderCode { get; set; } = null!;
+
+    [MaxLength(20)]
+    public string? PickupCode { get; set; }
+    public PaymentFlowEnum PaymentFlow { get; set; }
     public OrderTypeEnum OrderType { get; set; } = OrderTypeEnum.AtCounter;
     public OrderStatusEnum Status { get; set; } = OrderStatusEnum.New;
 
     // --- KHÓA NGOẠI (FOREIGN KEYS) ---
     public int StoreId { get; set; }
-    public int? UserId { get; set; }            // Khách hàng
-    public int? ShipperId { get; set; }         // Nhân viên giao hàng (User)
-    public int? TableId { get; set; }           // Bàn (ShopTable)
+    public int? UserId { get; set; }
+    public int? ShipperId { get; set; }
+    public int? TableId { get; set; }
     public int? PaymentMethodId { get; set; }
     public long? DeliveryAddressId { get; set; }
     public long? UserVoucherId { get; set; }
 
+    // --- SNAPSHOT GIAO HÀNG ---
+    [MaxLength(100)]
+    public string? RecipientName { get; set; }
+
+    [MaxLength(20)]
+    public string? RecipientPhone { get; set; }
+
+    [MaxLength(500)]
+    public string? ShippingAddress { get; set; }
+
     // --- THỜI GIAN ---
-    public DateTime? OrderDate { get; set; }    // Thời điểm đặt
-    public DateTime? DeliveryDate { get; set; } // Thời điểm giao xong
-    public DateTime? CreatedAt { get; set; }
+    public DateTime? OrderDate { get; set; }
+    public DateTime? DeliveryDate { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
 
     // --- TÀI CHÍNH (MONEY) ---
-    // (Lưu ý: Precision sẽ được config trong DbContext)
-    public decimal TotalAmount { get; set; }    // Tổng tiền hàng
-    public decimal? DiscountAmount { get; set; } // Giảm giá
-    public decimal? ShippingFee { get; set; }    // Phí ship
-    public decimal GrandTotal { get; set; }      // Tổng thanh toán cuối cùng
-    public int? CoinsEarned { get; set; }        // Xu tích lũy
+    // Vẫn giữ lại cấu hình Decimal để tránh lỗi database
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal TotalAmount { get; set; } = 0;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? DiscountAmount { get; set; } = 0;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal? ShippingFee { get; set; } = 0;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal GrandTotal { get; set; } = 0;
+
+    public int? CoinsEarned { get; set; } = 0;
 
     // --- THÔNG TIN BỔ SUNG ---
-    public string? StoreName { get; set; }       // Snapshot tên cửa hàng lúc đặt
-    public string? VoucherCodeUsed { get; set; } // Snapshot mã voucher
-    public string? UserNotes { get; set; }       // Ghi chú của khách
+    [MaxLength(255)]
+    public string? StoreName { get; set; }
+
+    [MaxLength(50)]
+    public string? PaymentMethodName { get; set; }
+
+    [MaxLength(50)]
+    public string? VoucherCodeUsed { get; set; }
+
+    [MaxLength(1000)]
+    public string? UserNotes { get; set; }
 
     // --- THÔNG TIN HỦY ĐƠN ---
     public OrderCancelReasonEnum? CancelReason { get; set; }
+
+    [MaxLength(500)]
     public string? CancelNote { get; set; }
     public int? CancelledByUserId { get; set; }
 
@@ -52,18 +89,28 @@ public partial class Order : ISoftDelete
     // NAVIGATION PROPERTIES
     // =========================================================
 
-    // 1. Quan hệ chính
+    [ForeignKey(nameof(StoreId))]
     public virtual Store Store { get; set; } = null!;
-    public virtual User? User { get; set; }      // Khách hàng
-    public virtual User? Shipper { get; set; }   // Shipper (Cũng là User)
-    public virtual ShopTable? Table { get; set; } // Bàn
 
-    // 2. Thanh toán & Voucher & Địa chỉ
+    [ForeignKey(nameof(UserId))]
+    public virtual User? User { get; set; }
+
+    [ForeignKey(nameof(ShipperId))]
+    public virtual User? Shipper { get; set; }
+
+    [ForeignKey(nameof(TableId))]
+    public virtual ShopTable? Table { get; set; }
+
+    [ForeignKey(nameof(PaymentMethodId))]
     public virtual PaymentMethod? PaymentMethod { get; set; }
+
+    [ForeignKey(nameof(UserVoucherId))]
     public virtual UserVoucher? UserVoucher { get; set; }
+
+    [ForeignKey(nameof(DeliveryAddressId))]
     public virtual Address? DeliveryAddress { get; set; }
 
-    // 3. Danh sách con
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public virtual ICollection<OrderPayment> OrderPayments { get; set; } = new List<OrderPayment>();
+    public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 }

@@ -22,5 +22,7 @@ namespace drinking_be.Interfaces.OrderInterfaces
 
         // Admin: Xóa (Soft Delete)
         Task<bool> DeleteAsync(int id);
+
+        Task<bool> ToggleStatusAsync(int id);
     }
 }

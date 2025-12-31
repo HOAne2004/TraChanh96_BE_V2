@@ -21,32 +21,15 @@ namespace drinking_be.Controllers
         // Helper lấy UserID chuẩn
         private int GetUserIdFromToken()
         {
-            var idClaim = User.Claims.FirstOrDefault(c =>
-                (c.Type == "nameid" || c.Type == ClaimTypes.NameIdentifier)
-                && int.TryParse(c.Value, out _));
-
-            if (idClaim != null && int.TryParse(idClaim.Value, out int userId))
-            {
-                return userId;
-            }
-
-            // Fallback tìm sub
-            var subClaim = User.FindFirst("sub");
-            if (subClaim != null && int.TryParse(subClaim.Value, out int subId))
-            {
-                return subId;
-            }
-
-            throw new UnauthorizedAccessException("Token không hợp lệ.");
+            return User.GetUserId();
         }
 
         [HttpGet("me")]
         public async Task<IActionResult> GetMyCart()
         {
-            var cart = await _cartService.GetMyCartAsync(GetUserIdFromToken());
-            return Ok(cart);
+            var carts = await _cartService.GetMyCartAsync(GetUserIdFromToken());
+            return Ok(carts); // Trả về mảng []
         }
-
         [HttpPost("add-item")]
         public async Task<IActionResult> AddItemToCart([FromBody] CartItemCreateDto itemDto)
         {
@@ -92,5 +75,16 @@ namespace drinking_be.Controllers
             var emptyCart = await _cartService.GetMyCartAsync(GetUserIdFromToken());
             return Ok(emptyCart);
         }
+
+        [HttpDelete("clear/{storeId}")]
+        public async Task<IActionResult> ClearCartByStore(int storeId)
+        {
+            var carts = await _cartService.ClearCartByStoreAsync(
+                GetUserIdFromToken(),
+                storeId
+            );
+            return Ok(carts);
+        }
+
     }
 }

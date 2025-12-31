@@ -20,9 +20,7 @@ namespace drinking_be.Controllers
 
         private int GetUserId()
         {
-            var claim = User.FindFirst("nameid") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-            if (claim != null && int.TryParse(claim.Value, out int userId)) return userId;
-            throw new UnauthorizedAccessException("Token không hợp lệ.");
+            return User.GetUserId();
         }
 
         [HttpGet("me")] // Route: /api/uservouchers/me

@@ -21,9 +21,7 @@ namespace drinking_be.Controllers
         // --- Helper lấy UserID ---
         private int GetUserId()
         {
-            var claim = User.FindFirst("nameid") ?? User.FindFirst("sub") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-            if (claim != null && int.TryParse(claim.Value, out int userId)) return userId;
-            return 0; // Trả về 0 nếu không tìm thấy (cho khách vãng lai)
+            return User.GetUserId();
         }
 
         // POST: api/reservation

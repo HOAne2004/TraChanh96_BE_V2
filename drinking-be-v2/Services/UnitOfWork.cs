@@ -24,6 +24,9 @@ namespace drinking_be.Services
         public IGenericRepository<ShopTable> ShopTables => Repository<ShopTable>();
         public IGenericRepository<Product> Products => Repository<Product>();
         public IGenericRepository<ProductSize> ProductSizes => Repository<ProductSize>();
+        public IGenericRepository<OrderItem> OrderItems => Repository<OrderItem>();
+        public IGenericRepository<OrderPayment> OrderPayments => Repository<OrderPayment>();
+        public IGenericRepository<PaymentMethod> PaymentMethods => Repository<PaymentMethod>();
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();

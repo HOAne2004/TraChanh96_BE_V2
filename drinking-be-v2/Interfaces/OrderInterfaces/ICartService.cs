@@ -1,15 +1,14 @@
-﻿// Interfaces/ICartService.cs
-using drinking_be.Dtos.CartDtos;
-using System.Threading.Tasks;
+﻿using drinking_be.Dtos.CartDtos;
 
 namespace drinking_be.Interfaces.OrderInterfaces
 {
     public interface ICartService
     {
-        Task<CartReadDto> GetMyCartAsync(int userId);
-        Task<CartReadDto> AddItemToCartAsync(int userId, CartItemCreateDto itemDto);
-        Task<CartReadDto> UpdateItemQuantityAsync(int userId, CartItemUpdateDto updateDto);
-        Task<CartReadDto> RemoveItemFromCartAsync(int userId, long cartItemId);
+        Task<IEnumerable<CartReadDto>> GetMyCartAsync(int userId);
+        Task<IEnumerable<CartReadDto>> AddItemToCartAsync(int userId, CartItemCreateDto itemDto);
+        Task<IEnumerable<CartReadDto>> UpdateItemQuantityAsync(int userId, CartItemUpdateDto updateDto);
+        Task<IEnumerable<CartReadDto>> RemoveItemFromCartAsync(int userId, long cartItemId);
         Task ClearCartAsync(int userId);
+        Task<IEnumerable<CartReadDto>> ClearCartByStoreAsync(int userId, int storeId);
     }
 }

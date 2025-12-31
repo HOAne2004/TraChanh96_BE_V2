@@ -5,19 +5,19 @@ namespace drinking_be.Interfaces.FeedbackInterfaces
 {
     public interface IReviewService
     {
-        // Public: Lấy đánh giá đã duyệt của sản phẩm
+        // Public
         Task<IEnumerable<ReviewReadDto>> GetApprovedReviewsAsync(int productId);
 
-        // User: Gửi đánh giá mới
+        // User
         Task<ReviewReadDto> CreateReviewAsync(int userId, ReviewCreateDto dto);
-
-        // Admin: Lấy tất cả (Filter theo Product/Status)
-        Task<IEnumerable<ReviewReadDto>> GetAllReviewsAsync(int? productId, ReviewStatusEnum? status);
-
-        // Admin: Duyệt/Trả lời
-        Task<ReviewReadDto?> UpdateReviewAsync(int id, ReviewUpdateDto dto);
-
-        // Admin/User: Xóa
+        Task<ReviewReadDto> UpdateReviewByUserAsync(int id, int userId, ReviewUserEditDto dto);
         Task<bool> DeleteReviewAsync(int id, int userId, bool isAdmin);
+
+        // Helper cho FE: Check xem user có quyền review sản phẩm này không (để hiện/ẩn nút)
+        Task<bool> CanReviewAsync(int userId, int productId);
+
+        // Admin
+        Task<IEnumerable<ReviewReadDto>> GetAllReviewsAsync(int? productId, ReviewStatusEnum? status);
+        Task<ReviewReadDto> UpdateReviewByAdminAsync(int id, ReviewAdminUpdateDto dto);
     }
 }

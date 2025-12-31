@@ -41,12 +41,9 @@ namespace drinking_be.Controllers
         {
             // Tại quầy có thể không cần User đăng nhập (Khách vãng lai)
             // Nhưng nếu Staff tạo hộ khách thì UserId có thể null hoặc là ID của Staff
-            int? userId = null;
-            try
-            {
-                userId = GetCurrentUserId();
-            }
-            catch { } // Bỏ qua nếu không lấy được User
+            int? userId = User.Identity?.IsAuthenticated == true
+                ? GetCurrentUserId()
+                : null;
 
             var result = await _orderService.CreateAtCounterOrderAsync(userId, dto);
             return Ok(result);
@@ -76,21 +73,38 @@ namespace drinking_be.Controllers
             return Ok(result);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetOrderById(long id)
+        [HttpGet("{code}")]   // <-- Thành code (string)
+        public async Task<IActionResult> GetOrderByCode(string code)
         {
-            var result = await _orderService.GetOrderByIdAsync(id);
+            // Nếu code gửi lên là số (cũ), vẫn support hoặc chặn tùy bạn. 
+            // Ở đây ta ưu tiên tìm theo Code string.
 
-            // Bảo mật: Nếu là Customer, chỉ xem được đơn của chính mình
-            var userId = GetCurrentUserId();
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var result = await _orderService.GetOrderByOrderCodeAsync(code); // Sửa gọi hàm service
 
-            if (userRole == "Customer" && result.UserId != userId)
+            // Validate quyền sở hữu
+            if (User.IsInRole("Customer"))
             {
-                return Forbid("Bạn không có quyền xem đơn hàng này.");
+                var userId = GetCurrentUserId();
+                if (result.UserId != userId) return Forbid();
             }
 
             return Ok(result);
+        }
+
+
+        // Thêm API mới
+        [HttpGet("shipping-fee")]
+        public async Task<IActionResult> GetShippingFee([FromQuery] int storeId, [FromQuery] long addressId)
+        {
+            try
+            {
+                var fee = await _orderService.CalculateShippingFeeAsync(storeId, addressId);
+                return Ok(new { fee });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // ==========================================================
@@ -111,12 +125,23 @@ namespace drinking_be.Controllers
 
         // Duyệt đơn / Nấu xong / Đang giao...
         [HttpPut("{id}/status")]
-        [Authorize(Roles = "Admin,StoreManager,Staff")]
+        [Authorize(Roles = "Admin,Manager,Staff")]
         public async Task<IActionResult> UpdateStatus(long id, [FromBody] UpdateOrderStatusDto dto)
         {
-            var result = await _orderService.UpdateOrderStatusAsync(id, dto.Status);
+            var roleStr = User.FindFirst(ClaimTypes.Role)?.Value
+                ?? throw new UnauthorizedAccessException();
+
+            var role = Enum.Parse<UserRoleEnum>(roleStr);
+
+            var result = await _orderService.UpdateOrderStatusAsync(
+                id,
+                dto.Status,
+                role
+            );
+
             return Ok(result);
         }
+
 
         // Gán Shipper (Nhân viên tự nhận hoặc Quản lý gán)
         [HttpPut("{id}/assign-shipper")]
@@ -160,16 +185,35 @@ namespace drinking_be.Controllers
         // --- HELPER: Lấy UserId từ Token ---
         private int GetCurrentUserId()
         {
-            var identity = HttpContext.User.Identity as ClaimsIdentity;
-            if (identity != null)
-            {
-                var userClaim = identity.FindFirst("id"); // Hoặc ClaimTypes.NameIdentifier tùy cấu hình Token
-                if (userClaim != null && int.TryParse(userClaim.Value, out int userId))
-                {
-                    return userId;
-                }
-            }
-            throw new UnauthorizedAccessException("Không tìm thấy thông tin User.");
+            var userIdClaim = User.FindFirst("UserId");
+
+            if (userIdClaim == null)
+                throw new UnauthorizedAccessException("Token không chứa UserId.");
+
+            return int.Parse(userIdClaim.Value);
         }
+
+        // ==========================================================
+        // 6. QUẢN LÝ THÙNG RÁC (ADMIN/MANAGER)
+        // ==========================================================
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,StoreManager")] // Chỉ quản lý mới được xóa
+        public async Task<IActionResult> SoftDelete(long id)
+        {
+            var success = await _orderService.SoftDeleteOrderAsync(id);
+            if (!success) return NotFound("Không tìm thấy đơn hàng.");
+            return Ok(new { message = "Đã chuyển đơn hàng vào thùng rác." });
+        }
+
+        [HttpPatch("{id}/restore")]
+        [Authorize(Roles = "Admin,StoreManager")]
+        public async Task<IActionResult> Restore(long id)
+        {
+            var success = await _orderService.RestoreOrderAsync(id);
+            if (!success) return NotFound("Không tìm thấy đơn hàng trong thùng rác.");
+            return Ok(new { message = "Đã khôi phục đơn hàng thành công." });
+        }
+
     }
 }

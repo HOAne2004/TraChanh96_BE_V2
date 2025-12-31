@@ -28,6 +28,9 @@ namespace drinking_be.Enums
         [Description("Khách hàng bom hàng (Không nhận)")]
         CustomerRefused = 21,
 
+        [Description("Hệ thông tự động hủy do quá thời gian chờ")]
+        AutoCancel = 50,
+
         [Description("Lý do khác")]
         Other = 99
     }

@@ -7,17 +7,23 @@ namespace drinking_be.Dtos.OrderDtos
     {
         [Required]
         public int StoreId { get; set; }
-
+        public int? PaymentMethodId { get; set; } // Nếu thanh toán online
         public string? UserNotes { get; set; }
-
-        public int? PaymentMethodId { get; set; }
-
-        // Logic Voucher: Ưu tiên dùng ID nếu chọn từ ví, dùng Code nếu nhập tay
-        public long? UserVoucherId { get; set; }
         public string? VoucherCode { get; set; }
 
         [Required]
-        [MinLength(1, ErrorMessage = "Đơn hàng phải có ít nhất 1 món")]
-        public List<OrderItemCreateDto> Items { get; set; } = new List<OrderItemCreateDto>();
+        public List<OrderItemCreateDto> Items { get; set; } = new();
+    }
+    // 1. DTO Tạo đơn Giao hàng
+    public class DeliveryOrderCreateDto : BaseOrderCreateDto
+    {
+        [Required]
+        public long DeliveryAddressId { get; set; } // ID địa chỉ trong sổ địa chỉ của User
+    }
+
+    // 2. DTO Tạo đơn Tại quầy
+    public class AtCounterOrderCreateDto : BaseOrderCreateDto
+    {
+        public int? TableId { get; set; } // Có thể null nếu mang về
     }
 }

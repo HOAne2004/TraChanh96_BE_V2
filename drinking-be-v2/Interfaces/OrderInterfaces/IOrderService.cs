@@ -11,12 +11,14 @@ namespace drinking_be.Interfaces.OrderInterfaces
         Task<OrderReadDto> CreateDeliveryOrderAsync(int? userId, DeliveryOrderCreateDto dto);
 
         // 2. Xử lý đơn
-        Task<OrderReadDto> UpdateOrderStatusAsync(long orderId, OrderStatusEnum newStatus);
+        Task<OrderReadDto> UpdateOrderStatusAsync(long orderId, OrderStatusEnum newStatus, UserRoleEnum actorRole);
+
         Task<bool> CancelOrderAsync(long orderId, int? userId, OrderCancelDto cancelDto);
 
         // 3. Tra cứu
         Task<PagedResult<OrderReadDto>> GetMyOrdersAsync(int userId, PagingRequest request);
         Task<OrderReadDto> GetOrderByIdAsync(long id);
+        Task<OrderReadDto> GetOrderByOrderCodeAsync(string orderCode);
 
         // 4. Vận hành (Shipper/Staff)
         Task<bool> AssignShipperAsync(long orderId, int shipperId);
@@ -26,6 +28,10 @@ namespace drinking_be.Interfaces.OrderInterfaces
         Task<PagedResult<OrderReadDto>> GetOrdersByFilterAsync(OrderFilterDto filter);
         Task<OrderQuickStatsDto> GetQuickStatsAsync(int? storeId, DateTime date);
 
+        // Thêm hàm này
+        Task<decimal> CalculateShippingFeeAsync(int storeId, long addressId);
 
+        Task<bool> SoftDeleteOrderAsync(long id); // Xóa mềm
+        Task<bool> RestoreOrderAsync(long id);    // Khôi phục
     }
 }

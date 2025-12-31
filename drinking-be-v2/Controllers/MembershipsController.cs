@@ -21,23 +21,7 @@ namespace drinking_be.Controllers
         // --- Helper: GetUserId (Phiên bản "bất tử" - sửa lỗi Token) ---
         private int GetUserId()
         {
-            var idClaim = User.Claims.FirstOrDefault(c =>
-                (c.Type == "nameid" || c.Type == ClaimTypes.NameIdentifier)
-                && int.TryParse(c.Value, out _));
-
-            if (idClaim != null && int.TryParse(idClaim.Value, out int userId))
-            {
-                return userId;
-            }
-
-            // Fallback
-            var subClaim = User.FindFirst("sub");
-            if (subClaim != null && int.TryParse(subClaim.Value, out int subId))
-            {
-                return subId;
-            }
-
-            throw new UnauthorizedAccessException("Token không hợp lệ.");
+            return User.GetUserId();
         }
 
         /// <summary>

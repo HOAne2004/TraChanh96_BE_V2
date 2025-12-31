@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using drinking_be.Data; // Chứa IUnitOfWork
+using drinking_be.Domain.Orders;
 using drinking_be.Dtos.Common;
+using drinking_be.Dtos.NotificationDtos;
 using drinking_be.Dtos.OrderDtos;
 using drinking_be.Dtos.OrderItemDtos;
 using drinking_be.Enums;
@@ -16,11 +18,18 @@ namespace drinking_be.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
-        public OrderService(IUnitOfWork unitOfWork, IMapper mapper)
+        private readonly IOrderPaymentService _orderPaymentService;
+        private readonly INotificationService _notificationService;
+        public OrderService(IUnitOfWork unitOfWork, IMapper mapper, IOrderPaymentService orderPaymentService, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _orderPaymentService = orderPaymentService;
+            _notificationService = notificationService;
+        }
+        public class AppException : Exception
+        {
+            public AppException(string message) : base(message) { }
         }
 
         // =========================================================================
@@ -29,7 +38,9 @@ namespace drinking_be.Services
         public async Task<OrderReadDto> CreateDeliveryOrderAsync(int? userId, DeliveryOrderCreateDto dto)
         {
             // 1. Validate Store
-            var store = await _unitOfWork.Stores.GetByIdAsync(dto.StoreId);
+            var store = await _unitOfWork.Stores.Find(s => s.Id == dto.StoreId)
+                                            .Include(s => s.Address)
+                                            .FirstOrDefaultAsync();
             if (store == null) throw new KeyNotFoundException("Cửa hàng không tồn tại.");
             if (store.Status != StoreStatusEnum.Active) throw new Exception("Cửa hàng hiện đang đóng cửa.");
 
@@ -44,12 +55,15 @@ namespace drinking_be.Services
             order.Status = OrderStatusEnum.New;
 
             // 4. Xử lý danh sách món & Tính tiền hàng (SubTotal)
-            var (orderItems, totalItemAmount) = await ProcessOrderItemsAsync(dto.Items, dto.StoreId);
-            order.OrderItems = orderItems;
-            order.TotalAmount = totalItemAmount;
+            order.TotalAmount = await ProcessOrderItemsAsync(order, dto.Items);
+            order.RecipientName = address.RecipientName;
+            order.RecipientPhone = address.RecipientPhone;
+            order.ShippingAddress = !string.IsNullOrWhiteSpace(address.FullAddress)
+                ? address.FullAddress
+                : $"{address.AddressDetail}, {address.Commune}, {address.District}, {address.Province}";
 
             // 5. Tính phí Ship (Dùng Haversine)
-            order.ShippingFee = CalculateShippingFee(store, address);
+            order.ShippingFee = CalculateShippingFeeLogic(store, address);
 
             // 6. Tính tổng tiền & Voucher (Tạm thời chưa trừ Voucher phức tạp)
             order.DiscountAmount = 0; // TODO: Gọi VoucherService để tính
@@ -61,6 +75,22 @@ namespace drinking_be.Services
             // 8. Lưu xuống DB
             await _unitOfWork.Orders.AddAsync(order);
             await _unitOfWork.CompleteAsync();
+
+            var adminIds = await _unitOfWork.Repository<User>()
+        .GetAllAsync(u => u.RoleId == UserRoleEnum.Admin || u.RoleId == UserRoleEnum.Manager || u.RoleId == UserRoleEnum.Staff);
+
+            foreach (var admin in adminIds)
+            {
+                await _notificationService.CreateAsync(new NotificationCreateDto
+                {
+                    UserId = admin.Id,
+                    Title = "Có đơn hàng mới! 🔔",
+                    Content = $"Đơn mới #{order.OrderCode} vừa được tạo. Giá trị: {order.GrandTotal:N0}đ",
+                    Type = NotificationTypeEnum.Order,
+                    ReferenceId = order.OrderCode
+                });
+            }
+
 
             // 9. Return DTO (Query lại để lấy đầy đủ thông tin Include như Product Name, Store Name)
             return await GetOrderByIdAsync(order.Id);
@@ -90,9 +120,7 @@ namespace drinking_be.Services
             order.Status = OrderStatusEnum.New;
 
             // 4. Xử lý món
-            var (orderItems, totalItemAmount) = await ProcessOrderItemsAsync(dto.Items, dto.StoreId);
-            order.OrderItems = orderItems;
-            order.TotalAmount = totalItemAmount;
+            order.TotalAmount = await ProcessOrderItemsAsync(order, dto.Items);
 
             // 5. Tại quầy không có phí Ship
             order.ShippingFee = 0;
@@ -107,107 +135,161 @@ namespace drinking_be.Services
             await _unitOfWork.Orders.AddAsync(order);
             await _unitOfWork.CompleteAsync();
 
+            var adminIds = await _unitOfWork.Repository<User>()
+        .GetAllAsync(u => u.RoleId == UserRoleEnum.Admin || u.RoleId == UserRoleEnum.Manager || u.RoleId == UserRoleEnum.Staff);
+
+            foreach (var admin in adminIds)
+            {
+                await _notificationService.CreateAsync(new NotificationCreateDto
+                {
+                    UserId = admin.Id,
+                    Title = "Có đơn hàng mới! 🔔",
+                    Content = $"Đơn mới #{order.OrderCode} vừa được tạo. Giá trị: {order.GrandTotal:N0}đ",
+                    Type = NotificationTypeEnum.Order,
+                    ReferenceId = order.OrderCode
+                });
+            }
+
             return await GetOrderByIdAsync(order.Id);
         }
 
         // =========================================================================
         // 3. PRIVATE: XỬ LÝ MÓN ĂN & TOPPING (LOGIC CỐT LÕI)
         // =========================================================================
-        private async Task<(List<OrderItem> Items, decimal TotalAmount)> ProcessOrderItemsAsync(List<OrderItemCreateDto> itemsDto, int storeId)
+        private async Task<decimal> ProcessOrderItemsAsync(Order order, List<OrderItemCreateDto> itemsDto)
         {
-            var resultItems = new List<OrderItem>();
             decimal totalAmount = 0;
+
+            if (itemsDto == null || !itemsDto.Any())
+                throw new AppException("Danh sách món không được rỗng.");
+
+            var productIds = itemsDto
+                .Select(i => i.ProductId)
+                .Concat(itemsDto.SelectMany(i => i.Toppings.Select(t => t.ProductId)))
+                .Distinct()
+                .ToList();
+
+            var products = await _unitOfWork.Products.GetQueryable()
+                .Include(p => p.ProductSizes)
+                    .ThenInclude(ps => ps.Size)
+                .Include(p => p.ProductStores)
+                .Where(p => productIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id);
 
             foreach (var itemDto in itemsDto)
             {
-                // A. Lấy thông tin sản phẩm
-                // Lưu ý: Đúng ra phải check ProductStore để xem quán này có bán món này không
-                var product = await _unitOfWork.Products.GetByIdAsync(itemDto.ProductId);
-                if (product == null) throw new Exception($"Sản phẩm ID {itemDto.ProductId} không tồn tại.");
-                if (product.Status != ProductStatusEnum.Active) throw new Exception($"Sản phẩm {product.Name} đang ngừng kinh doanh.");
+                if (itemDto.Quantity <= 0)
+                    throw new AppException("Số lượng sản phẩm không hợp lệ.");
 
-                // B. Tính giá cơ bản (Có thể lấy từ ProductStore nếu có cấu hình giá riêng)
-                decimal unitPrice = product.BasePrice;
+                if (!products.TryGetValue(itemDto.ProductId, out var product))
+                    throw new AppException("Sản phẩm không tồn tại.");
 
-                // C. Xử lý Size (Nếu có)
-                //Size? size = null;
+                if (!product.ProductStores.Any(ps => ps.StoreId == order.StoreId))
+                    throw new AppException("Sản phẩm không thuộc cửa hàng này.");
+
+                var basePrice = product.BasePrice;
+                var unitPrice = basePrice;
+
+                short? sizeId = null;
+                string? sizeName = null;
+                decimal sizePrice = 0;
+
                 if (itemDto.SizeId.HasValue)
                 {
-                    // Lấy thông tin size & giá chênh lệch từ bảng ProductSize
-                    // Giả sử UnitOfWork có GenericRepo cho ProductSize hoặc query trực tiếp
-                    // Ở đây query nhanh để demo logic:
-                    var productSize = await _unitOfWork.ProductSizes.Find(ps => ps.ProductId == itemDto.ProductId && ps.SizeId == itemDto.SizeId)
-                                        .FirstOrDefaultAsync();
+                    var size = product.ProductSizes
+                        .FirstOrDefault(s => s.SizeId == itemDto.SizeId.Value);
 
-                    if (productSize != null)
-                    {
-                        unitPrice += productSize.PriceOverride ?? 0; // Hoặc cộng thêm PriceModifier của bảng Size
-                    }
+                    if (size == null)
+                        throw new AppException("Size không hợp lệ.");
+
+                    unitPrice += size.PriceOverride.GetValueOrDefault(0);
+
+                    sizeId = size.SizeId;
+                    sizeName = size.Size.Label;
+                    sizePrice = size.PriceOverride.GetValueOrDefault(0);
                 }
 
-                // D. Tạo Entity Món Chính
-                var mainItem = _mapper.Map<OrderItem>(itemDto);
-                mainItem.BasePrice = product.BasePrice;
-                mainItem.FinalPrice = unitPrice; // Giá chưa nhân số lượng, chưa cộng topping
 
-                decimal itemTotal = unitPrice;
-
-                // E. Xử lý Topping (Đệ quy 1 cấp)
-                if (itemDto.Toppings != null && itemDto.Toppings.Any())
+                var mainItem = new OrderItem
                 {
-                    foreach (var toppingDto in itemDto.Toppings)
+                    ProductId = product.Id,
+                    ProductName = product.Name,
+                    ProductImage = product.ImageUrl,
+                    Quantity = itemDto.Quantity,
+                    BasePrice = basePrice,
+                    SizeId = sizeId,
+                    SizeName = sizeName,
+                    SizePrice = sizePrice, // ✅ BỔ SUNG
+                    SugarLevel = itemDto.SugarLevel,
+                    IceLevel = itemDto.IceLevel,
+                    Note = itemDto.Note,
+                    Order = order
+                };
+
+                decimal toppingUnitTotal = 0;
+
+                foreach (var toppingDto in itemDto.Toppings)
+                {
+                    if (!products.TryGetValue(toppingDto.ProductId, out var toppingProduct))
+                        throw new AppException("Topping không tồn tại.");
+
+                    if (!toppingProduct.ProductStores.Any(ps => ps.StoreId == order.StoreId))
+                        throw new AppException("Topping không thuộc cửa hàng này.");
+
+                    toppingUnitTotal += toppingProduct.BasePrice;
+
+                    var toppingItem = new OrderItem
                     {
-                        var toppingProduct = await _unitOfWork.Products.GetByIdAsync(toppingDto.ProductId);
-                        if (toppingProduct == null) continue;
+                        ProductId = toppingProduct.Id,
+                        ProductName = toppingProduct.Name,
+                        ProductImage = toppingProduct.ImageUrl,
+                        Quantity = mainItem.Quantity,
+                        BasePrice = toppingProduct.BasePrice,
+                        FinalPrice = toppingProduct.BasePrice * mainItem.Quantity,
+                        ParentItem = mainItem,
+                        ParentItemId = mainItem.Id,
+                        Order = order
+                    };
 
-                        var toppingItem = _mapper.Map<OrderItem>(toppingDto);
-                        toppingItem.BasePrice = toppingProduct.BasePrice;
-                        toppingItem.FinalPrice = toppingProduct.BasePrice; // Topping thường không có size
-
-                        // Link topping vào món chính
-                        mainItem.InverseParentItem.Add(toppingItem);
-
-                        // Cộng tiền topping vào tổng giá món chính (để tính GrandTotal)
-                        // Lưu ý: Logic này tùy thuộc vào việc bạn muốn lưu giá topping riêng hay gộp.
-                        // Ở đây ta cộng dồn vào tổng đơn hàng:
-                        totalAmount += (toppingItem.FinalPrice * toppingItem.Quantity);
-                    }
+                    mainItem.InverseParentItem.Add(toppingItem);
                 }
 
-                // F. Cộng tiền món chính vào tổng đơn
-                totalAmount += (mainItem.FinalPrice * mainItem.Quantity);
+                mainItem.FinalPrice = (unitPrice + toppingUnitTotal) * mainItem.Quantity;
+                totalAmount += mainItem.FinalPrice;
 
-                resultItems.Add(mainItem);
+                order.OrderItems.Add(mainItem);
             }
 
-            return (resultItems, totalAmount);
+            return totalAmount;
         }
 
         // =========================================================================
         // 4. PRIVATE: TÍNH PHÍ SHIP (HAVERSINE)
         // =========================================================================
-        private decimal CalculateShippingFee(Store store, Address address)
+        private decimal CalculateShippingFeeLogic(Store store, Address address)
         {
+            // 1. Kiểm tra tọa độ khách
             if (!address.Latitude.HasValue || !address.Longitude.HasValue)
-                return store.ShippingFeeFixed ?? 15000; // Mặc định nếu không có tọa độ
+                return store.ShippingFeeFixed ?? 15000;
 
-            // Giả sử Store chưa có tọa độ trong DB thì lấy tọa độ gốc của hệ thống hoặc trả về phí cứng
-            // Ở đây giả định Store.Address (Include) có tọa độ.
-            // Nếu Store entity chưa include Address, cần cẩn thận null ref.
-            // Tạm tính khoảng cách = 0 nếu thiếu data store.
-            double storeLat = 10.7769; // Ví dụ tọa độ HCM (Cần lấy từ store.Address)
-            double storeLon = 106.7009;
+            // 2. Kiểm tra tọa độ quán
+            if (store.Address == null || !store.Address.Latitude.HasValue || !store.Address.Longitude.HasValue)
+                return store.ShippingFeeFixed ?? 15000;
 
+            // 3. Tính khoảng cách
             double distanceKm = DistanceUtils.CalculateDistanceKm(
-                storeLat, storeLon,
+                store.Address.Latitude.Value, store.Address.Longitude.Value,
                 address.Latitude.Value, address.Longitude.Value
             );
 
-            // Công thức: Phí cố định + (Số km * Phí mỗi km)
+            // 4. Tính tiền: Cố định + (Km * Giá/km)
             decimal fixedFee = store.ShippingFeeFixed ?? 0;
             decimal perKmFee = store.ShippingFeePerKm ?? 5000;
 
-            return fixedFee + (decimal)distanceKm * perKmFee;
+            decimal rawFee = fixedFee + (decimal)distanceKm * perKmFee;
+
+            // Làm tròn lên hàng nghìn
+            return Math.Ceiling(rawFee / 1000) * 1000;
         }
 
         // =========================================================================
@@ -218,9 +300,8 @@ namespace drinking_be.Services
             // Cần Include rất nhiều bảng liên quan
             var order = await _unitOfWork.Orders.Find(o => o.Id == id)
                 .Include(o => o.Store)
-                .Include(o => o.OrderItems).ThenInclude(oi => oi.Product) // Món chính -> Product
                 .Include(o => o.OrderItems).ThenInclude(oi => oi.Size)    // Món chính -> Size
-                .Include(o => o.OrderItems).ThenInclude(oi => oi.InverseParentItem).ThenInclude(ti => ti.Product) // Topping -> Product
+                .Include(o => o.OrderItems).ThenInclude(oi => oi.InverseParentItem).ThenInclude(ti => ti.InverseParentItem) // Topping -> Product
                 .Include(o => o.DeliveryAddress)
                 .Include(o => o.PaymentMethod)
                 .Include(o => o.Table)
@@ -244,7 +325,7 @@ namespace drinking_be.Services
                                   .Skip((request.PageIndex - 1) * request.PageSize)
                                   .Take(request.PageSize)
                                   .Include(o => o.Store) // Include nhẹ để hiển thị list
-                                  .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+                                  .Include(o => o.OrderItems).ThenInclude(oi => oi.InverseParentItem)
                                   .ToListAsync();
 
             var dtos = _mapper.Map<List<OrderReadDto>>(data);
@@ -252,43 +333,39 @@ namespace drinking_be.Services
             return new PagedResult<OrderReadDto>(dtos, totalRow, request.PageIndex, request.PageSize);
         }
 
-        //// --- Placeholder Implementations ---
-        //public Task<OrderReadDto> UpdateOrderStatusAsync(long orderId, OrderStatusEnum newStatus)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public Task<bool> CancelOrderAsync(long orderId, int? userId, OrderCancelDto cancelDto)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public Task<bool> AssignShipperAsync(long orderId, int shipperId)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        //public Task<bool> VerifyPickupCodeAsync(long orderId, string code)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
         // Helper
-        private string GenerateOrderCode()
-        {
-            // Format: ORD-{yyyyMMdd}-{Random4So}
-            return $"ORD-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}";
-        }
+        private string GenerateOrderCode() => $"ORD-{DateTime.Now:yyMMdd}-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
 
         // =========================================================================
         // 6. LỌC ĐƠN HÀNG (CHO QUẢN LÝ / STAFF)
         // =========================================================================
         public async Task<PagedResult<OrderReadDto>> GetOrdersByFilterAsync(OrderFilterDto filter)
         {
-            // 1. Khởi tạo Query (Chưa chạy xuống DB)
-            var query = _unitOfWork.Orders.Find(x => true); // Lấy tất cả
+            // 1. Khởi tạo Query
+            var query = _unitOfWork.Orders.GetQueryable()
+                .Include(o => o.Store)           // Lấy tên quán
+                .Include(o => o.User)            // Lấy tên khách
+                .Include(o => o.Shipper)         // Lấy tên shipper
+                .Include(o => o.Table)           // Lấy tên bàn
+                                                 // Nếu cần lấy chi tiết món để hiển thị thì include, không thì thôi để query nhanh hơn
+                                                 // .Include(o => o.OrderItems).ThenInclude(oi => oi.InverseParentItem) 
+                .AsQueryable();
 
             // 2. Áp dụng các điều kiện lọc (Filter)
+
+            // --- A. Lọc Thùng Rác (IsDeleted) ---
+            if (filter.IsDeleted)
+            {
+                // Xem thùng rác -> Bỏ qua Global Filter, chỉ lấy cái đã xóa
+                query = query.IgnoreQueryFilters().Where(o => o.DeletedAt != null);
+            }
+            else
+            {
+                // Xem bình thường -> Chỉ lấy cái chưa xóa
+                query = query.Where(o => o.DeletedAt == null);
+            }
+
+            // --- B. Lọc theo Store/Status/Date ---
             if (filter.StoreId.HasValue)
             {
                 query = query.Where(o => o.StoreId == filter.StoreId);
@@ -301,30 +378,48 @@ namespace drinking_be.Services
 
             if (filter.FromDate.HasValue)
             {
-                // So sánh ngày bắt đầu (Lấy phần Date để chính xác)
                 var fromDate = filter.FromDate.Value.Date;
-                query = query.Where(o => o.CreatedAt.HasValue && o.CreatedAt.Value.Date >= fromDate);
+                query = query.Where(o => o.CreatedAt >= fromDate); // Dùng >= thay vì .Date để tận dụng index nếu có
             }
 
             if (filter.ToDate.HasValue)
             {
-                var toDate = filter.ToDate.Value.Date;
-                query = query.Where(o => o.CreatedAt.HasValue && o.CreatedAt.Value.Date <= toDate);
+                // Muốn lấy hết ngày đó thì phải là <= cuối ngày hoặc < ngày hôm sau
+                // Cách đơn giản nhất:
+                var toDate = filter.ToDate.Value.Date.AddDays(1);
+                query = query.Where(o => o.CreatedAt < toDate);
             }
 
-            // 3. Đếm tổng số bản ghi (phục vụ phân trang)
+            // 🟢 [QUAN TRỌNG] C. LOGIC TÌM KIẾM (KEYWORD) ---
+            // Đây là phần bạn bị thiếu ở đoạn code trên
+            if (!string.IsNullOrEmpty(filter.Keyword))
+            {
+                string k = filter.Keyword.Trim().ToLower();
+
+                // Tìm trong: Mã đơn OR Tên người nhận OR SĐT người nhận
+                query = query.Where(o =>
+                    // 1. Tìm theo Mã đơn
+                    o.OrderCode.ToLower().Contains(k) ||
+
+                    // 2. Tìm theo Tên người nhận (Ship)
+                    (o.RecipientName != null && o.RecipientName.ToLower().Contains(k)) ||
+
+                    // 3. Tìm theo SĐT người nhận
+                    (o.RecipientPhone != null && o.RecipientPhone.Contains(k)) ||
+
+                    // 4. Tìm theo Tên tài khoản (User) - FIX LỖI 500 TẠI ĐÂY
+                    // Phải truy cập vào bảng User và kiểm tra null
+                    (o.User != null && o.User.Username.ToLower().Contains(k))
+        );
+            }
+
+            // 3. Đếm tổng số bản ghi (trước khi phân trang)
             int totalRecords = await query.CountAsync();
 
-            // 4. Phân trang & Sắp xếp & Include dữ liệu
+            // 4. Phân trang & Sắp xếp
             var items = await query.OrderByDescending(o => o.CreatedAt) // Mới nhất lên đầu
                                    .Skip((filter.PageIndex - 1) * filter.PageSize)
                                    .Take(filter.PageSize)
-                                   .Include(o => o.Store)           // Lấy tên quán
-                                   .Include(o => o.User)            // Lấy tên khách
-                                   .Include(o => o.DeliveryAddress) // Lấy địa chỉ giao
-                                   .Include(o => o.Shipper)         // Lấy tên shipper
-                                   .Include(o => o.Table)           // Lấy tên bàn
-                                   .Include(o => o.OrderItems).ThenInclude(oi => oi.Product) // Lấy món
                                    .ToListAsync();
 
             // 5. Map sang DTO
@@ -341,7 +436,7 @@ namespace drinking_be.Services
             var targetDate = date.Date;
 
             // --- A. Thống kê theo NGÀY CHỈ ĐỊNH (Doanh thu & Số đơn hôm nay) ---
-            var todayQuery = _unitOfWork.Orders.Find(o => o.CreatedAt.HasValue && o.CreatedAt.Value.Date == targetDate);
+            var todayQuery = _unitOfWork.Orders.Find(o => o.CreatedAt.Date == targetDate);
 
             if (storeId.HasValue)
             {
@@ -390,23 +485,70 @@ namespace drinking_be.Services
         // =========================================================================
         // 8. CẬP NHẬT TRẠNG THÁI (DUYỆT, NẤU, GIAO...)
         // =========================================================================
-        public async Task<OrderReadDto> UpdateOrderStatusAsync(long orderId, OrderStatusEnum newStatus)
+        public async Task<OrderReadDto> UpdateOrderStatusAsync(
+            long orderId,
+            OrderStatusEnum newStatus,
+            UserRoleEnum actorRole)
         {
-            var order = await _unitOfWork.Orders.GetByIdAsync(orderId);
-            if (order == null) throw new KeyNotFoundException("Đơn hàng không tồn tại.");
+            // 1. Load order
+            var order = await _unitOfWork.Orders.GetByIdAsync(orderId)
+                ?? throw new AppException("Đơn hàng không tồn tại.");
 
-            // Validate logic chuyển trạng thái (cơ bản)
-            if (order.Status == OrderStatusEnum.Cancelled || order.Status == OrderStatusEnum.Completed)
-            {
-                throw new Exception("Không thể cập nhật trạng thái cho đơn đã hoàn thành hoặc đã hủy.");
-            }
+            // 2. Build payment snapshot (🔑 từ PaymentService)
+            var paymentSnapshot =
+                await _orderPaymentService.BuildPaymentSnapshotAsync(orderId);
 
-            // Cập nhật
+            // 3. Validate state transition (DOMAIN RULE)
+            OrderStateMachine.ValidateTransition(
+                from: order.Status,
+                to: newStatus,
+                paymentFlow: order.PaymentFlow,
+                payment: paymentSnapshot,
+                actor: actorRole,
+                orderGrandTotal: order.GrandTotal
+            );
+
+            // 4. Update state
             order.Status = newStatus;
+            order.UpdatedAt = DateTime.UtcNow;
 
             _unitOfWork.Orders.Update(order);
             await _unitOfWork.CompleteAsync();
+            if (order.UserId.HasValue)
+            {
+                string title = "Cập nhật đơn hàng";
+                string content = "";
 
+                switch (newStatus)
+                {
+                    case OrderStatusEnum.Confirmed:
+                        content = $"Đơn hàng #{order.OrderCode} đã được xác nhận và đang được pha chế 🥤.";
+                        break;
+                    case OrderStatusEnum.Delivering:
+                        content = $"Shipper đang giao đơn hàng #{order.OrderCode} đến bạn 🛵. Vui lòng để ý điện thoại.";
+                        break;
+                    case OrderStatusEnum.Completed:
+                        content = $"Đơn hàng #{order.OrderCode} đã hoàn thành. Chúc bạn ngon miệng! ⭐";
+                        break;
+                    case OrderStatusEnum.Received: // Tại quầy
+                        content = $"Món của bạn đã sẵn sàng! Vui lòng tới quầy nhận đơn #{order.OrderCode}.";
+                        break;
+                        // Các case khác tùy chọn...
+                }
+
+                if (!string.IsNullOrEmpty(content))
+                {
+                    await _notificationService.CreateAsync(new NotificationCreateDto
+                    {
+                        UserId = order.UserId.Value,
+                        Title = title,
+                        Content = content,
+                        Type = NotificationTypeEnum.Order,
+                        ReferenceId = order.OrderCode
+                    });
+                }
+            }
+            // 5. Return updated order
             return await GetOrderByIdAsync(orderId);
         }
 
@@ -426,6 +568,7 @@ namespace drinking_be.Services
 
             // 2. Cập nhật thông tin hủy
             order.Status = OrderStatusEnum.Cancelled;
+            // ⚠️ SỬA: Thêm chấm phẩy và đảm bảo hàm GetEnumDescription tồn tại (xem bên dưới)
             order.CancelReason = cancelDto.Reason;
             order.CancelNote = cancelDto.Note;
             order.CancelledByUserId = userId ?? 0;
@@ -444,7 +587,42 @@ namespace drinking_be.Services
             }
 
             _unitOfWork.Orders.Update(order);
-            return await _unitOfWork.CompleteAsync() > 0;
+
+            // ⚠️ SỬA QUAN TRỌNG: Lưu kết quả vào biến success chứ KHÔNG return ngay
+            var success = await _unitOfWork.CompleteAsync() > 0;
+
+            // Logic thông báo chỉ chạy khi lưu DB thành công
+            if (success && order.UserId.HasValue)
+            {
+                // --- 🟢 LOGIC THÔNG BÁO HOÀN TIỀN ---
+                string notiContent;
+                string notiTitle = "Đơn hàng đã bị hủy";
+
+                // Kiểm tra xem đơn đã thanh toán chưa
+                var paymentSnapshot = await _orderPaymentService.BuildPaymentSnapshotAsync(orderId);
+                bool isPaid = paymentSnapshot.IsFullyPaid(order.GrandTotal);
+
+                if (isPaid)
+                {
+                    notiContent = $"Đơn hàng #{order.OrderCode} đã hủy. Vì bạn đã thanh toán, cửa hàng sẽ liên hệ hoàn tiền trong vòng 24h.";
+                }
+                else
+                {
+                    notiContent = $"Đơn hàng #{order.OrderCode} đã hủy thành công.";
+                }
+
+                // Gửi thông báo
+                await _notificationService.CreateAsync(new NotificationCreateDto
+                {
+                    UserId = order.UserId.Value,
+                    Title = notiTitle,
+                    Content = notiContent,
+                    Type = NotificationTypeEnum.Order,
+                    ReferenceId = order.OrderCode
+                });
+            }
+
+            return success;
         }
 
         // =========================================================================
@@ -480,6 +658,75 @@ namespace drinking_be.Services
 
             // Nếu đúng mã -> Hoàn thành đơn
             order.Status = OrderStatusEnum.Received;
+            _unitOfWork.Orders.Update(order);
+
+            return await _unitOfWork.CompleteAsync() > 0;
+        }
+
+        // =========================================================================
+        // 12. LẤY ĐƠN THEO ORDER CODE
+        // ========================================================================
+        public async Task<OrderReadDto> GetOrderByOrderCodeAsync(string orderCode)
+        {
+            var order = await _unitOfWork.Orders.Find(o => o.OrderCode == orderCode)
+                .Include(o => o.Store)
+                .Include(o => o.OrderItems).ThenInclude(oi => oi.Size)    // Món chính -> Size
+                .Include(o => o.OrderItems).ThenInclude(oi => oi.InverseParentItem).ThenInclude(ti => ti.InverseParentItem) // Topping -> Product
+                .Include(o => o.DeliveryAddress)
+                .Include(o => o.PaymentMethod)
+                .Include(o => o.Table)
+                .Include(o => o.Shipper)
+                .FirstOrDefaultAsync();
+            if (order == null) throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
+            return _mapper.Map<OrderReadDto>(order);
+        }
+
+        // 
+        // Implement hàm tính phí (Tách logic cũ ra)
+        public async Task<decimal> CalculateShippingFeeAsync(int storeId, long addressId)
+        {
+            // 1. Lấy thông tin Store (Kèm Address)
+            var store = await _unitOfWork.Stores.Find(s => s.Id == storeId)
+                                                .Include(s => s.Address) // Quan trọng
+                                                .FirstOrDefaultAsync();
+            if (store == null) throw new KeyNotFoundException("Cửa hàng không tồn tại.");
+
+            // 2. Lấy thông tin Address
+            var address = await _unitOfWork.Addresses.GetByIdAsync(addressId);
+            if (address == null) throw new KeyNotFoundException("Địa chỉ không tồn tại.");
+
+            // 3. Gọi hàm logic private để tính
+            return CalculateShippingFeeLogic(store, address);
+        }
+
+        // =========================================================================
+        // [NEW] 13. XÓA MỀM & KHÔI PHỤC
+        // =========================================================================
+
+        public async Task<bool> SoftDeleteOrderAsync(long id)
+        {
+            var order = await _unitOfWork.Orders.GetByIdAsync(id);
+            if (order == null) return false;
+
+            // Logic nghiệp vụ: Chỉ cho xóa đơn đã Hủy hoặc đã Hoàn thành lâu? 
+            // Hoặc cho xóa tất cả tùy quyền Admin. Ở đây cho phép xóa tất cả để vào thùng rác.
+
+            order.DeletedAt = DateTime.UtcNow; // Đánh dấu xóa
+            _unitOfWork.Orders.Update(order);
+
+            return await _unitOfWork.CompleteAsync() > 0;
+        }
+
+        public async Task<bool> RestoreOrderAsync(long id)
+        {
+            // Phải dùng IgnoreQueryFilters để tìm thấy đơn đã bị ẩn
+            var order = await _unitOfWork.Orders.GetQueryable()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null) return false;
+
+            order.DeletedAt = null; // Khôi phục
             _unitOfWork.Orders.Update(order);
 
             return await _unitOfWork.CompleteAsync() > 0;

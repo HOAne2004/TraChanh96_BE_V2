@@ -4,13 +4,14 @@ namespace drinking_be.Interfaces.FeedbackInterfaces
 {
     public interface ICommentService
     {
-        // Lấy danh sách bình luận (Chỉ lấy Approved cho khách xem)
-        Task<IEnumerable<CommentReadDto>> GetCommentsByNewsIdAsync(int newsId);
+        // Add currentUserId (nullable) to check if the user has liked the comment
+        Task<IEnumerable<CommentReadDto>> GetCommentsByNewsIdAsync(int newsId, int? currentUserId);
 
-        // Gửi bình luận mới
         Task<CommentReadDto> CreateCommentAsync(int userId, CommentCreateDto dto);
 
-        // Xóa bình luận (Soft Delete) - Chỉ chủ sở hữu mới xóa được
-        Task<bool> DeleteCommentAsync(int commentId, int userId);
+        Task<bool> DeleteCommentAsync(int id, int userId, bool isAdmin);
+
+        // New: Toggle Like
+        Task<bool> ToggleLikeAsync(int commentId, int userId);
     }
 }

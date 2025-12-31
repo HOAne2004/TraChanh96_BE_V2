@@ -9,6 +9,8 @@ namespace drinking_be.Dtos.CartDtos
         public long Id { get; set; }
         public int UserId { get; set; }
 
+        public int StoreId { get; set; }
+        public string? StoreName { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 

@@ -23,10 +23,9 @@ namespace drinking_be.Services
         {
             var productRepo = _unitOfWork.Repository<Product>();
 
-            // 1. Lấy dữ liệu kèm Category và Size (Eager Loading)
-            // Chuỗi include phải khớp tên Property trong Entity Product
+            // 1. UPDATE: Thêm "ProductStores" vào includeProperties
             var products = await productRepo.GetAllAsync(
-                includeProperties: "Category,ProductSizes,ProductSizes.Size"
+                includeProperties: "Category,ProductSizes,ProductSizes.Size,ProductStores"
             );
 
             // 2. Lọc theo tên (Search)
@@ -53,7 +52,22 @@ namespace drinking_be.Services
                 };
             }
 
-            return _mapper.Map<IEnumerable<ProductReadDto>>(products);
+            // 5. UPDATE: Map sang DTO và gán StoreIds thủ công
+            var productDtos = _mapper.Map<IEnumerable<ProductReadDto>>(products).ToList();
+
+            // Tạo dictionary để tra cứu nhanh (Tối ưu hiệu năng thay vì loop lồng nhau)
+            var productMap = products.ToDictionary(p => p.Id);
+
+            foreach (var dto in productDtos)
+            {
+                if (productMap.TryGetValue(dto.Id, out var entity) && entity.ProductStores != null)
+                {
+                    // Lấy list StoreId từ bảng trung gian
+                    dto.StoreIds = entity.ProductStores.Select(ps => ps.StoreId).ToList();
+                }
+            }
+
+            return productDtos;
         }
 
         public async Task<ProductReadDto?> GetByIdAsync(int id)

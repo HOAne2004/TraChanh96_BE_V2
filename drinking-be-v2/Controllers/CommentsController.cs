@@ -1,5 +1,5 @@
 ﻿using drinking_be.Dtos.CommentDtos;
-using drinking_be.Interfaces.FeedbackInterfaces;
+using drinking_be.Interfaces.FeedbackInterfaces; // Ensure correct namespace
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -17,77 +17,88 @@ namespace drinking_be.Controllers
             _commentService = commentService;
         }
 
-        // --- Helper: GetUserId (Phiên bản chuẩn) ---
+        // --- Helper: GetUserId (Robust Version) ---
         private int GetUserId()
         {
-            // 1. Tìm theo nameid (chuẩn JWT)
-            var claim = User.FindFirst("nameid") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-
-            // 2. Fallback sang sub
-            if (claim == null) claim = User.FindFirst("sub");
-
-            if (claim != null && int.TryParse(claim.Value, out int userId))
-            {
-                return userId;
-            }
-
-            throw new UnauthorizedAccessException("Token không hợp lệ.");
+            return User.GetUserId();
         }
 
-        // --- PUBLIC ENDPOINTS ---
-
-        /// <summary>
-        /// Lấy danh sách bình luận của một bài viết (Chỉ hiện Approved).
-        /// </summary>
+        // 1. Get Comments
         [HttpGet("news/{newsId}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetCommentsByNews(int newsId)
         {
-            var comments = await _commentService.GetCommentsByNewsIdAsync(newsId);
+            // Try to get UserId if logged in (to check IsLiked status)
+            // If not logged in, it returns 0 or throws exception -> catch and set to null
+            int? currentUserId = null;
+            try
+            {
+                var uid = GetUserId();
+                if (uid > 0) currentUserId = uid;
+            }
+            catch { }
+
+            var comments = await _commentService.GetCommentsByNewsIdAsync(newsId, currentUserId);
             return Ok(comments);
         }
 
-        // --- USER ENDPOINTS ---
-
-        /// <summary>
-        /// [USER] Gửi bình luận mới.
-        /// </summary>
+        // 2. Create Comment
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> Create([FromBody] CommentCreateDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
+            var userId = GetUserId();
+            if (userId == 0) return Unauthorized("Token invalid");
+
             try
             {
-                var userId = GetUserId();
                 var result = await _commentService.CreateCommentAsync(userId, dto);
-
-                // Trả về 201 Created kèm thông báo hoặc object
                 return CreatedAtAction(nameof(GetCommentsByNews), new { newsId = dto.NewsId }, result);
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return Unauthorized(ex.Message); }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
-        /// <summary>
-        /// [USER] Xóa bình luận của chính mình.
-        /// </summary>
+        // 3. Delete Comment
         [HttpDelete("{id}")]
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
+            var userId = GetUserId();
+            if (userId == 0) return Unauthorized();
+
+            var isAdmin = User.IsInRole("Admin") || User.IsInRole("Manager");
+
             try
             {
-                var userId = GetUserId();
-                var success = await _commentService.DeleteCommentAsync(id, userId);
-
-                if (!success) return NotFound("Bình luận không tồn tại hoặc bạn không có quyền xóa.");
-
+                var success = await _commentService.DeleteCommentAsync(id, userId, isAdmin);
+                if (!success) return NotFound("Not found or unauthorized");
                 return NoContent();
             }
-            catch (UnauthorizedAccessException ex) { return Unauthorized(ex.Message); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+        }
+
+        // 4. Toggle Like (New Endpoint)
+        [HttpPost("{id}/like")]
+        [Authorize]
+        public async Task<IActionResult> ToggleLike(int id)
+        {
+            var userId = GetUserId();
+            if (userId == 0) return Unauthorized();
+
+            try
+            {
+                var isLiked = await _commentService.ToggleLikeAsync(id, userId);
+                return Ok(new
+                {
+                    isLiked,
+                    message = isLiked ? "Liked" : "Unliked",
+                    // You might want to return the new Count here if needed, but usually FE handles optimistic UI
+                });
+            }
+            catch (KeyNotFoundException) { return NotFound("Comment not found"); }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
     }
 }

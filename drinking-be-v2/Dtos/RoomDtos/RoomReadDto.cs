@@ -9,6 +9,7 @@ namespace drinking_be.Dtos.RoomDtos
         public string StoreName { get; set; } = null!; // Cần Include Store
 
         public string Name { get; set; } = null!;
+        public string? ImageUrl { get; set; }
         public string? Description { get; set; }
         public int Capacity { get; set; }
 

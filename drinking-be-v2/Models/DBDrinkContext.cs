@@ -17,12 +17,13 @@ public partial class DBDrinkContext : DbContext
     }
     public virtual DbSet<Address> Addresses { get; set; }
     public virtual DbSet<Attendance> Attendances { get; set; }
-    public  virtual DbSet<Banner> Banners { get; set; }
+    public virtual DbSet<Banner> Banners { get; set; }
     public virtual DbSet<Brand> Brands { get; set; }
     public virtual DbSet<Cart> Carts { get; set; }
     public virtual DbSet<CartItem> CartItems { get; set; }
     public virtual DbSet<Category> Categories { get; set; }
     public virtual DbSet<Comment> Comments { get; set; }
+    public virtual DbSet<CommentLike> CommentLikes { get; set; }
     public virtual DbSet<FranchiseRequest> FranchiseRequests { get; set; }
     public virtual DbSet<Inventory> Inventories { get; set; }
     public virtual DbSet<Membership> Memberships { get; set; }
@@ -37,7 +38,7 @@ public partial class DBDrinkContext : DbContext
     public virtual DbSet<PointHistory> PointHistories { get; set; }
     public virtual DbSet<Product> Products { get; set; }
     public virtual DbSet<ProductSize> ProductSizes { get; set; }
-    public DbSet<ProductStore> ProductStores { get; set; }
+    public virtual DbSet<ProductStore> ProductStores { get; set; }
     public virtual DbSet<Reservation> Reservations { get; set; }
     public virtual DbSet<Review> Reviews { get; set; }
     public virtual DbSet<Room> Rooms { get; set; }
@@ -352,19 +353,21 @@ public partial class DBDrinkContext : DbContext
                   .HasDefaultValueSql("NOW()")
                   .HasColumnName("updated_at");
 
-            // --- RELATIONSHIPS ---
+            //---RELATIONSHIPS-- -
             entity.HasOne(e => e.User)
-                  .WithOne(u => u.Cart)
-                  .HasForeignKey<Cart>(e => e.UserId)
+                  .WithMany(u => u.Carts)
+                  .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.Store)
-                  .WithMany()
+                  .WithMany(u => u.Carts)
                   .HasForeignKey(e => e.StoreId)
                   .OnDelete(DeleteBehavior.Restrict);
 
             // --- LOGICAL CONSTRAINT ---
-            entity.HasIndex(e => new { e.UserId, e.Status });
+            entity.HasIndex(e => new { e.UserId, e.StoreId, e.Status })
+                .IsUnique();
+
         });
 
         modelBuilder.Entity<CartItem>(entity =>
@@ -555,6 +558,21 @@ public partial class DBDrinkContext : DbContext
                   .WithMany(p => p.InverseParent)
                   .HasForeignKey(e => e.ParentId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CommentLike>(entity =>
+        {
+            entity.HasKey(cl => new { cl.UserId, cl.CommentId }); // Khóa phức hợp
+
+            entity.HasOne(cl => cl.User)
+                  .WithMany() // Nếu User.cs chưa có collection CommentLikes thì để trống
+                  .HasForeignKey(cl => cl.UserId)
+                  .OnDelete(DeleteBehavior.Restrict); // Tránh vòng lặp cascade
+
+            entity.HasOne(cl => cl.Comment)
+                  .WithMany(c => c.Likes)
+                  .HasForeignKey(cl => cl.CommentId)
+                  .OnDelete(DeleteBehavior.Cascade); // Xóa comment thì xóa luôn like
         });
 
         modelBuilder.Entity<FranchiseRequest>(entity =>
@@ -876,7 +894,7 @@ public partial class DBDrinkContext : DbContext
 
             entity.Property(e => e.DeletedAt)
                   .HasColumnName("deleted_at");
-            
+
             entity.Property(e => e.PointEarningRate)
                   .HasDefaultValue(0);
 
@@ -1044,6 +1062,7 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.CoinsEarned).HasColumnName("coins_earned");
 
             entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.PaymentFlow).HasColumnName("payment_flow");
             entity.Property(e => e.OrderType).HasColumnName("order_type"); // Mới
             entity.Property(e => e.PickupCode).HasColumnName("pickup_code"); // Mới
 
@@ -1068,11 +1087,35 @@ public partial class DBDrinkContext : DbContext
             entity.HasIndex(e => e.OrderCode).IsUnique();
             entity.HasIndex(e => e.PickupCode);
 
-            entity.HasOne(d => d.User).WithMany(p => p.Orders).HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(d => d.Store).WithMany(p => p.Orders).HasForeignKey(d => d.StoreId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(d => d.Table).WithMany(p => p.Orders).HasForeignKey(d => d.TableId).OnDelete(DeleteBehavior.SetNull);
-            entity.HasOne(d => d.DeliveryAddress).WithMany().HasForeignKey(d => d.DeliveryAddressId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(d => d.Shipper).WithMany().HasForeignKey(d => d.ShipperId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.User)
+                      .WithMany(p => p.Orders)
+                      .HasForeignKey(d => d.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+            // Quan hệ với Shipper (Cũng là User)
+            // Cần cấu hình riêng để tránh lỗi "Multiple Cascade Paths"
+            entity.HasOne(d => d.Shipper)
+                  .WithMany() // Nếu User chưa có collection ShippedOrders thì để trống
+                  .HasForeignKey(d => d.ShipperId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Quan hệ với Store
+            entity.HasOne(d => d.Store)
+                  .WithMany(p => p.Orders)
+                  .HasForeignKey(d => d.StoreId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Quan hệ với Address (Địa chỉ giao hàng snapshot)
+            entity.HasOne(d => d.DeliveryAddress)
+                  .WithMany()
+                  .HasForeignKey(d => d.DeliveryAddressId)
+                  .OnDelete(DeleteBehavior.SetNull); // Xóa địa chỉ trong sổ -> Đơn hàng giữ null ID (vì đã có snapshot text)
+
+            // Quan hệ với Voucher
+            entity.HasOne(d => d.UserVoucher)
+                  .WithMany()
+                  .HasForeignKey(d => d.UserVoucherId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<OrderItem>(entity =>
@@ -1113,11 +1156,6 @@ public partial class DBDrinkContext : DbContext
                 .HasForeignKey(d => d.ParentItemId)
                 .HasConstraintName("FK__Order_ite__paren__2EDAF651");
 
-            entity.HasOne(d => d.Product).WithMany(p => p.OrderItems)
-                .HasForeignKey(d => d.ProductId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Order_ite__produ__2DE6D218");
-
             entity.HasOne(d => d.Size).WithMany(p => p.OrderItems)
                 .HasForeignKey(d => d.SizeId)
                 .HasConstraintName("FK__Order_ite__size___2FCF1A8A");
@@ -1131,6 +1169,9 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.OrderId).HasColumnName("order_id");
             entity.Property(e => e.PaymentMethodId).HasColumnName("payment_method_id");
+            entity.Property(e => e.PaymentMethodName)
+                .HasMaxLength(50)
+                .HasColumnName("payment_method_name");
 
             entity.Property(e => e.Amount)
                 .HasColumnType("decimal(18, 2)")
@@ -1149,6 +1190,9 @@ public partial class DBDrinkContext : DbContext
                 .HasColumnName("status")
                 .HasDefaultValue(OrderPaymentStatusEnum.Pending)
                 .HasConversion<short>();
+            entity.Property(e => e.Type)
+                .HasColumnName("type")
+                .HasConversion<short>();
 
             entity.Property(e => e.PaymentDate)
                 .HasColumnType("timestamp without time zone")
@@ -1159,7 +1203,6 @@ public partial class DBDrinkContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("NOW()")
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");
 
@@ -1169,13 +1212,6 @@ public partial class DBDrinkContext : DbContext
                 .HasForeignKey(d => d.OrderId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_OrderPayment_OrderId");
-
-            // Quan hệ với PaymentMethod
-            entity.HasOne(d => d.PaymentMethod)
-                .WithMany() // OrderPayment không cần Navigation Property ngược
-                .HasForeignKey(d => d.PaymentMethodId)
-                .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("FK_OrderPayment_PaymentMethodId");
         });
 
         modelBuilder.Entity<PaymentMethod>(entity =>
@@ -1224,7 +1260,7 @@ public partial class DBDrinkContext : DbContext
                 .HasColumnName("status")
                 .HasDefaultValue(PublicStatusEnum.Active)
                 .HasConversion<short>(); // Lưu Enum Status
-                                        // ⭐ BỔ SUNG: Cấu hình CreatedAt
+                                         // ⭐ BỔ SUNG: Cấu hình CreatedAt
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("(NOW())")
                 .HasColumnType("timestamp without time zone")
@@ -1792,15 +1828,24 @@ public partial class DBDrinkContext : DbContext
                   .IsUnique();
 
             // --- RELATIONSHIPS ---
-            entity.HasOne(e => e.Product)
-                  .WithMany(p => p.Reviews)
-                  .HasForeignKey(e => e.ProductId)
-                  .OnDelete(DeleteBehavior.Cascade);
+            // Quan hệ User - Review (1-N)
+            entity.HasOne(r => r.User)
+                .WithMany(u => u.Reviews)
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Restrict); // Xóa user không xóa review (để giữ lịch sử)
 
-            entity.HasOne(e => e.User)
-                  .WithMany(u => u.Reviews)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Restrict);
+            // Quan hệ Product - Review (1-N)
+            entity.HasOne(r => r.Product)
+                .WithMany(p => p.Reviews)
+                .HasForeignKey(r => r.ProductId)
+                .OnDelete(DeleteBehavior.Cascade); // Xóa sản phẩm -> xóa review
+
+            // Quan hệ Order - Review (1-N)
+            // Một đơn hàng có thể có nhiều review (cho nhiều món khác nhau trong đơn đó)
+            entity.HasOne(r => r.Order)
+                .WithMany(o => o.Reviews) // Đảm bảo Order.cs có collection Reviews
+                .HasForeignKey(r => r.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Room>(entity =>
@@ -1965,10 +2010,10 @@ public partial class DBDrinkContext : DbContext
                 .HasDefaultValueSql("(NOW())")
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("updated_at");
-            entity.Property(e => e.DeletedAt)   
+            entity.Property(e => e.DeletedAt)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("deleted_at");
-                
+
             entity.Property(e => e.Platform)
                 .HasConversion<short>()
                 .HasColumnName("platform_name");

@@ -38,7 +38,7 @@ namespace drinking_be.Utils
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 
                 // "nameid": ID nội bộ (Int) - dùng cho các query nội bộ nhanh gọn
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim("UserId", user.Id.ToString()),
                 
                 // "unique_name": Username
                 new Claim(ClaimTypes.Name, user.Username),

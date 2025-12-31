@@ -94,5 +94,23 @@ namespace drinking_be.Services
 
             return true;
         }
+
+        public async Task<bool> ToggleStatusAsync(int id)
+        {
+            var repo = _unitOfWork.Repository<PaymentMethod>();
+            var method = await repo.GetByIdAsync(id);
+
+            if (method == null) return false;
+
+            // Đảo trạng thái: Active <-> Inactive
+            method.Status = method.Status == PublicStatusEnum.Active
+                ? PublicStatusEnum.Inactive
+                : PublicStatusEnum.Active;
+
+            repo.Update(method);
+            await _unitOfWork.SaveChangesAsync();
+
+            return true;
+        }
     }
 }

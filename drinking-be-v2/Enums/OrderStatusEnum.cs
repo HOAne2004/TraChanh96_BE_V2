@@ -29,11 +29,15 @@ namespace drinking_be.Enums
         [Description("Đã hoàn thành")]
         Completed = 6, // Giao hàng thành công (Delivery)
 
-        [Description("Đã nhận hàng")]
-        Received = 8, // Khách đã lấy đồ tại quầy thành công (AtCounter)
-
         // Nhóm 4: Trạng thái Hủy
         [Description("Đã hủy")]
         Cancelled = 7, // Đơn bị hủy
+
+        [Description("Đã nhận hàng")]
+        Received = 8, // Khách đã lấy đồ tại quầy thành công (AtCounter)
+
+        [Description("Đã xóa")]
+        Deleted = 99
     }
+
 }
