@@ -1062,7 +1062,6 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.CoinsEarned).HasColumnName("coins_earned");
 
             entity.Property(e => e.Status).HasColumnName("status");
-            entity.Property(e => e.PaymentFlow).HasColumnName("payment_flow");
             entity.Property(e => e.OrderType).HasColumnName("order_type"); // Mới
             entity.Property(e => e.PickupCode).HasColumnName("pickup_code"); // Mới
 

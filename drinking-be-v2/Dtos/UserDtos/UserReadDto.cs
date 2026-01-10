@@ -16,8 +16,10 @@ namespace drinking_be.Dtos.UserDtos
         public string? ThumbnailUrl { get; set; }
 
         // --- Trạng thái & Vai trò ---
-        public string Role { get; set; } = null!; // Vai trò (String/Label)
-        public string Status { get; set; } = null!; // Trạng thái (String/Label)
+        public UserRoleEnum Role { get; set; }
+        public string RoleLabel { get; set; } = null!; // Vai trò (String/Label)
+        public UserStatusEnum Status { get; set; }
+        public string StatusLabel { get; set; } = null!; // Trạng thái (String/Label)
 
         public int? CurrentCoins { get; set; }
         public bool? EmailVerified { get; set; }

@@ -20,7 +20,7 @@ public partial class Store : ISoftDelete
 
     public TimeSpan? OpenTime { get; set; }
     public TimeSpan? CloseTime { get; set; }
-
+    public double DeliveryRadius { get; set; } = 20;
     public decimal? ShippingFeeFixed { get; set; }
     public decimal? ShippingFeePerKm { get; set; }
 

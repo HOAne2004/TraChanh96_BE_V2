@@ -2,6 +2,7 @@
 using drinking_be.Dtos.OrderDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces.OrderInterfaces;
+using drinking_be.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -14,10 +15,12 @@ namespace drinking_be.Controllers
     public class OrdersController : ControllerBase
     {
         private readonly IOrderService _orderService;
+        private readonly IOrderPaymentService _orderPaymentService;
 
-        public OrdersController(IOrderService orderService)
+        public OrdersController(IOrderService orderService, IOrderPaymentService orderPaymentService)
         {
             _orderService = orderService;
+            _orderPaymentService = orderPaymentService;
         }
 
         // ==========================================================
@@ -215,5 +218,46 @@ namespace drinking_be.Controllers
             return Ok(new { message = "Đã khôi phục đơn hàng thành công." });
         }
 
+        // 7. XÁC NHẬN THANH TOÁN THỦ CÔNG (Dành cho Staff/Admin khi check thấy tiền về)
+        [HttpPut("{id}/confirm-payment")]
+        [Authorize(Roles = "Admin,StoreManager,Staff")]
+        public async Task<IActionResult> ConfirmPayment(long id)
+        {
+            // 1. Lấy đơn hàng kèm PaymentMethod
+            var order = await _orderService.GetOrderByIdAsync(id);
+            if (order == null) return NotFound("Không tìm thấy đơn hàng.");
+
+            // 2. Tính số tiền còn thiếu
+            var paymentSnapshot = await _orderPaymentService.BuildPaymentSnapshotAsync(id);
+            decimal amountMissing = order.GrandTotal - paymentSnapshot.PaidAmount;
+
+            if (amountMissing <= 0)
+            {
+                return BadRequest("Đơn hàng này đã được thanh toán đủ trước đó.");
+            }
+
+            // 3. Tạo giao dịch thanh toán (Paid)
+            await _orderPaymentService.AutoConfirmPaymentAsync(
+                order.Id,
+                order.PaymentMethod?.Id ?? 0,
+                order.PaymentMethod?.Name ?? "Unknown",
+                amountMissing,
+                $"Nhân viên {User.Identity.Name} xác nhận thủ công."
+            );
+
+            // 🟢 4. [FIX LOGIC] CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
+            // Nếu đơn đang treo ở "Chờ thanh toán", chuyển nó sang "Mới" để quy trình tiếp tục
+            if (order.Status == OrderStatusEnum.PendingPayment)
+            {
+                // Gọi service để update status (để trigger notification, log, etc nếu có)
+                // Lưu ý: UserRoleEnum lấy từ Token (đã có code mẫu ở hàm UpdateStatus)
+                var roleStr = User.FindFirst(ClaimTypes.Role)?.Value ?? "Staff";
+                var role = Enum.Parse<UserRoleEnum>(roleStr);
+
+                await _orderService.UpdateOrderStatusAsync(order.Id, OrderStatusEnum.New, role);
+            }
+
+            return Ok(new { message = "Đã xác nhận thanh toán thành công." });
+        }
     }
 }

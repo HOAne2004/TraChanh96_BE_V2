@@ -18,7 +18,6 @@ public partial class Order : ISoftDelete
 
     [MaxLength(20)]
     public string? PickupCode { get; set; }
-    public PaymentFlowEnum PaymentFlow { get; set; }
     public OrderTypeEnum OrderType { get; set; } = OrderTypeEnum.AtCounter;
     public OrderStatusEnum Status { get; set; } = OrderStatusEnum.New;
 

@@ -184,51 +184,55 @@ public class MappingProfile : Profile
 
         ;// --- Order Mappings ---
         CreateMap<Order, OrderReadDto>()
-    // 1. Map các Enum (Giữ nguyên giá trị số)
-    .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
-    .ForMember(dest => dest.OrderType, opt => opt.MapFrom(src => src.OrderType))
-    .ForMember(dest => dest.CancelReason, opt => opt.MapFrom(src => src.CancelReason))
+            // 1. Map các Enum (Giữ nguyên giá trị số)
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+            .ForMember(dest => dest.OrderType, opt => opt.MapFrom(src => src.OrderType))
+            .ForMember(dest => dest.CancelReason, opt => opt.MapFrom(src => src.CancelReason))
 
-    // 2. Map các Label (Dùng Extension Method để lấy tiếng Việt)
-    .ForMember(dest => dest.StatusLabel,
-        opt => opt.MapFrom(src => src.Status.GetDescription()))
+            // 2. Map các Label (Dùng Extension Method để lấy tiếng Việt)
+            .ForMember(dest => dest.StatusLabel,
+                opt => opt.MapFrom(src => src.Status.GetDescription()))
 
-    .ForMember(dest => dest.OrderTypeLabel,
-        opt => opt.MapFrom(src => src.OrderType.GetDescription()))
+            .ForMember(dest => dest.OrderTypeLabel,
+                opt => opt.MapFrom(src => src.OrderType.GetDescription()))
 
-    .ForMember(dest => dest.CancelReasonLabel,
-        opt => opt.MapFrom(src => src.CancelReason.HasValue
-            ? src.CancelReason.Value.GetDescription()
-            : null))
+            .ForMember(dest => dest.CancelReasonLabel,
+                opt => opt.MapFrom(src => src.CancelReason.HasValue
+                    ? src.CancelReason.Value.GetDescription()
+                    : null))
 
-    // 3. Các trường thông tin khác (Map từ Object con)
-    .ForMember(dest => dest.StoreName,
-        opt => opt.MapFrom(src => src.Store.Name))
+            // 3. Các trường thông tin khác (Map từ Object con)
+            .ForMember(dest => dest.StoreName,
+                opt => opt.MapFrom(src => src.Store.Name))
 
-    .ForMember(dest => dest.UserName,
-        opt => opt.MapFrom(src => src.User != null ? src.User.Username : "Khách vãng lai"))
+            .ForMember(dest => dest.UserName,
+                opt => opt.MapFrom(src => src.User != null ? src.User.Username : "Khách vãng lai"))
 
-    .ForMember(dest => dest.ShipperName,
-        opt => opt.MapFrom(src => src.Shipper != null ? src.Shipper.Username : null))
-    .ForMember(dest => dest.ShipperPhone,
-        opt => opt.MapFrom(src => src.Shipper != null ? src.Shipper.Phone : null))
+            .ForMember(dest => dest.ShipperName,
+                opt => opt.MapFrom(src => src.Shipper != null ? src.Shipper.Username : null))
+            .ForMember(dest => dest.ShipperPhone,
+                opt => opt.MapFrom(src => src.Shipper != null ? src.Shipper.Phone : null))
 
-    .ForMember(dest => dest.TableName,
-        opt => opt.MapFrom(src => src.Table != null ? src.Table.Name : null))
+            .ForMember(dest => dest.TableName,
+                opt => opt.MapFrom(src => src.Table != null ? src.Table.Name : null))
 
-    .ForMember(dest => dest.PaymentMethodName,
-        opt => opt.MapFrom(src =>
-            src.PaymentMethodName ?? (src.PaymentMethod != null ? src.PaymentMethod.Name : "Chưa chọn")))
+            .ForMember(dest => dest.PaymentMethodName,
+                opt => opt.MapFrom(src =>
+                    src.PaymentMethodName ?? (src.PaymentMethod != null ? src.PaymentMethod.Name : "Chưa chọn")))
 
-    // 4. Logic tính toán trạng thái thanh toán
-    .ForMember(dest => dest.IsPaid,
-        opt => opt.MapFrom(src =>
-            src.OrderPayments.Any(p => p.Status == OrderPaymentStatusEnum.Paid)
-        ))
-
-    // 5. Lọc Items (Chỉ lấy món chính, topping đã nằm trong món chính)
-    .ForMember(dest => dest.Items,
-        opt => opt.MapFrom(src => src.OrderItems.Where(i => i.ParentItemId == null)));
+            // 4. Logic tính toán trạng thái thanh toán
+            .ForMember(dest => dest.IsPaid,
+                opt => opt.MapFrom(src =>
+                    src.OrderPayments.Any(p => p.Status == OrderPaymentStatusEnum.Paid)
+                ))
+            .ForMember(dest => dest.PaidAmount, opt => opt.MapFrom(src =>
+                src.OrderPayments != null
+                ? src.OrderPayments.Where(p => p.Status == OrderPaymentStatusEnum.Paid).Sum(p => p.Amount)
+                : 0
+            ))
+            // 5. Lọc Items (Chỉ lấy món chính, topping đã nằm trong món chính)
+            .ForMember(dest => dest.Items,
+                opt => opt.MapFrom(src => src.OrderItems.Where(i => i.ParentItemId == null)));
         CreateMap<BaseOrderCreateDto, Order>()
             .ForMember(dest => dest.StoreId, opt => opt.MapFrom(src => src.StoreId))
             .ForMember(dest => dest.PaymentMethodId, opt => opt.MapFrom(src => src.PaymentMethodId))
@@ -545,8 +549,14 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.RoleId, opt => opt.MapFrom(src => UserRoleEnum.Customer))
             .ReverseMap();
         CreateMap<User, UserReadDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.RoleId.ToString()));
+            // Map Role (Số)
+            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.RoleId))
+            // Map Role Label (Chữ tiếng Việt)
+            .ForMember(dest => dest.RoleLabel, opt => opt.MapFrom(src => src.RoleId.GetDescription()))
+            // Map Status (Số)
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+            // Map Status Label (Chữ tiếng Việt)
+            .ForMember(dest => dest.StatusLabel, opt => opt.MapFrom(src => src.Status.GetDescription()));
         CreateMap<UserUpdateDto, User>()
             .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));

@@ -21,7 +21,8 @@ namespace drinking_be.Services
         public async Task<IEnumerable<CategoryReadDto>> GetAllAsync()
         {
             // Sử dụng Generic Repository thông qua UnitOfWork
-            var categories = await _unitOfWork.Repository<Category>().GetAllAsync();
+            var categories = await _unitOfWork.Repository<Category>().GetAllAsync(
+                orderBy: q => q.OrderBy(c => c.SortOrder).ThenBy(c => c.Id));
             return _mapper.Map<IEnumerable<CategoryReadDto>>(categories);
         }
 

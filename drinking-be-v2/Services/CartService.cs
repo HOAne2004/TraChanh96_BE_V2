@@ -401,10 +401,17 @@ namespace drinking_be.Services
                         }).ToList();
                     }
 
-                    // Tự tính lại Total để đảm bảo (DB lưu cache FinalPrice)
-                    // Hoặc tin tưởng FinalPrice trong DB
                     dto.Items.Add(itemDto);
-                    dto.TotalAmount += mainItem.FinalPrice;
+
+                    // TÍNH TỔNG: finalPrice của item + tổng finalPrice của toppings
+                    decimal itemTotal = mainItem.FinalPrice;
+
+                    if (mainItem.InverseParentItem != null && mainItem.InverseParentItem.Any())
+                    {
+                        itemTotal += mainItem.InverseParentItem.Sum(t => t.FinalPrice);
+                    }
+
+                    dto.TotalAmount += itemTotal * mainItem.Quantity;
                 }
             }
             return dto;

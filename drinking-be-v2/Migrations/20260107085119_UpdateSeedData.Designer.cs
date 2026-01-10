@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using drinking_be.Models;
@@ -11,9 +12,11 @@ using drinking_be.Models;
 namespace drinking_be.Migrations
 {
     [DbContext(typeof(DBDrinkContext))]
-    partial class DBDrinkContextModelSnapshot : ModelSnapshot
+    [Migration("20260107085119_UpdateSeedData")]
+    partial class UpdateSeedData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -750,9 +753,6 @@ namespace drinking_be.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("deleted_at");
-
-                    b.Property<double>("DeliveryRadius")
-                        .HasColumnType("double precision");
 
                     b.Property<string>("ImageUrl")
                         .HasColumnType("text")

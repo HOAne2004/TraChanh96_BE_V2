@@ -53,6 +53,7 @@ namespace drinking_be.Dtos.OrderDtos
         public string? PaymentMethodName { get; set; }
         public PaymentMethodReadDto? PaymentMethod { get; set; }
         public bool IsPaid { get; set; }
+        public decimal PaidAmount { get; set; }
 
         // --- Meta ---
         public string? UserNotes { get; set; }

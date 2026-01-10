@@ -167,7 +167,33 @@ namespace drinking_be.Services
             };
         }
 
+        public async Task AutoConfirmPaymentAsync(long orderId, int paymentMethodId, string paymentMethodName, decimal amount, string note)
+        {
+            // Tạo bản ghi thanh toán mới (OrderPayment)
+            var payment = new OrderPayment
+            {
+                OrderId = orderId,
+                PaymentMethodId = paymentMethodId,
+                PaymentMethodName = paymentMethodName,
 
+                Amount = amount,
+                TransactionCode = $"AUTO-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}", // Mã tự sinh: AUTO-XXXXXXXX
+
+                // 🟢 Dùng đúng Enum bạn cung cấp
+                Status = OrderPaymentStatusEnum.Paid, // 2: Đã thanh toán
+                Type = OrderPaymentTypeEnum.charge,   // 1: charge (Thu tiền)
+
+                PaymentDate = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            // Lưu vào DB (Giả sử bạn có repository cho OrderPayment, hoặc dùng Generic)
+            await _unitOfWork.Repository<OrderPayment>().AddAsync(payment);
+
+            // Lưu thay đổi
+            await _unitOfWork.CompleteAsync();
+        }
 
 
     }

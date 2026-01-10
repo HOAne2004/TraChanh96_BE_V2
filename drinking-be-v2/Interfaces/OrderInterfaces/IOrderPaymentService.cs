@@ -13,6 +13,7 @@ namespace drinking_be.Interfaces.OrderInterfaces
         Task<OrderPaymentReadDto> RefundAsync(long orderId, decimal amount, string reason);
         Task<bool> RecalculateOrderPaymentStatusAsync(long orderId);
         Task<OrderPaymentSnapshot> BuildPaymentSnapshotAsync(long orderId);
+        Task AutoConfirmPaymentAsync(long orderId, int paymentMethodId, string paymentMethodName, decimal amount, string note);
 
     }
 

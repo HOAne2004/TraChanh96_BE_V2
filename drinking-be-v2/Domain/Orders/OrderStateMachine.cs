@@ -12,7 +12,6 @@ namespace drinking_be.Domain.Orders
         public static void ValidateTransition(
             OrderStatusEnum from,
             OrderStatusEnum to,
-            PaymentFlowEnum paymentFlow,
             OrderPaymentSnapshot payment,
             UserRoleEnum actor,
             decimal orderGrandTotal)
@@ -20,7 +19,7 @@ namespace drinking_be.Domain.Orders
             ValidateNotFinalState(from);
             ValidateBasicFlow(from, to);
             ValidateRole(from, to, MapActorRole(actor));
-            ValidatePayment(from, to, paymentFlow, payment, orderGrandTotal);
+            ValidatePayment(from, to, payment, orderGrandTotal);
         }
 
         // ===============================
@@ -104,17 +103,15 @@ namespace drinking_be.Domain.Orders
         private static void ValidatePayment(
         OrderStatusEnum from,
         OrderStatusEnum to,
-        PaymentFlowEnum paymentFlow,
         OrderPaymentSnapshot payment,
         decimal grandTotal)
         {
-            if (paymentFlow == PaymentFlowEnum.PayBefore)
+            if (from == OrderStatusEnum.PendingPayment && to != OrderStatusEnum.Cancelled)
             {
-                if (to == OrderStatusEnum.Confirmed && !payment.IsFullyPaid(grandTotal))
-                    throw new AppException("Đơn hàng chưa được thanh toán.");
-
-                if (to == OrderStatusEnum.Completed && !payment.IsFullyPaid(grandTotal))
-                    throw new AppException("Không thể hoàn thành khi chưa thanh toán đủ.");
+                if (!payment.IsFullyPaid(grandTotal))
+                {
+                    throw new AppException("Đơn hàng chưa thanh toán xong, không thể xử lý tiếp.");
+                }
             }
         }
 

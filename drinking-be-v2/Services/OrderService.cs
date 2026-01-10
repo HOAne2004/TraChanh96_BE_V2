@@ -53,7 +53,14 @@ namespace drinking_be.Services
             order.UserId = userId;
             order.OrderCode = GenerateOrderCode(); // Hàm tự sinh mã: ORDER_TIMESTAMP
             order.Status = OrderStatusEnum.New;
-
+            
+            var paymentMethod = await _unitOfWork.Repository<PaymentMethod>().GetByIdAsync(dto.PaymentMethodId);
+            if (paymentMethod != null &&
+            (paymentMethod.PaymentType == PaymentTypeEnum.BankTransfer ||
+            paymentMethod.PaymentType == PaymentTypeEnum.EWallet))
+                {
+                    order.Status = OrderStatusEnum.PendingPayment;
+                }
             // 4. Xử lý danh sách món & Tính tiền hàng (SubTotal)
             order.TotalAmount = await ProcessOrderItemsAsync(order, dto.Items);
             order.RecipientName = address.RecipientName;
@@ -118,6 +125,16 @@ namespace drinking_be.Services
             order.UserId = userId;
             order.OrderCode = GenerateOrderCode();
             order.Status = OrderStatusEnum.New;
+
+            var paymentMethod = await _unitOfWork.Repository<PaymentMethod>().GetByIdAsync(dto.PaymentMethodId);
+
+            order.Status = OrderStatusEnum.New;
+            if (paymentMethod != null &&
+               (paymentMethod.PaymentType == PaymentTypeEnum.BankTransfer ||
+                paymentMethod.PaymentType == PaymentTypeEnum.EWallet))
+            {
+                order.Status = OrderStatusEnum.PendingPayment;
+            }
 
             // 4. Xử lý món
             order.TotalAmount = await ProcessOrderItemsAsync(order, dto.Items);
@@ -266,29 +283,39 @@ namespace drinking_be.Services
         // =========================================================================
         // 4. PRIVATE: TÍNH PHÍ SHIP (HAVERSINE)
         // =========================================================================
+        // Trong OrderService.cs
+
         private decimal CalculateShippingFeeLogic(Store store, Address address)
         {
-            // 1. Kiểm tra tọa độ khách
+            // 1. Kiểm tra tọa độ khách (Code cũ)
             if (!address.Latitude.HasValue || !address.Longitude.HasValue)
                 return store.ShippingFeeFixed ?? 15000;
 
-            // 2. Kiểm tra tọa độ quán
+            // 2. Kiểm tra tọa độ quán (Code cũ)
             if (store.Address == null || !store.Address.Latitude.HasValue || !store.Address.Longitude.HasValue)
                 return store.ShippingFeeFixed ?? 15000;
 
-            // 3. Tính khoảng cách
+            // 3. Tính khoảng cách (Code cũ - Tận dụng DistanceUtils)
             double distanceKm = DistanceUtils.CalculateDistanceKm(
                 store.Address.Latitude.Value, store.Address.Longitude.Value,
                 address.Latitude.Value, address.Longitude.Value
             );
 
-            // 4. Tính tiền: Cố định + (Km * Giá/km)
+            // 🟢 [MỚI] 3.5. KIỂM TRA GIỚI HẠN KHOẢNG CÁCH
+            // Lấy giới hạn riêng của quán, nếu chưa set thì lấy 20km
+            double limitKm = store.DeliveryRadius > 0 ? store.DeliveryRadius : 20;
+
+            if (distanceKm > limitKm)
+            {
+                // Ném lỗi để Controller bắt được và trả về 400 cho FE
+                throw new AppException($"Khoảng cách {distanceKm:F1}km vượt quá giới hạn giao hàng ({limitKm}km) của quán.");
+            }
+
+            // 4. Tính tiền (Code cũ)
             decimal fixedFee = store.ShippingFeeFixed ?? 0;
             decimal perKmFee = store.ShippingFeePerKm ?? 5000;
-
             decimal rawFee = fixedFee + (decimal)distanceKm * perKmFee;
 
-            // Làm tròn lên hàng nghìn
             return Math.Ceiling(rawFee / 1000) * 1000;
         }
 
@@ -306,6 +333,7 @@ namespace drinking_be.Services
                 .Include(o => o.PaymentMethod)
                 .Include(o => o.Table)
                 .Include(o => o.Shipper)
+                .Include(o =>o.OrderPayments)
                 .FirstOrDefaultAsync();
 
             if (order == null) throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
@@ -326,6 +354,7 @@ namespace drinking_be.Services
                                   .Take(request.PageSize)
                                   .Include(o => o.Store) // Include nhẹ để hiển thị list
                                   .Include(o => o.OrderItems).ThenInclude(oi => oi.InverseParentItem)
+                                  .Include(o => o.OrderPayments)
                                   .ToListAsync();
 
             var dtos = _mapper.Map<List<OrderReadDto>>(data);
@@ -491,7 +520,10 @@ namespace drinking_be.Services
             UserRoleEnum actorRole)
         {
             // 1. Load order
-            var order = await _unitOfWork.Orders.GetByIdAsync(orderId)
+            var order = await _unitOfWork.Orders.Find(o => o.Id == orderId)
+                .Include(o => o.PaymentMethod) // 👈 Quan trọng để AutoConfirmPayment hoạt động
+                .Include(o => o.User)          // 👈 Quan trọng để gửi Notification
+                .FirstOrDefaultAsync()
                 ?? throw new AppException("Đơn hàng không tồn tại.");
 
             // 2. Build payment snapshot (🔑 từ PaymentService)
@@ -502,11 +534,31 @@ namespace drinking_be.Services
             OrderStateMachine.ValidateTransition(
                 from: order.Status,
                 to: newStatus,
-                paymentFlow: order.PaymentFlow,
                 payment: paymentSnapshot,
                 actor: actorRole,
                 orderGrandTotal: order.GrandTotal
             );
+            if (newStatus == OrderStatusEnum.Completed || newStatus == OrderStatusEnum.Received)
+            {
+                // Kiểm tra: Nếu chưa thanh toán đủ
+                if (!paymentSnapshot.IsFullyPaid(order.GrandTotal))
+                {
+                    decimal amountMissing = order.GrandTotal - paymentSnapshot.PaidAmount;
+
+                    // Kiểm tra PaymentMethod có tồn tại không để tránh lỗi Null
+                    if (order.PaymentMethod != null)
+                    {
+                        // Gọi hàm AutoConfirmPaymentAsync vừa viết ở trên
+                        await _orderPaymentService.AutoConfirmPaymentAsync(
+                            order.Id,
+                            order.PaymentMethod.Id,      // ID phương thức (VD: 1 - COD)
+                            order.PaymentMethod.Name,    // Tên phương thức (VD: "Thanh toán khi nhận hàng")
+                            amountMissing,               // Số tiền thu
+                            "Hệ thống tự động xác nhận thanh toán khi Hoàn tất đơn." // Ghi chú
+                        );
+                    }
+                }
+            }
 
             // 4. Update state
             order.Status = newStatus;
@@ -514,6 +566,8 @@ namespace drinking_be.Services
 
             _unitOfWork.Orders.Update(order);
             await _unitOfWork.CompleteAsync();
+
+            // 5. Gửi thông báo (Notification)
             if (order.UserId.HasValue)
             {
                 string title = "Cập nhật đơn hàng";
@@ -548,7 +602,7 @@ namespace drinking_be.Services
                     });
                 }
             }
-            // 5. Return updated order
+            // 6. Return updated order
             return await GetOrderByIdAsync(orderId);
         }
 
@@ -676,6 +730,7 @@ namespace drinking_be.Services
                 .Include(o => o.PaymentMethod)
                 .Include(o => o.Table)
                 .Include(o => o.Shipper)
+                .Include(o => o.OrderPayments)
                 .FirstOrDefaultAsync();
             if (order == null) throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
             return _mapper.Map<OrderReadDto>(order);

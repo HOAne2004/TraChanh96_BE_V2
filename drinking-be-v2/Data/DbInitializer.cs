@@ -138,6 +138,69 @@ namespace drinking_be.Data
                     await context.SaveChangesAsync();
                 }
             }
+            // Tạo User Thu ngân
+            if (!await context.Users.AnyAsync(u => u.Email == "thungan@drink.vn"))
+            {
+                var cashierUser = new User
+                {
+                    PublicId = Guid.NewGuid(),
+                    Username = "thungan_cg",
+                    Email = "thungan@drink.vn",
+                    PasswordHash = PasswordHasher.HashPassword("123456"),
+                    RoleId = UserRoleEnum.Staff,
+                    Status = UserStatusEnum.Active,
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.Users.Add(cashierUser);
+                await context.SaveChangesAsync();
+
+                // Lấy Store ID (giả sử Cầu Giấy đã tạo hoặc hardcode logic lấy store)
+                var store = await context.Stores.FirstOrDefaultAsync(s => s.Slug == "tc-cau-giay");
+
+                context.Staffs.Add(new Staff
+                {
+                    UserId = cashierUser.Id,
+                    FullName = "Trần Thị Thu Ngân",
+                    Position = StaffPositionEnum.Cashier, // Cần đảm bảo Enum này có giá trị
+                    StoreId = store?.Id, // Gán nhân viên vào cửa hàng cụ thể
+                    SalaryType = SalaryTypeEnum.PartTime,
+                    Status = PublicStatusEnum.Active,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            // Tạo User Pha chế
+            if (!await context.Users.AnyAsync(u => u.Email == "phache@drink.vn"))
+            {
+                var baristaUser = new User
+                {
+                    PublicId = Guid.NewGuid(),
+                    Username = "phache_cg",
+                    Email = "phache@drink.vn",
+                    PasswordHash = PasswordHasher.HashPassword("123456"),
+                    RoleId = UserRoleEnum.Staff,
+                    Status = UserStatusEnum.Active,
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.Users.Add(baristaUser);
+                await context.SaveChangesAsync();
+
+                var store = await context.Stores.FirstOrDefaultAsync(s => s.Slug == "tc-cau-giay");
+
+                context.Staffs.Add(new Staff
+                {
+                    UserId = baristaUser.Id,
+                    FullName = "Nguyễn Văn Pha Chế",
+                    Position = StaffPositionEnum.Barista, // Barista/Kitchen
+                    StoreId = store?.Id,
+                    SalaryType = SalaryTypeEnum.FullTime,
+                    Status = PublicStatusEnum.Active,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                await context.SaveChangesAsync();
+                Console.WriteLine("--> Đã tạo Staff (Cashier & Barista)");
+            }
 
             // --- 4. Store (sau khi đã có Brand) ---
             if (!await context.Stores.AnyAsync())
@@ -207,7 +270,39 @@ namespace drinking_be.Data
                            Status = StoreStatusEnum.Active,
                            CreatedAt = DateTime.UtcNow,
                            UpdatedAt = DateTime.UtcNow
+                       },
+                       new Store
+                       {
+                           Name = "Trà Chanh 96 - Bình An",
+                           Slug = "tc-binh-an",
+                           Address = new Address
+                           {
+                               UserId = null,
+                               RecipientName = "Quản lý Bình An",
+                               RecipientPhone = "02439876543",
+                               AddressDetail = "Cụm CN Bình Lục",
+                               Commune = "",
+                               District = "Bình An",
+                               Province = "Ninh Bình",
+                               FullAddress = "Cụm CN Bình Lục, Bình An, Ninh Bình",
+                               Latitude = 20.475025,
+                               Longitude = 106.039162,
+                               IsDefault = true,
+                               Status = PublicStatusEnum.Active,
+                               CreatedAt = DateTime.UtcNow,
+                               UpdatedAt = DateTime.UtcNow
+                           },
+                           BrandId = brand.Id,
+                           OpenDate = new DateTime(2019, 3, 2),
+                           OpenTime = new TimeSpan(0, 0, 0),
+                           CloseTime = new TimeSpan(0, 0, 0),
+                           ImageUrl = "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?auto=format&fit=crop&w=500&q=60",
+                           ShippingFeeFixed = 15000,
+                           Status = StoreStatusEnum.Active,
+                           CreatedAt = DateTime.UtcNow,
+                           UpdatedAt = DateTime.UtcNow
                        }
+
                     );
                     await context.SaveChangesAsync();
                     Console.WriteLine("--> Đã tạo Stores");
@@ -784,7 +879,7 @@ namespace drinking_be.Data
                 await context.SaveChangesAsync();
             }
 
-            // --- 11. Payment Methods (MỚI) ---
+            // --- 11. Payment Methods ---
             if (!await context.PaymentMethods.AnyAsync())
             {
                 context.PaymentMethods.AddRange(
@@ -804,7 +899,7 @@ namespace drinking_be.Data
                         PaymentType = PaymentTypeEnum.BankTransfer,
                         ImageUrl = "https://img.vietqr.io/image/MB-123456789-compact2.png", // Demo
                         // Cấu hình VietQR
-                        BankName = "MB Bank",
+                        BankName = "MB",
                         BankAccountNumber = "0393742967",
                         BankAccountName = "LÊ HUY HOÀN" ,
                         QRTplUrl = "compact2",
@@ -828,6 +923,7 @@ namespace drinking_be.Data
                 await context.SaveChangesAsync();
                 Console.WriteLine("--> Đã tạo Payment Methods");
             }
+
             Console.WriteLine("✅ Database seeding completed successfully!");
         }
     }

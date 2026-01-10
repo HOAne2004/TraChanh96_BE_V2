@@ -10,8 +10,8 @@ namespace drinking_be.Services.Background
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<AutoCancelOrderService> _logger;
 
-        // Cấu hình thời gian hết hạn (ví dụ 15 phút)
-        private const int TIMEOUT_MINUTES = 15;
+        // Cấu hình thời gian hết hạn (ví dụ 5 phút)
+        private const int TIMEOUT_MINUTES = 5;
 
         public AutoCancelOrderService(IServiceProvider serviceProvider, ILogger<AutoCancelOrderService> logger)
         {
@@ -53,7 +53,7 @@ namespace drinking_be.Services.Background
                 // 1. Trạng thái là NEW hoặc PENDING_PAYMENT
                 // 2. Thời gian tạo < (Hiện tại - 15 phút)
                 var expiredOrders = await context.Orders
-                    .Where(o => (o.Status == OrderStatusEnum.New || o.Status == OrderStatusEnum.PendingPayment)
+                    .Where(o => o.Status == OrderStatusEnum.PendingPayment
                                 && o.CreatedAt < thresholdTime)
                     .ToListAsync();
 
