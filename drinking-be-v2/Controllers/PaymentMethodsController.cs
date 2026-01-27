@@ -39,7 +39,7 @@ namespace drinking_be.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var result = await _paymentService.GetByIdAsync(id);
-            if (result == null) return NotFound();
+            if (result == null) return NotFound("Phương thức thanh toán không tồn tại");
             return Ok(result);
         }
 

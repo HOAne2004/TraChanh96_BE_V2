@@ -1,4 +1,4 @@
-﻿// Utils/EnumExtensions.cs (Tạo một file mới)
+﻿// Utils/EnumExtensions.cs 
 using System.ComponentModel;
 using System.Reflection;
 

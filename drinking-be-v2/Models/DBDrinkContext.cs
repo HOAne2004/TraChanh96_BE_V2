@@ -68,6 +68,9 @@ public partial class DBDrinkContext : DbContext
             entity.Property(e => e.UserId)
                   .HasColumnName("user_id");
 
+            entity.Property(e => e.StoreId)
+                  .HasColumnName("store_id");
+
             entity.Property(e => e.RecipientName)
                   .HasMaxLength(200)
                   .HasColumnName("recipient_name");
@@ -2226,6 +2229,18 @@ public partial class DBDrinkContext : DbContext
 
             entity.Property(e => e.DeletedAt)
                   .HasColumnName("deleted_at");
+
+            entity.Property(e => e.Description)
+                  .HasColumnType("text") // Postgre dùng text cho chuỗi dài không giới hạn
+                  .HasColumnName("description");
+
+            entity.Property(e => e.PhoneNumber)
+                  .HasMaxLength(20) // Giới hạn độ dài số điện thoại
+                  .HasColumnName("phone_number");
+
+            entity.Property(e => e.WifiPassword)
+                  .HasMaxLength(100)
+                  .HasColumnName("wifi_password");
 
             entity.Property(e => e.AddressId)
                   .HasColumnName("address_id");

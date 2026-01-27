@@ -1,4 +1,5 @@
 ﻿using drinking_be.Data;
+using drinking_be.Hubs;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.AuthInterfaces;
 using drinking_be.Interfaces.FeedbackInterfaces;
@@ -8,7 +9,6 @@ using drinking_be.Interfaces.OrderInterfaces;
 using drinking_be.Interfaces.PolicyInterfaces;
 using drinking_be.Interfaces.ProductInterfaces;
 using drinking_be.Interfaces.StoreInterfaces;
-using drinking_be.Hubs;
 using drinking_be.Models;
 using drinking_be.Repositories;
 using drinking_be.Services;
@@ -21,6 +21,7 @@ using Supabase;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 // Fix lỗi timestamp của PostgreSQL
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -68,6 +69,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(option =>

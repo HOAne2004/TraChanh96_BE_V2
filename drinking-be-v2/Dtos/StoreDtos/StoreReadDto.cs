@@ -22,7 +22,7 @@ namespace drinking_be.Dtos.StoreDtos
         public DateTime? OpenDate { get; set; }
         public TimeSpan? OpenTime { get; set; }
         public TimeSpan? CloseTime { get; set; }
-
+        public double? DeliveryRadius { get; set; }
         public decimal? ShippingFeeFixed { get; set; }
         public decimal? ShippingFeePerKm { get; set; }
 
@@ -34,8 +34,12 @@ namespace drinking_be.Dtos.StoreDtos
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
+        public string? Description { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? WifiPassword { get; set; }
+
         // ⭐ QUAN HỆ 1:1: Địa chỉ chi tiết (Cần Include Address)
-        public AddressReadDto Address { get; set; } = null!;
+        public UserAddressReadDto Address { get; set; } = null!;
 
         // Các Navigation Properties khác
         public ICollection<SocialMediaReadDto> SocialMedias { get; set; } = new List<SocialMediaReadDto>();

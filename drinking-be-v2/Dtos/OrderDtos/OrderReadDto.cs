@@ -50,6 +50,7 @@ namespace drinking_be.Dtos.OrderDtos
         public int? CoinsEarned { get; set; }
 
         // --- Payment ---
+        public int PaymentMethodId { get; set; }
         public string? PaymentMethodName { get; set; }
         public PaymentMethodReadDto? PaymentMethod { get; set; }
         public bool IsPaid { get; set; }

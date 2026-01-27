@@ -26,6 +26,14 @@ namespace drinking_be.Controllers
             return Ok(stores);
         }
 
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetStoreById(int id)
+        {
+            var store = await _storeService.GetStoreByIdAsync(id);
+            if (store == null) return NotFound("Cửa hàng không tồn tại.");
+            return Ok(store);
+        }
+
         [HttpGet("{slug}")]
         public async Task<IActionResult> GetStoreBySlug(string slug)
         {
@@ -42,6 +50,16 @@ namespace drinking_be.Controllers
         {
             var result = await _storeService.GetAllStoresAsync(search, status);
             return Ok(result);
+        }
+
+        // Admin detail endpoint (returns store regardless of status)
+        [HttpGet("admin/{id}")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetByIdAdmin(int id)
+        {
+            var store = await _storeService.GetByIdAsync(id);
+            if (store == null) return NotFound("Cửa hàng không tồn tại.");
+            return Ok(store);
         }
 
         [HttpPost]

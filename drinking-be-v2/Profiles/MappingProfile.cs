@@ -41,14 +41,16 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         // --- Address Mappings ---
-        CreateMap<AddressCreateDto, Address>()
+        CreateMap<UserAddressCreateDto, Address>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => PublicStatusEnum.Active))
             .ReverseMap();
-        CreateMap<Address, AddressReadDto>()
+        CreateMap<Address, UserAddressReadDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
-        CreateMap<AddressUpdateDto, Address>()
+        CreateMap<UserAddressUpdateDto, Address>()
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
-
+        CreateMap<StoreAddressCreateDto, Address>()
+           .ForMember(dest => dest.Status, opt => opt.MapFrom(src => PublicStatusEnum.Active))
+           .ReverseMap();
         // --- Attendance Mappings ---
         CreateMap<AttendanceCreateDto, Attendance>().ReverseMap();
         CreateMap<Attendance, AttendanceReadDto>()
@@ -257,7 +259,11 @@ public class MappingProfile : Profile
             .IncludeBase<BaseOrderCreateDto, Order>() // Kế thừa logic map của Base
             .ForMember(dest => dest.DeliveryAddressId, opt => opt.MapFrom(src => src.DeliveryAddressId))
             .ForMember(dest => dest.OrderType, opt => opt.MapFrom(src => OrderTypeEnum.Delivery)); // Gán cứng loại đơn
-
+        // 3. Đến lấy
+        CreateMap<PickupOrderCreateDto, Order>()
+            .IncludeBase<BaseOrderCreateDto, Order>()
+            .ForMember(dest => dest.PaymentMethodId, opt => opt.MapFrom(src => src.PaymentMethodId))
+            .ForMember(dest => dest.OrderType, opt => opt.MapFrom(src => OrderTypeEnum.Pickup));
         // --- OrderItem Mappings ---
         CreateMap<OrderItemCreateDto, OrderItem>()
              .ForMember(dest => dest.OrderId, opt => opt.Ignore())

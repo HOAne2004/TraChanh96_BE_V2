@@ -51,10 +51,11 @@ namespace drinking_be.Services.Background
 
                 // Tìm các đơn hàng:
                 // 1. Trạng thái là NEW hoặc PENDING_PAYMENT
-                // 2. Thời gian tạo < (Hiện tại - 15 phút)
+                // 2. Thời gian tạo < (Hiện tại - 5 phút)
                 var expiredOrders = await context.Orders
-                    .Where(o => o.Status == OrderStatusEnum.PendingPayment
-                                && o.CreatedAt < thresholdTime)
+                    .Where(o => (o.Status == OrderStatusEnum.PendingPayment || o.Status == OrderStatusEnum.New)
+                                && o.CreatedAt < thresholdTime
+                                && o.IsPaid == false)
                     .ToListAsync();
 
                 if (expiredOrders.Any())

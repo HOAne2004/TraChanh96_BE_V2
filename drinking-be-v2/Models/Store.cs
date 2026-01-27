@@ -34,6 +34,11 @@ public partial class Store : ISoftDelete
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
 
+    // Mới bổ sung
+    public string? Description { get; set; } // Hỗ trợ HTML/Rich Text
+    public string? PhoneNumber { get; set; }
+    public string? WifiPassword { get; set; }  // Mật khẩu Wifi
+
     public long AddressId { get; set; }
     public virtual Address Address { get; set; } = null!;
 

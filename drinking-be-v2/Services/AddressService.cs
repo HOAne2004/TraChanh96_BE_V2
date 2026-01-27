@@ -18,7 +18,7 @@ namespace drinking_be.Services
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<AddressReadDto>> GetAllMyAddressesAsync(int userId)
+        public async Task<IEnumerable<UserAddressReadDto>> GetAllMyAddressesAsync(int userId)
         {
             var repo = _unitOfWork.Repository<Address>();
 
@@ -29,10 +29,10 @@ namespace drinking_be.Services
                 orderBy: q => q.OrderByDescending(a => a.IsDefault).ThenByDescending(a => a.CreatedAt)
             );
 
-            return _mapper.Map<IEnumerable<AddressReadDto>>(addresses);
+            return _mapper.Map<IEnumerable<UserAddressReadDto>>(addresses);
         }
 
-        public async Task<AddressReadDto?> GetByIdAsync(long addressId, int userId)
+        public async Task<UserAddressReadDto?> GetByIdAsync(long addressId, int userId)
         {
             var repo = _unitOfWork.Repository<Address>();
 
@@ -40,10 +40,10 @@ namespace drinking_be.Services
                 a => a.Id == addressId && a.UserId == userId && a.Status == PublicStatusEnum.Active
             );
 
-            return address == null ? null : _mapper.Map<AddressReadDto>(address);
+            return address == null ? null : _mapper.Map<UserAddressReadDto>(address);
         }
 
-        public async Task<AddressReadDto> CreateAddressAsync(int userId, AddressCreateDto dto)
+        public async Task<UserAddressReadDto> CreateUserAddressAsync(int userId, UserAddressCreateDto dto)
         {
             var repo = _unitOfWork.Repository<Address>();
 
@@ -70,10 +70,10 @@ namespace drinking_be.Services
             await repo.AddAsync(address);
             await _unitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<AddressReadDto>(address);
+            return _mapper.Map<UserAddressReadDto>(address);
         }
 
-        public async Task<AddressReadDto?> UpdateAddressAsync(long addressId, int userId, AddressUpdateDto dto)
+        public async Task<UserAddressReadDto?> UpdateUserAddressAsync(long addressId, int userId, UserAddressUpdateDto dto)
         {
             var repo = _unitOfWork.Repository<Address>();
 
@@ -97,10 +97,10 @@ namespace drinking_be.Services
             repo.Update(address);
             await _unitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<AddressReadDto>(address);
+            return _mapper.Map<UserAddressReadDto>(address);
         }
 
-        public async Task<bool> DeleteAddressAsync(long addressId, int userId)
+        public async Task<bool> DeleteUserAddressAsync(long addressId, int userId)
         {
             var repo = _unitOfWork.Repository<Address>();
             var address = await repo.GetFirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId);
@@ -147,13 +147,74 @@ namespace drinking_be.Services
         {
             var repo = _unitOfWork.Repository<Address>();
             // Tìm tất cả địa chỉ đang là Default của User này
-            var defaults = await repo.GetAllAsync(a => a.UserId == userId && a.IsDefault == true);
+            var defaults = await repo.GetAllAsync(
+                 a => a.UserId == userId
+                   && a.IsDefault == true
+                   && a.Status == PublicStatusEnum.Active
+             );
+
 
             foreach (var item in defaults)
             {
                 item.IsDefault = false;
                 repo.Update(item);
             }
+        }
+
+        //====================================
+        // Store
+        //====================================
+        public async Task<UserAddressReadDto> CreateStoreAddressAsync(int storeId, StoreAddressCreateDto dto)
+        {
+            var repo = _unitOfWork.Repository<Address>();
+
+            var address = _mapper.Map<Address>(dto);
+            address.StoreId = storeId; // Gán chủ sở hữu
+            address.Status = PublicStatusEnum.Active; // Đảm bảo Active
+            address.CreatedAt = DateTime.UtcNow;
+
+            // Lưu vào DB
+            await repo.AddAsync(address);
+            await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<UserAddressReadDto>(address);
+        }
+
+        public async Task<UserAddressReadDto?> UpdateStoreAddressAsync(long addressId, int storeId, StoreAddressCreateDto dto)
+        {
+            var repo = _unitOfWork.Repository<Address>();
+
+            // Tìm địa chỉ khớp ID và User
+            var address = await repo.GetFirstOrDefaultAsync(a => a.Id == addressId && a.StoreId == storeId);
+
+            // Không tìm thấy hoặc đã bị xóa mềm
+            if (address == null || address.Status != PublicStatusEnum.Active) return null;
+
+
+            // Map dữ liệu cập nhật
+            _mapper.Map(dto, address);
+
+            address.UpdatedAt = DateTime.UtcNow;
+
+            repo.Update(address);
+            await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<UserAddressReadDto>(address);
+        }
+
+        public async Task<bool> DeleteStoreAddressAsync(long addressId, int storeId)
+        {
+            var repo = _unitOfWork.Repository<Address>();
+            var address = await repo.GetFirstOrDefaultAsync(a => a.Id == addressId && a.StoreId == storeId);
+
+            if (address == null) return false;
+
+            address.Status = PublicStatusEnum.Deleted;
+            address.DeletedAt = DateTime.UtcNow;
+
+            repo.Update(address);
+            await _unitOfWork.SaveChangesAsync();
+            return true;
         }
     }
 }

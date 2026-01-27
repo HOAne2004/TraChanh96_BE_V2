@@ -52,6 +52,19 @@ namespace drinking_be.Controllers
             return Ok(result);
         }
 
+        [HttpPost("pickup")]
+        public async Task<IActionResult> CreatePickupOrder([FromBody] PickupOrderCreateDto dto)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _orderService.CreatePickupOrderAsync(userId, dto);
+
+            // Nếu là thanh toán Online
+            // if (result.PaymentMethod.Type == PaymentType.EWallet) ...
+
+            return Ok(result);
+        }
+
+
         // ==========================================================
         // 2. NHÓM TRA CỨU & QUẢN LÝ
         // ==========================================================
@@ -111,14 +124,14 @@ namespace drinking_be.Controllers
         }
 
         // ==========================================================
-        // 3. THỐNG KÊ NHANH (Theo yêu cầu của bạn)
+        // 3. THỐNG KÊ NHANH
         // ==========================================================
         [HttpGet("stats")]
         [Authorize(Roles = "Admin,StoreManager")]
         public async Task<IActionResult> GetQuickStats([FromQuery] int? storeId, [FromQuery] DateTime? date)
         {
-            // Nếu là StoreManager, ép buộc storeId phải là store của họ (xử lý ở Service)
-            var stats = await _orderService.GetQuickStatsAsync(storeId, date ?? DateTime.Today);
+            // Truyền null nếu không chọn ngày, Service sẽ tự lấy ngày hiện tại của VN
+            var stats = await _orderService.GetQuickStatsAsync(storeId, date);
             return Ok(stats);
         }
 
@@ -160,15 +173,25 @@ namespace drinking_be.Controllers
             return Ok(new { message = "Gán shipper thành công" });
         }
 
-        // Xác thực mã lấy đồ (AtCounter)
+        // 🟢 CẬP NHẬT API VERIFY (Validate kỹ hơn)
         [HttpPut("{id}/verify-pickup")]
         [Authorize(Roles = "Admin,StoreManager,Staff")]
         public async Task<IActionResult> VerifyPickup(long id, [FromBody] VerifyPickupDto dto)
         {
-            var success = await _orderService.VerifyPickupCodeAsync(id, dto.PickupCode);
-            if (!success) return BadRequest("Mã lấy đồ không đúng.");
-
-            return Ok(new { message = "Xác thực thành công. Giao đồ cho khách." });
+            try
+            {
+                var success = await _orderService.VerifyPickupCodeAsync(id, dto.PickupCode);
+                // VerifyPickupCodeAsync sẽ throw exception nếu fail, nên nếu chạy qua được dòng trên là OK
+                return Ok(new { message = "Xác thực thành công. Đã cập nhật trạng thái đơn hàng." });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Không tìm thấy đơn hàng hoặc mã xác thực sai.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // ==========================================================

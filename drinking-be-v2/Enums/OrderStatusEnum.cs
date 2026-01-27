@@ -33,7 +33,7 @@ namespace drinking_be.Enums
         [Description("Đã hủy")]
         Cancelled = 7, // Đơn bị hủy
 
-        [Description("Đã nhận hàng")]
+        [Description("Khách đã lấy hàng")]
         Received = 8, // Khách đã lấy đồ tại quầy thành công (AtCounter)
 
         [Description("Đã xóa")]

@@ -5,7 +5,7 @@ using drinking_be.Enums;
 
 namespace drinking_be.Dtos.AddressDtos
 {
-    public class AddressUpdateDto
+    public class UserAddressUpdateDto
     {
         // Có thể update thông tin người nhận
         [MaxLength(100)]

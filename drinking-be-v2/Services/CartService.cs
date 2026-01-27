@@ -262,7 +262,7 @@ namespace drinking_be.Services
 
                 // Tính lại tổng FinalPrice (Chính + Toppings)
                 decimal totalToppingPrice = cartItem.InverseParentItem?.Sum(t => t.FinalPrice) ?? 0;
-                cartItem.FinalPrice = (cartItem.BasePrice * newQuantity) + totalToppingPrice; // BasePrice ở đây là đơn giá (đã cộng size)
+                cartItem.FinalPrice = cartItem.BasePrice + totalToppingPrice; // BasePrice ở đây là đơn giá (đã cộng size)
 
                 cartItem.Quantity = newQuantity;
                 cartItem.UpdatedAt = DateTime.UtcNow;

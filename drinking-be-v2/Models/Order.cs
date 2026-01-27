@@ -18,6 +18,7 @@ public partial class Order : ISoftDelete
 
     [MaxLength(20)]
     public string? PickupCode { get; set; }
+    public DateTime? PickupTime { get; set; } // Thời gian khách hẹn lấy
     public OrderTypeEnum OrderType { get; set; } = OrderTypeEnum.AtCounter;
     public OrderStatusEnum Status { get; set; } = OrderStatusEnum.New;
 
@@ -62,6 +63,8 @@ public partial class Order : ISoftDelete
     [Column(TypeName = "decimal(18,2)")]
     public decimal GrandTotal { get; set; } = 0;
 
+    public bool IsPaid { get; set; } = false;
+    public DateTime? PaymentDate { get; set; }
     public int? CoinsEarned { get; set; } = 0;
 
     // --- THÔNG TIN BỔ SUNG ---

@@ -26,4 +26,16 @@ namespace drinking_be.Dtos.OrderDtos
     {
         public int? TableId { get; set; } // Có thể null nếu mang về
     }
+
+    // 3. DTO tạo đơn Đến lấy
+    public class PickupOrderCreateDto : BaseOrderCreateDto // Kế thừa các field chung như StoreId, Items, Note...
+    {
+        [Required]
+        public int PaymentMethodId { get; set; }
+
+        public string? VoucherCode { get; set; }
+
+        [Required]
+        public DateTime PickupTime { get; set; } // 🟢 Thời gian khách hẹn đến lấy
+    }
 }

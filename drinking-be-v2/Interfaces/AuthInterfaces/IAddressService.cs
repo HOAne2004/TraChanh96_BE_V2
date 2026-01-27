@@ -4,22 +4,18 @@ namespace drinking_be.Interfaces.AuthInterfaces
 {
     public interface IAddressService
     {
-        // Lấy danh sách địa chỉ của User đang đăng nhập
-        Task<IEnumerable<AddressReadDto>> GetAllMyAddressesAsync(int userId);
+        // USER
+        Task<IEnumerable<UserAddressReadDto>> GetAllMyAddressesAsync(int userId);
+        Task<UserAddressReadDto?> GetByIdAsync(long id, int userId);
+        Task<UserAddressReadDto> CreateUserAddressAsync(int userId, UserAddressCreateDto dto);
+        Task<UserAddressReadDto?> UpdateUserAddressAsync(long id, int userId, UserAddressUpdateDto dto);
+        Task<bool> DeleteUserAddressAsync(long id, int userId);
+        Task<bool> SetDefaultAddressAsync(long id, int userId);
 
-        // Lấy chi tiết 1 địa chỉ (phải đúng chủ sở hữu)
-        Task<AddressReadDto?> GetByIdAsync(long addressId, int userId);
-
-        // Tạo mới
-        Task<AddressReadDto> CreateAddressAsync(int userId, AddressCreateDto dto);
-
-        // Cập nhật
-        Task<AddressReadDto?> UpdateAddressAsync(long addressId, int userId, AddressUpdateDto dto);
-
-        // Xóa (Soft Delete)
-        Task<bool> DeleteAddressAsync(long addressId, int userId);
-
-        // Thiết lập mặc định
-        Task<bool> SetDefaultAddressAsync(long addressId, int userId);
+        // STORE
+        Task<UserAddressReadDto> CreateStoreAddressAsync(int storeId, StoreAddressCreateDto dto);
+        Task<UserAddressReadDto?> UpdateStoreAddressAsync(long id, int storeId, StoreAddressCreateDto dto);
+        Task<bool> DeleteStoreAddressAsync(long id, int storeId);
     }
+
 }

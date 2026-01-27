@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using drinking_be.Models;
@@ -11,9 +12,11 @@ using drinking_be.Models;
 namespace drinking_be.Migrations
 {
     [DbContext(typeof(DBDrinkContext))]
-    partial class DBDrinkContextModelSnapshot : ModelSnapshot
+    [Migration("20260117123448_PickupOrder")]
+    partial class PickupOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -100,10 +103,6 @@ namespace drinking_be.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)2)
                         .HasColumnName("status");
-
-                    b.Property<int?>("StoreId")
-                        .HasColumnType("integer")
-                        .HasColumnName("store_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -758,10 +757,6 @@ namespace drinking_be.Migrations
                     b.Property<double>("DeliveryRadius")
                         .HasColumnType("double precision");
 
-                    b.Property<string>("Description")
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
                     b.Property<string>("ImageUrl")
                         .HasColumnType("text")
                         .HasColumnName("image_url");
@@ -785,11 +780,6 @@ namespace drinking_be.Migrations
                     b.Property<TimeSpan?>("OpenTime")
                         .HasColumnType("interval")
                         .HasColumnName("open_time");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("phone_number");
 
                     b.Property<Guid>("PublicId")
                         .ValueGeneratedOnAdd()
@@ -825,11 +815,6 @@ namespace drinking_be.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("NOW()");
-
-                    b.Property<string>("WifiPassword")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("wifi_password");
 
                     b.HasKey("Id")
                         .HasName("PK_Store_Id");
@@ -1927,9 +1912,6 @@ namespace drinking_be.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("grand_total");
 
-                    b.Property<bool>("IsPaid")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("OrderCode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1943,9 +1925,6 @@ namespace drinking_be.Migrations
                     b.Property<short>("OrderType")
                         .HasColumnType("smallint")
                         .HasColumnName("order_type");
-
-                    b.Property<DateTime?>("PaymentDate")
-                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int?>("PaymentMethodId")
                         .HasColumnType("integer")

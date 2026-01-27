@@ -4,13 +4,13 @@ using drinking_be.Enums;
 
 namespace drinking_be.Dtos.AddressDtos
 {
-    public class AddressReadDto
+    public class UserAddressReadDto
     {
         public long Id { get; set; }
         public int? UserId { get; set; }
 
-        public string RecipientName { get; set; } = null!;
-        public string RecipientPhone { get; set; } = null!;
+        public string? RecipientName { get; set; } = null!;
+        public string? RecipientPhone { get; set; } = null!;
 
         public string FullAddress { get; set; } = null!;
         public string AddressDetail { get; set; } = null!;

@@ -61,8 +61,8 @@ namespace drinking_be.Services
             if (payment.Status == OrderPaymentStatusEnum.Paid)
                 return true; // idempotent – callback gọi nhiều lần không lỗi
 
-            if (payment.Status == OrderPaymentStatusEnum.Refunded)
-                throw new AppException("Không thể xác nhận thanh toán cho giao dịch hoàn tiền.");
+            //if (payment.Status == OrderPaymentStatusEnum.Refunded)
+            //    throw new AppException("Không thể xác nhận thanh toán cho giao dịch hoàn tiền.");
 
             payment.Status = OrderPaymentStatusEnum.Paid;
             payment.TransactionCode = transactionCode;
@@ -70,10 +70,11 @@ namespace drinking_be.Services
             payment.UpdatedAt = DateTime.UtcNow;
 
             _unitOfWork.OrderPayments.Update(payment);
+            await _unitOfWork.CompleteAsync();
 
             await RecalculateOrderPaymentStatusAsync(payment.OrderId);
 
-            return await _unitOfWork.CompleteAsync() > 0;
+            return true;
         }
 
         public async Task<bool> MarkPaymentFailedAsync(long paymentId, string reason)
@@ -138,15 +139,26 @@ namespace drinking_be.Services
             var order = await _unitOfWork.Orders.GetByIdAsync(orderId)
                 ?? throw new AppException("Order không tồn tại.");
 
+            // Lấy tổng tiền đã trả (Sum từ DB)
             var snapshot = await BuildPaymentSnapshotAsync(orderId);
 
+            // Kiểm tra nếu đã trả đủ
             if (snapshot.IsFullyPaid(order.GrandTotal))
             {
-                if (order.Status == OrderStatusEnum.PendingPayment)
+                // 3. CẬP NHẬT CỜ ISPAID (Đây là phần bạn cần)
+                if (!order.IsPaid) // Chỉ update nếu chưa set để tránh ghi đè ngày cũ
                 {
-                    order.Status = OrderStatusEnum.New;
-                    order.UpdatedAt = DateTime.UtcNow;
+                    order.IsPaid = true;
+                    order.PaymentDate = DateTime.UtcNow;
+
+                    // Nếu đơn đang treo -> Tự động Confirm luôn (tùy nghiệp vụ)
+                    if (order.Status == OrderStatusEnum.PendingPayment || order.Status == OrderStatusEnum.New)
+                    {
+                        order.Status = OrderStatusEnum.Confirmed;
+                    }
+
                     _unitOfWork.Orders.Update(order);
+                    await _unitOfWork.CompleteAsync(); // Lưu thay đổi của Order
                 }
             }
 
@@ -188,11 +200,11 @@ namespace drinking_be.Services
                 UpdatedAt = DateTime.UtcNow
             };
 
-            // Lưu vào DB (Giả sử bạn có repository cho OrderPayment, hoặc dùng Generic)
             await _unitOfWork.Repository<OrderPayment>().AddAsync(payment);
+            await _unitOfWork.CompleteAsync(); // Lưu Payment trước
 
-            // Lưu thay đổi
-            await _unitOfWork.CompleteAsync();
+            // GỌI HÀM NÀY ĐỂ UPDATE IsPaid = TRUE CHO ORDER
+            await RecalculateOrderPaymentStatusAsync(orderId);
         }
 
 

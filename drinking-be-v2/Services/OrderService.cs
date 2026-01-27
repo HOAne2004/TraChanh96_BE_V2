@@ -171,6 +171,109 @@ namespace drinking_be.Services
         }
 
         // =========================================================================
+        // [NEW] TẠO ĐƠN ĐẾN LẤY (PICKUP) - KHÁCH TỰ ĐẶT
+        // =========================================================================
+        public async Task<OrderReadDto> CreatePickupOrderAsync(int userId, PickupOrderCreateDto dto)
+        {
+            // 1. Validate Store
+            var store = await _unitOfWork.Stores.GetByIdAsync(dto.StoreId);
+            if (store == null) throw new KeyNotFoundException("Cửa hàng không tồn tại.");
+            if (store.Status != StoreStatusEnum.Active) throw new AppException("Cửa hàng đang đóng cửa.");
+
+            // 2. Validate Payment
+            var paymentMethod = await _unitOfWork.Repository<PaymentMethod>().GetByIdAsync(dto.PaymentMethodId);
+            if (paymentMethod == null) throw new AppException("Phương thức thanh toán không hợp lệ.");
+
+            // Chặn thanh toán sau (COD/Cash)
+            // Lưu ý: Sửa Exception -> AppException để trả về 400 thay vì 500
+            if (paymentMethod.PaymentType == PaymentTypeEnum.COD)
+            {
+                throw new AppException("Đơn hàng 'Đến lấy' yêu cầu thanh toán trước (Chuyển khoản/Ví điện tử).");
+            }
+
+            // 🟢 3. XỬ LÝ TIMEZONE (QUAN TRỌNG)
+            // Frontend gửi lên là UTC (do toISOString), cần check xem nó có nhỏ hơn hiện tại (UTC) không
+            if (dto.PickupTime < DateTime.UtcNow)
+                throw new AppException("Thời gian lấy hàng không hợp lệ (phải lớn hơn hiện tại).");
+
+            // Check giờ mở cửa của quán
+            if (store.OpenTime.HasValue && store.CloseTime.HasValue)
+            {
+                // Chuyển giờ khách chọn (UTC) sang giờ Việt Nam (UTC+7) để so sánh với giờ mở cửa của quán
+                // Cách đơn giản nhất và chạy đúng trên mọi môi trường (Windows/Linux) là cộng cứng 7 tiếng
+                // Hoặc dùng TimeZoneInfo nếu muốn chuẩn chỉ hơn.
+
+                var pickupTimeVN = dto.PickupTime.ToUniversalTime().AddHours(7);
+                var pickupTimeOfDay = pickupTimeVN.TimeOfDay;
+
+                if (pickupTimeOfDay < store.OpenTime.Value || pickupTimeOfDay > store.CloseTime.Value)
+                {
+                    throw new AppException($"Cửa hàng chỉ mở cửa từ {store.OpenTime.Value:hh\\:mm} đến {store.CloseTime.Value:hh\\:mm}. Vui lòng chọn giờ khác.");
+                }
+            }
+
+            // 4. Khởi tạo Order
+            var order = _mapper.Map<Order>(dto);
+            order.UserId = userId;
+            order.OrderCode = GenerateOrderCode();
+            order.OrderType = OrderTypeEnum.Pickup;
+
+            // AN TOÀN: Vì bắt buộc thanh toán trước, mặc định set là PendingPayment
+            order.Status = OrderStatusEnum.PendingPayment;
+
+            order.PickupCode = GeneratePickupCode();
+            order.PickupTime = dto.PickupTime; // Lưu UTC vào DB là chuẩn, khi hiển thị ra FE lại convert sang Local sau
+
+            // 5. Xử lý món ăn
+            order.TotalAmount = await ProcessOrderItemsAsync(order, dto.Items);
+
+            // 6. Pickup settings
+            order.ShippingFee = 0;
+            order.DeliveryAddressId = null; // ⚠️ Đảm bảo DB cột này cho phép NULL
+
+            // 7. Tính tổng
+            order.DiscountAmount = 0; // TODO: Voucher logic sau này
+            order.GrandTotal = order.TotalAmount - (order.DiscountAmount ?? 0);
+            order.CoinsEarned = (int)(order.GrandTotal * 0.01m);
+
+            // 8. Lưu DB
+            await _unitOfWork.Orders.AddAsync(order);
+            await _unitOfWork.CompleteAsync();
+
+            // 9. Gửi thông báo (Gọi hàm helper)
+            await NotifyStaffAsync(order);
+
+            return await GetOrderByIdAsync(order.Id);
+        }
+        // --- HELPER ---
+        private string GeneratePickupCode()
+        {
+            // Sinh chuỗi số ngẫu nhiên 6 ký tự (VD: 839201) dễ đọc cho nhân viên
+            Random random = new Random();
+            return random.Next(100000, 999999).ToString();
+        }
+
+        // Tách hàm gửi Noti để code gọn hơn
+        private async Task NotifyStaffAsync(Order order)
+        {
+            var adminIds = await _unitOfWork.Repository<User>()
+                 .GetAllAsync(u => u.RoleId == UserRoleEnum.Admin || u.RoleId == UserRoleEnum.Manager || u.RoleId == UserRoleEnum.Staff);
+
+            foreach (var admin in adminIds)
+            {
+                await _notificationService.CreateAsync(new NotificationCreateDto
+                {
+                    UserId = admin.Id,
+                    Title = "Có đơn qua lấy mới! 🔔",
+                    Content = $"Khách hẹn lấy lúc {order.PickupTime:HH:mm}. Mã đơn #{order.OrderCode}. Giá trị: {order.GrandTotal:N0}đ",
+                    Type = NotificationTypeEnum.Order,
+                    ReferenceId = order.OrderCode
+                });
+            }
+        }
+
+
+        // =========================================================================
         // 3. PRIVATE: XỬ LÝ MÓN ĂN & TOPPING (LOGIC CỐT LÕI)
         // =========================================================================
         private async Task<decimal> ProcessOrderItemsAsync(Order order, List<OrderItemCreateDto> itemsDto)
@@ -287,21 +390,20 @@ namespace drinking_be.Services
 
         private decimal CalculateShippingFeeLogic(Store store, Address address)
         {
-            // 1. Kiểm tra tọa độ khách (Code cũ)
+            // 1. Kiểm tra tọa độ khách 
             if (!address.Latitude.HasValue || !address.Longitude.HasValue)
                 return store.ShippingFeeFixed ?? 15000;
 
-            // 2. Kiểm tra tọa độ quán (Code cũ)
+            // 2. Kiểm tra tọa độ quán
             if (store.Address == null || !store.Address.Latitude.HasValue || !store.Address.Longitude.HasValue)
                 return store.ShippingFeeFixed ?? 15000;
 
-            // 3. Tính khoảng cách (Code cũ - Tận dụng DistanceUtils)
+            // 3. Tính khoảng cách
             double distanceKm = DistanceUtils.CalculateDistanceKm(
                 store.Address.Latitude.Value, store.Address.Longitude.Value,
                 address.Latitude.Value, address.Longitude.Value
             );
 
-            // 🟢 [MỚI] 3.5. KIỂM TRA GIỚI HẠN KHOẢNG CÁCH
             // Lấy giới hạn riêng của quán, nếu chưa set thì lấy 20km
             double limitKm = store.DeliveryRadius > 0 ? store.DeliveryRadius : 20;
 
@@ -312,9 +414,8 @@ namespace drinking_be.Services
             }
 
             // 4. Tính tiền (Code cũ)
-            decimal fixedFee = store.ShippingFeeFixed ?? 0;
             decimal perKmFee = store.ShippingFeePerKm ?? 5000;
-            decimal rawFee = fixedFee + (decimal)distanceKm * perKmFee;
+            decimal rawFee = (decimal)distanceKm * perKmFee;
 
             return Math.Ceiling(rawFee / 1000) * 1000;
         }
@@ -460,57 +561,91 @@ namespace drinking_be.Services
         // =========================================================================
         // 7. THỐNG KÊ NHANH (DOANH THU & TRẠNG THÁI)
         // =========================================================================
-        public async Task<OrderQuickStatsDto> GetQuickStatsAsync(int? storeId, DateTime date)
+        public async Task<OrderQuickStatsDto> GetQuickStatsAsync(int? storeId, DateTime? dateInput)
         {
-            var targetDate = date.Date;
+            // 1. XỬ LÝ TIMEZONE & DATE
+            TimeZoneInfo vnTimeZone;
+            try
+            {
+                vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            }
+            catch
+            {
+                vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+            }
 
-            // --- A. Thống kê theo NGÀY CHỈ ĐỊNH (Doanh thu & Số đơn hôm nay) ---
-            var todayQuery = _unitOfWork.Orders.Find(o => o.CreatedAt.Date == targetDate);
+            // Xác định "Ngày mục tiêu" (Target Date)
+            DateTime targetDateVn;
+
+            if (dateInput.HasValue)
+            {
+                // Nếu FE gửi lên, ta dùng ngày đó (Lưu ý: FE nên gửi yyyy-MM-dd để tránh bị +/- giờ do UTC)
+                // .Date để bỏ phần giờ phút nếu có
+                targetDateVn = dateInput.Value.Date;
+            }
+            else
+            {
+                // Nếu không gửi (null), lấy ngày hiện tại theo giờ VN
+                targetDateVn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone).Date;
+            }
+
+            // Tính khung giờ Start/End theo UTC để query DB
+            var startOfDayVn = targetDateVn;
+            var endOfDayVn = targetDateVn.AddDays(1).AddTicks(-1);
+
+            var startUtc = TimeZoneInfo.ConvertTimeToUtc(startOfDayVn, vnTimeZone);
+            var endUtc = TimeZoneInfo.ConvertTimeToUtc(endOfDayVn, vnTimeZone);
+
+            // 2. KHỞI TẠO QUERY CƠ BẢN (Dùng chung để code gọn hơn)
+            var baseQuery = _unitOfWork.Orders.GetQueryable();
 
             if (storeId.HasValue)
             {
-                todayQuery = todayQuery.Where(o => o.StoreId == storeId);
+                baseQuery = baseQuery.Where(o => o.StoreId == storeId);
             }
 
-            // Tính tổng doanh thu (Chỉ tính đơn đã hoàn thành hoặc đã thanh toán)
-            // Lưu ý: Tùy logic quán, có thể tính cả đơn Confirm. Ở đây mình tính đơn Completed.
-            var todayRevenue = await todayQuery
-                .Where(o => o.Status == OrderStatusEnum.Completed)
-                .SumAsync(o => o.GrandTotal);
+            // --- A. THỐNG KÊ THEO NGÀY CHỌN (Today/Target Date) ---
+            var dailyQuery = baseQuery.Where(o => o.CreatedAt >= startUtc && o.CreatedAt <= endUtc);
 
-            var todayOrdersCount = await todayQuery.CountAsync();
+            // Tính doanh thu ngày (Bổ sung Received để khớp với logic đơn thành công)
+            var todayRevenue = await dailyQuery
+                .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
+                .SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
 
+            var todayOrdersCount = await dailyQuery.CountAsync();
 
-            // --- B. Thống kê theo THỜI GIAN THỰC (Backlog - Việc cần làm ngay) ---
-            // Phần này không lọc theo ngày, mà lọc theo trạng thái hiện tại (Đơn đang treo)
-            var backlogQuery = _unitOfWork.Orders.Find(x => true);
+            // --- B. THỐNG KÊ TOÀN THỜI GIAN (All Time) ---
 
-            if (storeId.HasValue)
-            {
-                backlogQuery = backlogQuery.Where(o => o.StoreId == storeId);
-            }
+            // Tính tổng doanh thu trọn đời (Bổ sung Received)
+            var totalRevenueAllTime = await baseQuery
+                .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
+                .SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
 
-            // Đếm đơn chờ xác nhận (New) và đang chế biến (Confirmed/Preparing)
-            var pendingCount = await backlogQuery
+            // Tính tổng đơn thành công trọn đời
+            var totalCompletedOrders = await baseQuery
+                .CountAsync(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received);
+
+            // --- C. BACKLOG (VIỆC CẦN LÀM NGAY) ---
+            // Backlog phản ánh trạng thái "Live" nên không lọc theo ngày
+
+            var pendingCount = await baseQuery
                 .CountAsync(o => o.Status == OrderStatusEnum.New ||
                                  o.Status == OrderStatusEnum.Confirmed ||
                                  o.Status == OrderStatusEnum.Preparing);
 
-            // Đếm đơn đang giao (Delivering)
-            var shippingCount = await backlogQuery
+            var shippingCount = await baseQuery
                 .CountAsync(o => o.Status == OrderStatusEnum.Delivering);
 
-
-            // --- C. Trả về kết quả ---
             return new OrderQuickStatsDto
             {
                 TodayRevenue = todayRevenue,
+                TotalRevenueAllTime = totalRevenueAllTime,
+                TotalCompletedOrders = totalCompletedOrders,
                 TodayOrders = todayOrdersCount,
                 PendingOrders = pendingCount,
                 ShippingOrders = shippingCount
             };
         }
-
         // =========================================================================
         // 8. CẬP NHẬT TRẠNG THÁI (DUYỆT, NẤU, GIAO...)
         // =========================================================================
@@ -686,7 +821,9 @@ namespace drinking_be.Services
         {
             var order = await _unitOfWork.Orders.GetByIdAsync(orderId);
             if (order == null) throw new KeyNotFoundException("Đơn hàng không tồn tại.");
-
+            
+            if (order.OrderType != OrderTypeEnum.Delivery)
+                throw new AppException("Đơn hàng 'Đến lấy' không cần gán Shipper.");
             if (order.OrderType != OrderTypeEnum.Delivery)
                 throw new Exception("Chỉ có thể gán Shipper cho đơn giao hàng.");
 
@@ -705,13 +842,23 @@ namespace drinking_be.Services
         // =========================================================================
         public async Task<bool> VerifyPickupCodeAsync(long orderId, string code)
         {
-            // Tìm đơn theo ID và Code
-            var order = await _unitOfWork.Orders.Find(o => o.Id == orderId && o.PickupCode == code).FirstOrDefaultAsync();
+            // Tìm đơn theo ID và Code, đảm bảo Status chưa hoàn thành
+            var order = await _unitOfWork.Orders.Find(o =>
+                o.Id == orderId &&
+                o.PickupCode == code
+            ).FirstOrDefaultAsync();
 
-            if (order == null) return false;
+            // 🟢 SỬA: Ném lỗi thay vì return false
+            if (order == null)
+                throw new KeyNotFoundException("Mã lấy đồ không đúng hoặc đơn hàng không tồn tại.");
+
+            if (order.Status == OrderStatusEnum.Received || order.Status == OrderStatusEnum.Completed)
+                throw new AppException("Đơn hàng này đã được nhận rồi.");
 
             // Nếu đúng mã -> Hoàn thành đơn
             order.Status = OrderStatusEnum.Received;
+            order.UpdatedAt = DateTime.UtcNow; // Cập nhật thời gian
+
             _unitOfWork.Orders.Update(order);
 
             return await _unitOfWork.CompleteAsync() > 0;

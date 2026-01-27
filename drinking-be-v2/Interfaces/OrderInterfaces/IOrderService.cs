@@ -9,7 +9,7 @@ namespace drinking_be.Interfaces.OrderInterfaces
         // 1. Tạo đơn
         Task<OrderReadDto> CreateAtCounterOrderAsync(int? userId, AtCounterOrderCreateDto dto);
         Task<OrderReadDto> CreateDeliveryOrderAsync(int? userId, DeliveryOrderCreateDto dto);
-
+        Task<OrderReadDto> CreatePickupOrderAsync(int userId, PickupOrderCreateDto dto);
         // 2. Xử lý đơn
         Task<OrderReadDto> UpdateOrderStatusAsync(long orderId, OrderStatusEnum newStatus, UserRoleEnum actorRole);
 
@@ -26,7 +26,7 @@ namespace drinking_be.Interfaces.OrderInterfaces
 
         //5. Quản lý & Thống kê
         Task<PagedResult<OrderReadDto>> GetOrdersByFilterAsync(OrderFilterDto filter);
-        Task<OrderQuickStatsDto> GetQuickStatsAsync(int? storeId, DateTime date);
+        Task<OrderQuickStatsDto> GetQuickStatsAsync(int? storeId, DateTime? date);
 
         // Thêm hàm này
         Task<decimal> CalculateShippingFeeAsync(int storeId, long addressId);

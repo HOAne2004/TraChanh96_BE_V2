@@ -41,5 +41,7 @@ namespace drinking_be.Dtos.OrderDtos
         public int TodayOrders { get; set; }
         public int PendingOrders { get; set; } // Đơn chờ xác nhận
         public int ShippingOrders { get; set; } // Đơn đang giao
+        public decimal TotalRevenueAllTime {get; set;}
+        public int TotalCompletedOrders { get; set; }
     }
 }

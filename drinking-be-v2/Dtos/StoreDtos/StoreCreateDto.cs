@@ -1,7 +1,8 @@
 ﻿// File: Dtos/StoreDtos/StoreCreateDto.cs
 
-using System.ComponentModel.DataAnnotations;
+using drinking_be.Dtos.AddressDtos;
 using drinking_be.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace drinking_be.Dtos.StoreDtos
 {
@@ -16,7 +17,8 @@ namespace drinking_be.Dtos.StoreDtos
 
         // ⭐ AddressId là bắt buộc, phải trỏ tới một bản ghi Address đã tồn tại
         [Required(ErrorMessage = "Mã địa chỉ không được để trống.")]
-        public long AddressId { get; set; }
+        public long? AddressId { get; set; }
+        public UserAddressCreateDto? NewAddress { get; set; }
 
         public string? ImageUrl { get; set; }
 
@@ -26,6 +28,7 @@ namespace drinking_be.Dtos.StoreDtos
         public DateTime? OpenDate { get; set; } // Ngày khai trương
 
         // Cấu hình phí ship
+        public double? DeliveryRadius { get; set; } = 20;
         public decimal? ShippingFeeFixed { get; set; } = 0m;
         public decimal? ShippingFeePerKm { get; set; } = 0m;
 
@@ -34,6 +37,12 @@ namespace drinking_be.Dtos.StoreDtos
         public byte? SortOrder { get; set; }
         public bool? MapVerified { get; set; } = false;
 
-        // Slug sẽ được Service Layer tính toán
+        public string? Description { get; set; }
+        [MaxLength(20)]
+        public string? PhoneNumber { get; set; }
+
+        public string? WifiPassword { get; set; }
+
+
     }
 }

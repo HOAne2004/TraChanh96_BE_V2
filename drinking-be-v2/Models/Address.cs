@@ -7,6 +7,7 @@ public partial class Address : ISoftDelete
     public long Id { get; set; }
 
     public int? UserId { get; set; }
+    public int? StoreId { get; set; }
 
     public string? RecipientName { get; set; }
     public string? RecipientPhone { get; set; }

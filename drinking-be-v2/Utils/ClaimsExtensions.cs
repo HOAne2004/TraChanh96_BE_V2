@@ -3,6 +3,7 @@ using System.Security.Claims;
 
 public static class ClaimsExtensions
 {
+    //user
     public static int GetUserId(this ClaimsPrincipal user)
     {
         var claim = user.FindFirst("UserId");

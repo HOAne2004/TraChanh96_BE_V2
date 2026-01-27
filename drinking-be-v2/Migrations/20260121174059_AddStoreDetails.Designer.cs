@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using drinking_be.Models;
@@ -11,9 +12,11 @@ using drinking_be.Models;
 namespace drinking_be.Migrations
 {
     [DbContext(typeof(DBDrinkContext))]
-    partial class DBDrinkContextModelSnapshot : ModelSnapshot
+    [Migration("20260121174059_AddStoreDetails")]
+    partial class AddStoreDetails
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -100,10 +103,6 @@ namespace drinking_be.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)2)
                         .HasColumnName("status");
-
-                    b.Property<int?>("StoreId")
-                        .HasColumnType("integer")
-                        .HasColumnName("store_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()

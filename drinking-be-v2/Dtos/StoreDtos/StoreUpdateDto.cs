@@ -22,6 +22,7 @@ namespace drinking_be.Dtos.StoreDtos
         public TimeSpan? CloseTime { get; set; }
         public DateTime? OpenDate { get; set; }
 
+        public double? DeliveryRadius { get; set; }
         public decimal? ShippingFeeFixed { get; set; }
         public decimal? ShippingFeePerKm { get; set; }
 
@@ -29,5 +30,12 @@ namespace drinking_be.Dtos.StoreDtos
 
         public byte? SortOrder { get; set; }
         public bool? MapVerified { get; set; }
+
+        public string? Description { get; set; }
+
+        [Phone]
+        public string? PhoneNumber { get; set; }
+
+        public string? WifiPassword { get; set; }
     }
 }

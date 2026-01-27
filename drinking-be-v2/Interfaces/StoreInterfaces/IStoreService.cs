@@ -8,6 +8,9 @@ namespace drinking_be.Interfaces.StoreInterfaces
         // Public: Lấy danh sách Store đang hoạt động
         Task<IEnumerable<StoreReadDto>> GetActiveStoresAsync();
 
+        //Public: Lấy danh sách Store theo Id
+        Task<StoreReadDto?> GetStoreByIdAsync(int id);
+
         // Public: Lấy chi tiết theo Slug
         Task<StoreReadDto?> GetStoreBySlugAsync(string slug);
 
