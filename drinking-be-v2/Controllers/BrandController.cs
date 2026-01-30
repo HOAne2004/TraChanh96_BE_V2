@@ -1,5 +1,10 @@
 ﻿using drinking_be.Dtos.BrandDtos;
+using drinking_be.Dtos.ProductDtos;
+using drinking_be.Enums;
+using drinking_be.Interfaces;
 using drinking_be.Interfaces.MarketingInterfaces;
+using drinking_be.Interfaces.ProductInterfaces;
+using drinking_be.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,10 +15,16 @@ namespace drinking_be.Controllers
     public class BrandController : ControllerBase
     {
         private readonly IBrandService _brandService;
-
-        public BrandController(IBrandService brandService)
+        private readonly IProductStoreProvisionService _productStoreProvisionService;
+        private readonly IUnitOfWork _unitOfWork;
+        public BrandController(
+            IBrandService brandService,
+            IProductStoreProvisionService productStoreProvisionService,
+            IUnitOfWork unitOfWork)
         {
             _brandService = brandService;
+            _productStoreProvisionService = productStoreProvisionService;
+            _unitOfWork = unitOfWork;
         }
 
         // --- HELPER ---
@@ -71,5 +82,60 @@ namespace drinking_be.Controllers
 
             return Ok(result);
         }
+
+        [HttpPut("{storeId}/products/{productId}/enable")]
+        public async Task<IActionResult> Enable(int storeId, int productId)
+        {
+            int brandId = GetBrandIdFromToken();
+            await _productStoreProvisionService.EnableAsync(brandId, storeId, productId);
+            return Ok();
+        }
+
+        [HttpPut("{storeId}/products/{productId}/disable")]
+        public async Task<IActionResult> Disable(int storeId, int productId)
+        {
+            int brandId = GetBrandIdFromToken();
+            await _productStoreProvisionService.DisableAsync(brandId, storeId, productId);
+            return Ok();
+        }
+        private int GetBrandIdFromToken()
+        {
+            var brandIdClaim = User.Claims.FirstOrDefault(c =>
+                c.Type == "BrandId" || c.Type == "brand_id");
+
+            if (brandIdClaim == null)
+                return 1;
+
+            return int.Parse(brandIdClaim.Value);
+        }
+
+        [HttpGet("stores/{storeId}/products")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetStoreProducts(int storeId)
+        {
+            int brandId = GetBrandIdFromToken();
+            var productStores = await _unitOfWork.Repository<ProductStore>()
+                .GetAllAsync(ps => ps.StoreId == storeId);
+
+            var products = await _unitOfWork.Repository<Product>()
+                .GetAllAsync(p => p.BrandId == brandId && p.Status == ProductStatusEnum.Active);
+
+            // 👇 MAP DỮ LIỆU PHẲNG (FLAT)
+            var result = products.Select(p =>
+            {
+                var ps = productStores.FirstOrDefault(x => x.ProductId == p.Id);
+                return new ProductStoreAdminReadDto
+                {
+                    ProductId = p.Id,
+                    ProductName = p.Name,
+                    BasePrice = p.BasePrice,
+                    ImageUrl = p.ImageUrl,
+                    Status = ps?.Status ?? ProductStoreStatusEnum.Disabled
+                };
+            });
+
+            return Ok(result);
+        }
+
     }
 }

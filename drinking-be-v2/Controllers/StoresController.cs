@@ -1,6 +1,7 @@
 ﻿using drinking_be.Dtos.StoreDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces.StoreInterfaces;
+using drinking_be.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,10 +12,11 @@ namespace drinking_be.Controllers
     public class StoreController : ControllerBase
     {
         private readonly IStoreService _storeService;
-
-        public StoreController(IStoreService storeService)
+        private readonly IStoreMenuService _storeMenuService;
+        public StoreController(IStoreService storeService, IStoreMenuService storeMenuService)
         {
             _storeService = storeService;
+            _storeMenuService = storeMenuService;
         }
 
         // --- PUBLIC ---
@@ -95,6 +97,21 @@ namespace drinking_be.Controllers
             var result = await _storeService.DeleteStoreAsync(id);
             if (!result) return NotFound();
             return NoContent();
+        }
+
+        [HttpGet("{id}/menu")]
+        [AllowAnonymous] // Khách vãng lai cũng xem được menu
+        public async Task<IActionResult> GetStoreMenu(int id)
+        {
+            try
+            {
+                var menu = await _storeMenuService.GetMenuByStoreIdAsync(id);
+                return Ok(menu);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

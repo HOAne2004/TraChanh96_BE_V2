@@ -6,18 +6,18 @@ namespace drinking_be.Enums
     public enum ProductStatusEnum : short
     {
         [Description("Nháp")]
-        Draft = 1, // Trạng thái riêng (Đã thay thế Pending)
+        Draft = 1, 
 
         [Description("Đang hoạt động")]
-        Active = 2, // ⭐ Giá trị số trùng với PublicStatusEnum
+        Active = 2, 
 
         [Description("Tạm dừng")]
-        Inactive = 3, // ⭐ Giá trị số trùng với PublicStatusEnum
+        Inactive = 3, 
 
         [Description("Hết hàng")]
-        OutOfStock = 4, // Trạng thái riêng
+        OutOfStock = 4, 
 
         [Description("Đã bị xóa")]
-        Deleted = 99 // ⭐ Giá trị số trùng với PublicStatusEnum
+        Deleted = 99 
     }
 }

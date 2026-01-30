@@ -345,234 +345,247 @@ namespace drinking_be.Data
                     var sizeIds = await context.Sizes.Select(s => s.Id).ToListAsync();
 
                     var products = new List<Product>
-                    {
-                        // === TRÀ SỮA ===
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Trà Sữa Trân Châu Đường Đen",
-                            Slug = "tra-sua-tran-chau-duong-den",
-                            BasePrice = 35000,
-                            CategoryId = cateTraSua.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1558160074-4d7d8bdf4256?auto=format&fit=crop&w=500&q=60",
-                            Description = "Trà sữa thơm ngon với trân châu đường đen dẻo dai, vị ngọt thanh.",
-                            Ingredient = "Trà đen, sữa tươi, trân châu đường đen, đường nâu",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 1250,
-                            TotalRating = 4.8,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-6),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Trà Sữa Matcha",
-                            Slug = "tra-sua-matcha",
-                            BasePrice = 45000,
-                            CategoryId = cateTraSua.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1561047029-3000c68339ca?auto=format&fit=crop&w=500&q=60",
-                            Description = "Trà sữa matcha Nhật Bản nguyên chất, vị thanh mát, thơm hương trà xanh.",
-                            Ingredient = "Bột matcha Nhật Bản, sữa tươi, đường, đá",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 890,
-                            TotalRating = 4.9,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-4),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Trà Sữa Oreo",
-                            Slug = "tra-sua-oreo",
-                            BasePrice = 40000,
-                            CategoryId = cateTraSua.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=500&q=80",
-                            Description = "Trà sữa kết hợp với bánh oreo nghiền nhỏ, vị béo ngậy đặc trưng.",
-                            Ingredient = "Trà sữa, bánh oreo, kem cheese, đá",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 650,
-                            TotalRating = 4.7,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-3),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Trà Sữa Hokkaido",
-                            Slug = "tra-sua-hokkaido",
-                            BasePrice = 50000,
-                            CategoryId = cateTraSua.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=500&q=60",
-                            Description = "Trà sữa theo phong cách Hokkaido Nhật Bản với vị sữa béo đặc trưng.",
-                            Ingredient = "Trà đen hảo hạng, sữa Hokkaido, đường nâu, kem sữa",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 420,
-                            TotalRating = 4.6,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-2),
-                            CreatedAt = DateTime.UtcNow
-                        },
+                     {
+                         // === TRÀ SỮA ===
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅ BẮT BUỘC THÊM (Giả sử Brand mặc định ID = 1)
+                             Name = "Trà Sữa Trân Châu Đường Đen",
+                             Slug = "tra-sua-tran-chau-duong-den",
+                             BasePrice = 35000,
+                             CategoryId = cateTraSua.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1558160074-4d7d8bdf4256?auto=format&fit=crop&w=500&q=60",
+                             Description = "Trà sữa thơm ngon với trân châu đường đen dẻo dai, vị ngọt thanh.",
+                             Ingredient = "Trà đen, sữa tươi, trân châu đường đen, đường nâu",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 1250,
+                             TotalRating = 4.8,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-6),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Trà Sữa Matcha",
+                             Slug = "tra-sua-matcha",
+                             BasePrice = 45000,
+                             CategoryId = cateTraSua.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1561047029-3000c68339ca?auto=format&fit=crop&w=500&q=60",
+                             Description = "Trà sữa matcha Nhật Bản nguyên chất, vị thanh mát, thơm hương trà xanh.",
+                             Ingredient = "Bột matcha Nhật Bản, sữa tươi, đường, đá",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 890,
+                             TotalRating = 4.9,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-4),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Trà Sữa Oreo",
+                             Slug = "tra-sua-oreo",
+                             BasePrice = 40000,
+                             CategoryId = cateTraSua.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=500&q=80",
+                             Description = "Trà sữa kết hợp với bánh oreo nghiền nhỏ, vị béo ngậy đặc trưng.",
+                             Ingredient = "Trà sữa, bánh oreo, kem cheese, đá",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 650,
+                             TotalRating = 4.7,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-3),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Trà Sữa Hokkaido",
+                             Slug = "tra-sua-hokkaido",
+                             BasePrice = 50000,
+                             CategoryId = cateTraSua.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=500&q=60",
+                             Description = "Trà sữa theo phong cách Hokkaido Nhật Bản với vị sữa béo đặc trưng.",
+                             Ingredient = "Trà đen hảo hạng, sữa Hokkaido, đường nâu, kem sữa",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 420,
+                             TotalRating = 4.6,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-2),
+                             CreatedAt = DateTime.UtcNow
+                         },
 
-                        // === TRÀ TRÁI CÂY ===
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Trà Chanh 96",
-                            Slug = "tra-chanh-96",
-                            BasePrice = 25000,
-                            CategoryId = cateTraicay.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1622921491196-0e2fdf0d8c31?auto=format&fit=crop&w=500&q=60",
-                            Description = "Trà chanh truyền thống với vị chua ngọt thanh mát, hương thơm đặc trưng.",
-                            Ingredient = "Trà đen, chanh tươi, đường, đá",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 2100,
-                            TotalRating = 4.9,
-                            LaunchDateTime = DateTime.UtcNow.AddYears(-1),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Trà Đào Cam Sả",
-                            Slug = "tra-dao-cam-sa",
-                            BasePrice = 35000,
-                            CategoryId = cateTraicay.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?auto=format&fit=crop&w=500&q=60",
-                            Description = "Trà đào kết hợp cam tươi và sả, vị chua ngọt thanh mát, tốt cho sức khỏe.",
-                            Ingredient = "Trà đen, đào tươi, cam, sả, đường, đá",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 980,
-                            TotalRating = 4.8,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-8),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Trà Vải",
-                            Slug = "tra-vai",
-                            BasePrice = 30000,
-                            CategoryId = cateTraicay.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=500&q=60",
-                            Description = "Trà vải thanh mát, vị ngọt tự nhiên từ vải tươi, hương thơm nhẹ nhàng.",
-                            Ingredient = "Trà xanh, vải tươi, đường, đá",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 720,
-                            TotalRating = 4.7,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-5),
-                            CreatedAt = DateTime.UtcNow
-                        },
+                         // === TRÀ TRÁI CÂY ===
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Trà Chanh 96",
+                             Slug = "tra-chanh-96",
+                             BasePrice = 25000,
+                             CategoryId = cateTraicay.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             // 🖼️ ĐÃ SỬA ẢNH MỚI (Hình ly trà chanh rõ nét)
+                             ImageUrl = "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=500&q=60",
+                             Description = "Trà chanh truyền thống với vị chua ngọt thanh mát, hương thơm đặc trưng.",
+                             Ingredient = "Trà đen, chanh tươi, đường, đá",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 2100,
+                             TotalRating = 4.9,
+                             LaunchDateTime = DateTime.UtcNow.AddYears(-1),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Trà Đào Cam Sả",
+                             Slug = "tra-dao-cam-sa",
+                             BasePrice = 35000,
+                             CategoryId = cateTraicay.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?auto=format&fit=crop&w=500&q=60",
+                             Description = "Trà đào kết hợp cam tươi và sả, vị chua ngọt thanh mát, tốt cho sức khỏe.",
+                             Ingredient = "Trà đen, đào tươi, cam, sả, đường, đá",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 980,
+                             TotalRating = 4.8,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-8),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Trà Vải",
+                             Slug = "tra-vai",
+                             BasePrice = 30000,
+                             CategoryId = cateTraicay.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=500&q=60",
+                             Description = "Trà vải thanh mát, vị ngọt tự nhiên từ vải tươi, hương thơm nhẹ nhàng.",
+                             Ingredient = "Trà xanh, vải tươi, đường, đá",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 720,
+                             TotalRating = 4.7,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-5),
+                             CreatedAt = DateTime.UtcNow
+                         },
 
-                        // === CÀ PHÊ ===
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Cà Phê Sữa Đá",
-                            Slug = "ca-phe-sua-da",
-                            BasePrice = 30000,
-                            CategoryId = cateCaPhe.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1498804103079-a6351b050096?auto=format&fit=crop&w=500&q=60",
-                            Description = "Cà phê phin truyền thống Việt Nam, sữa đặc thơm béo, đá mát lạnh.",
-                            Ingredient = "Cà phê phin, sữa đặc, đá",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 1800,
-                            TotalRating = 4.8,
-                            LaunchDateTime = DateTime.UtcNow.AddYears(-1),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Cà Phê Đen Đá",
-                            Slug = "ca-phe-den-da",
-                            BasePrice = 25000,
-                            CategoryId = cateCaPhe.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1511537190424-bbbab87ac5eb?auto=format&fit=crop&w=500&q=60",
-                            Description = "Cà phê đen nguyên chất, đậm đà hương vị, thích hợp cho người thích vị đắng.",
-                            Ingredient = "Cà phê phin, đá",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 1100,
-                            TotalRating = 4.6,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-10),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Bạc Xỉu",
-                            Slug = "bac-xiu",
-                            BasePrice = 35000,
-                            CategoryId = cateCaPhe.Id,
-                            ProductType = ProductTypeEnum.Drink,
-                            ImageUrl = "https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=500&q=60",
-                            Description = "Cà phê sữa đặc biệt theo phong cách Sài Gòn, nhiều sữa ít cà phê.",
-                            Ingredient = "Cà phê phin, sữa đặc, sữa tươi, đá",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 850,
-                            TotalRating = 4.7,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-7),
-                            CreatedAt = DateTime.UtcNow
-                        },
+                         // === CÀ PHÊ ===
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Cà Phê Sữa Đá",
+                             Slug = "ca-phe-sua-da",
+                             BasePrice = 30000,
+                             CategoryId = cateCaPhe.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1498804103079-a6351b050096?auto=format&fit=crop&w=500&q=60",
+                             Description = "Cà phê phin truyền thống Việt Nam, sữa đặc thơm béo, đá mát lạnh.",
+                             Ingredient = "Cà phê phin, sữa đặc, đá",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 1800,
+                             TotalRating = 4.8,
+                             LaunchDateTime = DateTime.UtcNow.AddYears(-1),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Cà Phê Đen Đá",
+                             Slug = "ca-phe-den-da",
+                             BasePrice = 25000,
+                             CategoryId = cateCaPhe.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1511537190424-bbbab87ac5eb?auto=format&fit=crop&w=500&q=60",
+                             Description = "Cà phê đen nguyên chất, đậm đà hương vị, thích hợp cho người thích vị đắng.",
+                             Ingredient = "Cà phê phin, đá",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 1100,
+                             TotalRating = 4.6,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-10),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Bạc Xỉu",
+                             Slug = "bac-xiu",
+                             BasePrice = 35000,
+                             CategoryId = cateCaPhe.Id,
+                             ProductType = ProductTypeEnum.Drink,
+                             ImageUrl = "https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=500&q=60",
+                             Description = "Cà phê sữa đặc biệt theo phong cách Sài Gòn, nhiều sữa ít cà phê.",
+                             Ingredient = "Cà phê phin, sữa đặc, sữa tươi, đá",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 850,
+                             TotalRating = 4.7,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-7),
+                             CreatedAt = DateTime.UtcNow
+                         },
 
-                        // === TOPPING ===
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Trân Châu Trắng",
-                            Slug = "tran-chau-trang",
-                            BasePrice = 10000,
-                            CategoryId = cateTopping.Id,
-                            ProductType = ProductTypeEnum.Topping,
-                            ImageUrl = "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=500&q=60",
-                            Description = "Trân châu trắng dẻo dai, vị ngọt thanh, ăn kèm với trà sữa.",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 3200,
-                            TotalRating = 4.5,
-                            LaunchDateTime = DateTime.UtcNow.AddYears(-1),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Thạch Cà Phê",
-                            Slug = "thach-ca-phe",
-                            BasePrice = 12000,
-                            CategoryId = cateTopping.Id,
-                            ProductType = ProductTypeEnum.Topping,
-                            ImageUrl = "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=500&q=80",
-                            Description = "Thạch cà phê mềm mịn, vị đắng nhẹ hòa quyện với đồ uống.",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 1800,
-                            TotalRating = 4.6,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-9),
-                            CreatedAt = DateTime.UtcNow
-                        },
-                        new Product
-                        {
-                            PublicId = Guid.NewGuid(),
-                            Name = "Pudding Trứng",
-                            Slug = "pudding-trung",
-                            BasePrice = 15000,
-                            CategoryId = cateTopping.Id,
-                            ProductType = ProductTypeEnum.Topping,
-                            ImageUrl = "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=500&q=60",
-                            Description = "Pudding trứng béo ngậy, mềm mịn, thơm hương vanilla.",
-                            Status = ProductStatusEnum.Active,
-                            TotalSold = 1450,
-                            TotalRating = 4.8,
-                            LaunchDateTime = DateTime.UtcNow.AddMonths(-6),
-                            CreatedAt = DateTime.UtcNow
-                        }
-                    };
-
+                         // === TOPPING ===
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Trân Châu Trắng",
+                             Slug = "tran-chau-trang",
+                             BasePrice = 10000,
+                             CategoryId = cateTopping.Id,
+                             ProductType = ProductTypeEnum.Topping,
+                             ImageUrl = "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=500&q=60",
+                             Description = "Trân châu trắng dẻo dai, vị ngọt thanh, ăn kèm với trà sữa.",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 3200,
+                             TotalRating = 4.5,
+                             LaunchDateTime = DateTime.UtcNow.AddYears(-1),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Thạch Cà Phê",
+                             Slug = "thach-ca-phe",
+                             BasePrice = 12000,
+                             CategoryId = cateTopping.Id,
+                             ProductType = ProductTypeEnum.Topping,
+                             ImageUrl = "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=500&q=80",
+                             Description = "Thạch cà phê mềm mịn, vị đắng nhẹ hòa quyện với đồ uống.",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 1800,
+                             TotalRating = 4.6,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-9),
+                             CreatedAt = DateTime.UtcNow
+                         },
+                         new Product
+                         {
+                             PublicId = Guid.NewGuid(),
+                             BrandId = 1, // ✅
+                             Name = "Pudding Trứng",
+                             Slug = "pudding-trung",
+                             BasePrice = 15000,
+                             CategoryId = cateTopping.Id,
+                             ProductType = ProductTypeEnum.Topping,
+                             ImageUrl = "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=500&q=60",
+                             Description = "Pudding trứng béo ngậy, mềm mịn, thơm hương vanilla.",
+                             Status = ProductStatusEnum.Active,
+                             TotalSold = 1450,
+                             TotalRating = 4.8,
+                             LaunchDateTime = DateTime.UtcNow.AddMonths(-6),
+                             CreatedAt = DateTime.UtcNow
+                         }
+                     };
                     context.Products.AddRange(products);
                     await context.SaveChangesAsync();
 

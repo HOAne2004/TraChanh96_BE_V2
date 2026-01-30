@@ -47,6 +47,21 @@ namespace drinking_be.Services
         public async Task<IEnumerable<CartReadDto>> AddItemToCartAsync(int userId, CartItemCreateDto itemDto)
         {
             // 1. Xác định StoreId
+            // ⭐ 1.1 CHECK BRAND – Product phải Active
+            var product = await _unitOfWork.Repository<Product>()
+                .GetByIdAsync(itemDto.ProductId);
+
+            if (product == null)
+            {
+                throw new Exception("Sản phẩm không tồn tại.");
+            }
+
+            if (product.Status != ProductStatusEnum.Active)
+            {
+                throw new Exception("Sản phẩm hiện không được bán.");
+            }
+
+            // ⭐ 1.2 CHECK STORE – Store có bán sản phẩm này không
             int targetStoreId = itemDto.StoreId;
             var productStore = await _unitOfWork.Repository<ProductStore>()
                 .GetFirstOrDefaultAsync(ps => ps.ProductId == itemDto.ProductId && ps.StoreId == targetStoreId);
@@ -109,7 +124,9 @@ namespace drinking_be.Services
             }
 
             decimal sizeModifier = size?.PriceModifier ?? 0;
-            decimal baseUnitPrice = mainProduct.BasePrice + sizeModifier;
+            decimal productBasePrice = productStore.PriceOverride ?? product.BasePrice;
+            decimal baseUnitPrice = productBasePrice + sizeModifier;
+
 
             var sugarEnum = itemDto.SugarLevelId.HasValue ? (SugarLevelEnum)itemDto.SugarLevelId.Value : (SugarLevelEnum?)null;
             var iceEnum = itemDto.IceLevelId.HasValue ? (IceLevelEnum)itemDto.IceLevelId.Value : (IceLevelEnum?)null;

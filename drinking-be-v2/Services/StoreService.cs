@@ -2,6 +2,7 @@
 using drinking_be.Dtos.StoreDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
+using drinking_be.Interfaces.ProductInterfaces;
 using drinking_be.Interfaces.StoreInterfaces;
 using drinking_be.Models;
 using drinking_be.Utils; // Cần SlugGenerator
@@ -12,11 +13,12 @@ namespace drinking_be.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
-        public StoreService(IUnitOfWork unitOfWork, IMapper mapper)
+        private readonly IProductStoreProvisionService _productStoreProvisionService;
+        public StoreService(IUnitOfWork unitOfWork, IMapper mapper, IProductStoreProvisionService productStoreProvisionService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _productStoreProvisionService = productStoreProvisionService;
         }
 
         public async Task<IEnumerable<StoreReadDto>> GetActiveStoresAsync()
@@ -42,7 +44,7 @@ namespace drinking_be.Services
                 includeProperties: "Brand,Address,SocialMedias"
             );
 
-            return store == null ? null : _mapper.Map<StoreReadDto>(store);
+            return _mapper.Map<StoreReadDto>(store);
         }
 
         public async Task<StoreReadDto?> GetStoreBySlugAsync(string slug)
@@ -55,7 +57,7 @@ namespace drinking_be.Services
                 includeProperties: "Brand,Address,SocialMedias"
             );
 
-            return store == null ? null : _mapper.Map<StoreReadDto>(store);
+            return _mapper.Map<StoreReadDto>(store);
         }
 
         public async Task<IEnumerable<StoreReadDto>> GetAllStoresAsync(string? search, StoreStatusEnum? status)
@@ -105,7 +107,7 @@ namespace drinking_be.Services
                 filter: s => s.Id == id,
                 includeProperties: "Brand,Address,SocialMedias"
             );
-            return store == null ? null : _mapper.Map<StoreReadDto>(store);
+            return _mapper.Map<StoreReadDto>(store);
         }
 
         public async Task<StoreReadDto> CreateStoreAsync(StoreCreateDto dto)
@@ -118,62 +120,46 @@ namespace drinking_be.Services
             if (!await brandRepo.ExistsAsync(b => b.Id == dto.BrandId))
                 throw new Exception("Thương hiệu không tồn tại.");
 
-            // 2. Map & Create Store
+            // 2. Validate Address
+            if (!dto.AddressId.HasValue)
+                throw new Exception("Địa chỉ chưa được tạo.");
+
+            var address = await addressRepo.GetByIdAsync(dto.AddressId.Value);
+            if (address == null)
+                throw new Exception("Địa chỉ không tồn tại.");
+
+            // 3. Map Store
             var store = _mapper.Map<Store>(dto);
             store.PublicId = Guid.NewGuid();
             store.CreatedAt = DateTime.UtcNow;
-            store.Status = StoreStatusEnum.ComingSoon; // Mặc định là Sắp khai trương
+            store.Status = StoreStatusEnum.ComingSoon;
+            store.AddressId = address.Id; // ⭐ GÁN NGAY TỪ ĐẦU
 
-            // 3. Tạo Slug
-            string baseSlug = SlugGenerator.GenerateSlug(store.Name);
-            store.Slug = baseSlug;
+            // 4. Generate Slug
+            var baseSlug = SlugGenerator.GenerateSlug(store.Name);
+            store.Slug = await repo.ExistsAsync(s => s.Slug == baseSlug)
+                ? $"{baseSlug}-{Guid.NewGuid().ToString()[..4]}"
+                : baseSlug;
 
-            // Check trùng slug
-            if (await repo.ExistsAsync(s => s.Slug == baseSlug))
-            {
-                store.Slug = $"{baseSlug}-{Guid.NewGuid().ToString().Substring(0, 4)}";
-            }
-
-            // --- LƯU LẦN 1: Để sinh ra Store Id ---
+            // 5. Save Store
             await repo.AddAsync(store);
-            await _unitOfWork.SaveChangesAsync(); // Lúc này store.Id đã có giá trị
+            await _unitOfWork.SaveChangesAsync();
+            await _productStoreProvisionService
+                .InitializeProductStoresForNewStoreAsync(store);
+            // 6. Update Address ownership
+            address.UserId = null;
+            address.StoreId = store.Id;
+            address.RecipientName = store.Name;
 
-            // 4. [QUAN TRỌNG] XỬ LÝ ĐỊA CHỈ (CHUYỂN CHỦ & ĐIỀN THÔNG TIN)
-            if (dto.AddressId.HasValue)
-            {
-                var address = await addressRepo.GetByIdAsync(dto.AddressId.Value);
+            if (!string.IsNullOrEmpty(store.PhoneNumber))
+                address.RecipientPhone = store.PhoneNumber;
 
-                if (address != null)
-                {
-                    // a. Ngắt kết nối với User
-                    address.UserId = null;
+            addressRepo.Update(address);
+            await _unitOfWork.SaveChangesAsync();
 
-                    // b. Gắn kết nối với Store vừa tạo
-                    address.StoreId = store.Id;
-
-                    // c. Tự động điền thông tin liên hệ từ Store sang Address
-                    address.RecipientName = store.Name;
-
-                    if (!string.IsNullOrEmpty(store.PhoneNumber))
-                    {
-                        address.RecipientPhone = store.PhoneNumber;
-                    }
-
-                    // d. Cập nhật lại Address
-                    addressRepo.Update(address);
-                    await _unitOfWork.SaveChangesAsync(); // Lưu thay đổi Address
-
-                    // Gắn lại Store.AddressId (nếu cần)
-                    store.AddressId = address.Id;
-                    repo.Update(store);
-                    await _unitOfWork.SaveChangesAsync();
-                }
-            }
-
-            // 5. Load lại để lấy đầy đủ thông tin (không lọc theo Status) và trả về
-            var created = await GetStoreByIdForAdminAsync(store.Id);
-            if (created == null)
-                throw new InvalidOperationException("Failed to retrieve created store.");
+            // 7. Load lại Store đầy đủ
+            var created = await GetStoreByIdForAdminAsync(store.Id)
+                ?? throw new InvalidOperationException("Failed to retrieve created store.");
 
             return _mapper.Map<StoreReadDto>(created);
         }
@@ -192,7 +178,7 @@ namespace drinking_be.Services
             repo.Update(store);
             await _unitOfWork.SaveChangesAsync();
 
-            return (await GetByIdAsync(id));
+            return await GetByIdAsync(id);
         }
 
         public async Task<bool> DeleteStoreAsync(int id)

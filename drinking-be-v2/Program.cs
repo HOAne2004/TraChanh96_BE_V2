@@ -125,6 +125,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // --- C. STORE & STAFF ---
 builder.Services.AddScoped<IStoreService, StoreService>();
+builder.Services.AddScoped<IStoreMenuService, StoreMenuService>();
 builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IPayslipService, PayslipService>();
@@ -135,6 +136,7 @@ builder.Services.AddScoped<IReservationService, ReservationService>();
 // --- D. PRODUCT & INVENTORY ---
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IProductStoreProvisionService, ProductStoreProvisionService>();
 builder.Services.AddScoped<ISizeService, SizeService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();

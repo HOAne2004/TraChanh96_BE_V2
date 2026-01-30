@@ -515,6 +515,7 @@ public class MappingProfile : Profile
         // --- Store Mappings ---
         CreateMap<StoreCreateDto, Store>()
              .ForMember(dest => dest.Slug, opt => opt.Ignore())
+             .ForMember(dest => dest.Address, opt => opt.Ignore())
              .ReverseMap();
         CreateMap<Store, StoreReadDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))

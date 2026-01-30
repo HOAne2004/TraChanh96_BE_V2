@@ -1604,11 +1604,18 @@ public partial class DBDrinkContext : DbContext
 
             entity.Property(e => e.DeletedAt)
                   .HasColumnName("deleted_at");
-
+            entity.Property(e => e.CategoryId)
+                   .HasColumnName("category_id");
+            entity.Property(e => e.BrandId)
+                   .HasColumnName("brand_id");
             // --- RELATIONSHIP ---
             entity.HasOne(e => e.Category)
                   .WithMany(c => c.Products)
                   .HasForeignKey(e => e.CategoryId);
+            entity.HasOne(p => p.Brand)
+                  .WithMany(b => b.Products)
+                  .HasForeignKey(p => p.BrandId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ProductSize>(entity =>

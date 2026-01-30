@@ -35,4 +35,5 @@ public partial class Brand
     public virtual ICollection<Policy> Policies { get; set; } = new List<Policy>();
     public virtual ICollection<SocialMedia> SocialMedias { get; set; } = new List<SocialMedia>();
     public virtual ICollection<Store> Stores { get; set; } = new List<Store>();
+    public virtual ICollection<Product> Products { get; set; } = new List<Product>();
 }

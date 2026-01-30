@@ -26,7 +26,7 @@ public partial class Store : ISoftDelete
 
     public StoreStatusEnum Status { get; set; } = StoreStatusEnum.ComingSoon;
 
-    public byte? SortOrder { get; set; }
+    public short? SortOrder { get; set; }
 
     public bool MapVerified { get; set; } = false;
 

@@ -7,6 +7,7 @@ public partial class Product : ISoftDelete
     public int Id { get; set; }
 
     public Guid PublicId { get; set; }
+    public int BrandId { get; set; }
 
     public int CategoryId { get; set; }
 
@@ -45,5 +46,6 @@ public partial class Product : ISoftDelete
     public virtual ICollection<ProductSize> ProductSizes { get; set; } = new List<ProductSize>();
 
     // ⭐ HOOK CHO STORE (SẼ DÙNG Ở BƯỚC SAU)
+    public virtual Brand Brand { get; set; } = null!;
     public virtual ICollection<ProductStore> ProductStores { get; set; } = new List<ProductStore>();
 }
