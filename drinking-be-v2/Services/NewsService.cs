@@ -142,7 +142,6 @@ namespace drinking_be.Services
 
             if (news == null) return false;
 
-            // Soft Delete
             news.Status = ContentStatusEnum.Deleted;
             news.DeletedAt = DateTime.UtcNow;
 

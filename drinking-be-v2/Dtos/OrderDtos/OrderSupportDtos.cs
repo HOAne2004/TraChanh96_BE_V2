@@ -12,6 +12,7 @@ namespace drinking_be.Dtos.OrderDtos
         public DateTime? ToDate { get; set; }
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }
+        public Guid? UserPublicId { get; set; }
     }
 
     // DTO cập nhật trạng thái

@@ -33,17 +33,12 @@ namespace drinking_be.Controllers
             var userId = GetCurrentUserId(); // Lấy ID từ Token
             var result = await _orderService.CreateDeliveryOrderAsync(userId, dto);
 
-            // TODO: Nếu là thanh toán Online, gọi VNPay Service lấy URL và gán vào result
-            // if (result.PaymentMethod.Type == PaymentType.EWallet) { result.PaymentUrl = ... }
-
             return Ok(result);
         }
 
         [HttpPost("at-counter")]
         public async Task<IActionResult> CreateAtCounterOrder([FromBody] AtCounterOrderCreateDto dto)
         {
-            // Tại quầy có thể không cần User đăng nhập (Khách vãng lai)
-            // Nhưng nếu Staff tạo hộ khách thì UserId có thể null hoặc là ID của Staff
             int? userId = User.Identity?.IsAuthenticated == true
                 ? GetCurrentUserId()
                 : null;
@@ -89,7 +84,7 @@ namespace drinking_be.Controllers
             return Ok(result);
         }
 
-        [HttpGet("{code}")]   // <-- Thành code (string)
+        [HttpGet("{code}")] 
         public async Task<IActionResult> GetOrderByCode(string code)
         {
             // Nếu code gửi lên là số (cũ), vẫn support hoặc chặn tùy bạn. 

@@ -1,4 +1,5 @@
-﻿using drinking_be.Dtos.ReviewDtos;
+﻿using drinking_be.Dtos.Common;
+using drinking_be.Dtos.ReviewDtos;
 using drinking_be.Enums;
 
 namespace drinking_be.Interfaces.FeedbackInterfaces
@@ -19,5 +20,6 @@ namespace drinking_be.Interfaces.FeedbackInterfaces
         // Admin
         Task<IEnumerable<ReviewReadDto>> GetAllReviewsAsync(int? productId, ReviewStatusEnum? status);
         Task<ReviewReadDto> UpdateReviewByAdminAsync(int id, ReviewAdminUpdateDto dto);
+        Task<PagedResult<ReviewReadDto>> GetReviewsForAdminAsync(ReviewFilterDto filter);
     }
 }

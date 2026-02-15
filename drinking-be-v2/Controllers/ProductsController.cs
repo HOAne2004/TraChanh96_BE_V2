@@ -18,9 +18,9 @@ namespace drinking_be.Controllers
 
         // GET: api/products?search=tea&categorySlug=tra-sua&sort=price_asc
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] string? search, [FromQuery] string? categorySlug, [FromQuery] string? sort)
+        public async Task<IActionResult> GetAll([FromQuery] ProductFilterDto filter)
         {
-            var products = await _productService.GetAllAsync(search, categorySlug, sort);
+            var products = await _productService.GetAllAsync(filter);
             return Ok(products);
         }
 

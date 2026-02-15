@@ -1,9 +1,12 @@
 ﻿using AutoMapper;
+using drinking_be.Dtos.Common;
 using drinking_be.Dtos.ProductDtos;
+using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.ProductInterfaces;
 using drinking_be.Models;
 using drinking_be.Utils; // Để dùng SlugGenerator
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
 namespace drinking_be.Services
@@ -19,57 +22,99 @@ namespace drinking_be.Services
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<ProductReadDto>> GetAllAsync(string? search, string? categorySlug, string? sort)
+        public async Task<PagedResult<ProductReadDto>> GetAllAsync(ProductFilterDto filter)
         {
-            var productRepo = _unitOfWork.Repository<Product>();
+            // 1. Khởi tạo Query (IQueryable) - Chưa chạy xuống DB ngay
+            // Lưu ý: Dùng AsNoTracking() để tăng tốc độ cho thao tác chỉ đọc
+            var query = _unitOfWork.Repository<Product>().GetQueryable()
+                .Include(p => p.Category)
+                .Include(p => p.ProductSizes).ThenInclude(ps => ps.Size)
+                .Include(p => p.ProductStores) // Include để lấy StoreIds sau này
+                .AsNoTracking();
 
-            // 1. UPDATE: Thêm "ProductStores" vào includeProperties
-            var products = await productRepo.GetAllAsync(
-                includeProperties: "Category,ProductSizes,ProductSizes.Size,ProductStores"
-            );
+            // 2. --- ÁP DỤNG BỘ LỌC (FILTERING) ---
 
-            // 2. Lọc theo tên (Search)
-            if (!string.IsNullOrEmpty(search))
+            // Lọc theo Trạng thái (Active, Inactive, Deleted...)
+            if (filter.Status.HasValue)
             {
-                products = products.Where(p => p.Name.ToLower().Contains(search.ToLower()));
+                query = query.Where(p => p.Status == filter.Status);
+            }
+            else
+            {
+                // Mặc định ẩn sản phẩm đã xóa nếu không chọn status cụ thể (Soft Delete logic)
+                // Nếu muốn admin xem được cả hàng đã xóa thì bỏ dòng này hoặc thêm logic riêng
+                query = query.Where(p => p.Status != ProductStatusEnum.Deleted);
             }
 
-            // 3. Lọc theo Category Slug
-            if (!string.IsNullOrEmpty(categorySlug))
+            // Lọc theo Loại sản phẩm (Drink, Food...)
+            if (filter.Type.HasValue)
             {
-                products = products.Where(p => p.Category != null && p.Category.Slug == categorySlug);
+                query = query.Where(p => p.ProductType == filter.Type);
             }
 
-            // 4. Sắp xếp
-            if (!string.IsNullOrEmpty(sort))
+            // Lọc theo Danh mục
+            if (filter.CategoryId.HasValue)
             {
-                products = sort switch
+                query = query.Where(p => p.CategoryId == filter.CategoryId);
+            }
+
+            // Lọc theo Từ khóa (Tên, Slug) - Case insensitive
+            if (!string.IsNullOrEmpty(filter.Keyword))
+            {
+                var k = filter.Keyword.Trim().ToLower();
+                query = query.Where(p =>
+                    p.Name.ToLower().Contains(k) ||
+                    p.Slug.ToLower().Contains(k)
+                );
+            }
+
+            // Lọc theo Ngày tạo (FromDate - ToDate)
+            if (filter.FromDate.HasValue)
+            {
+                // Chuyển về UTC nếu DB lưu UTC
+                var from = DateTime.SpecifyKind(filter.FromDate.Value.Date, DateTimeKind.Utc);
+                query = query.Where(p => p.CreatedAt >= from);
+            }
+            if (filter.ToDate.HasValue)
+            {
+                // Lấy đến hết ngày (23:59:59)
+                var to = DateTime.SpecifyKind(filter.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+                query = query.Where(p => p.CreatedAt < to);
+            }
+
+            // 3. --- PAGING & SORTING ---
+
+            // Tính tổng số bản ghi trước khi phân trang
+            int totalRow = await query.CountAsync();
+
+            // Sắp xếp (Mặc định mới nhất lên đầu)
+            // Nếu filter có trường Sort thì switch case ở đây, hiện tại để mặc định:
+            query = query.OrderByDescending(p => p.CreatedAt);
+
+            // Lấy dữ liệu phân trang (Skip/Take)
+            var items = await query
+                .Skip((filter.PageIndex - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToListAsync();
+
+            // 4. --- MAPPING & XỬ LÝ STORE IDS ---
+
+            var productDtos = _mapper.Map<List<ProductReadDto>>(items);
+
+            // Gán StoreIds thủ công (Logic cũ của bạn, nhưng giờ chỉ chạy trên 10-20 item của trang hiện tại -> Rất nhanh)
+            // Vì danh sách 'items' và 'productDtos' có cùng thứ tự index do Map list-to-list
+            for (int i = 0; i < productDtos.Count; i++)
+            {
+                var entity = items[i];
+                if (entity.ProductStores != null && entity.ProductStores.Any())
                 {
-                    "price_asc" => products.OrderBy(p => p.BasePrice),
-                    "price_desc" => products.OrderByDescending(p => p.BasePrice),
-                    "newest" => products.OrderByDescending(p => p.CreatedAt),
-                    _ => products
-                };
-            }
-
-            // 5. UPDATE: Map sang DTO và gán StoreIds thủ công
-            var productDtos = _mapper.Map<IEnumerable<ProductReadDto>>(products).ToList();
-
-            // Tạo dictionary để tra cứu nhanh (Tối ưu hiệu năng thay vì loop lồng nhau)
-            var productMap = products.ToDictionary(p => p.Id);
-
-            foreach (var dto in productDtos)
-            {
-                if (productMap.TryGetValue(dto.Id, out var entity) && entity.ProductStores != null)
-                {
-                    // Lấy list StoreId từ bảng trung gian
-                    dto.StoreIds = entity.ProductStores.Select(ps => ps.StoreId).ToList();
+                    productDtos[i].StoreIds = entity.ProductStores.Select(ps => ps.StoreId).ToList();
                 }
             }
 
-            return productDtos;
+            // 5. Trả về kết quả phân trang
+            return new PagedResult<ProductReadDto>(productDtos, totalRow, filter.PageIndex, filter.PageSize);
         }
-
         public async Task<ProductReadDto?> GetByIdAsync(int id)
         {
             var product = await _unitOfWork.Repository<Product>().GetFirstOrDefaultAsync(
@@ -98,7 +143,7 @@ namespace drinking_be.Services
 
             // 1. Map DTO -> Entity (Lúc này AutoMapper đã map luôn ProductSizes nhờ cấu hình ở trên)
             var product = _mapper.Map<Product>(createDto);
-
+            product.BrandId = 1;
             product.Slug = SlugGenerator.GenerateSlug(product.Name);
             product.PublicId = Guid.NewGuid();
             product.CreatedAt = DateTime.UtcNow;
@@ -191,16 +236,38 @@ namespace drinking_be.Services
             if (product == null) return false;
 
             // Soft Delete (Xóa mềm)
-            // product.DeletedAt = DateTime.UtcNow;
-            // productRepo.Update(product);
+            product.DeletedAt = DateTime.UtcNow;
+            product.Status = ProductStatusEnum.Deleted;
+            productRepo.Update(product);
 
             // Hard Delete (Xóa cứng)
-            productRepo.Delete(product);
+            //productRepo.Delete(product);
             await _unitOfWork.SaveChangesAsync();
 
             return true;
         }
 
+        public async Task<bool> RestoreAsync(int id)
+        {
+            var productRepo = _unitOfWork.Repository<Product>();
+            // Lưu ý: GetByIdAsync thường mặc định lọc bỏ DeletedAt != null
+            // Nên bạn có thể cần dùng GetFirstOrDefaultAsync với IgnoreQueryFilters nếu repo hỗ trợ, 
+            // hoặc query trực tiếp DB set.
+            // Ở đây giả sử Repository của bạn cho phép lấy theo ID dù đã xóa mềm (hoặc bạn viết hàm GetDeletedByIdAsync riêng)
+
+            var product = await productRepo.GetQueryable()
+                .IgnoreQueryFilters() // Quan trọng: Bỏ qua filter mặc định để tìm thấy món đã xóa
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null) return false;
+
+            product.DeletedAt = null; // Xóa dấu vết ngày xóa
+            product.Status = Enums.ProductStatusEnum.Inactive; // Khôi phục về Inactive (để Admin duyệt lại) hoặc Active tùy bạn
+
+            productRepo.Update(product);
+            await _unitOfWork.SaveChangesAsync();
+            return true;
+        }
         public async Task<IEnumerable<StoreMenuReadDto>> GetMenuByStoreAsync(int storeId, string? search, string? categorySlug)
         {
             var productRepo = _unitOfWork.Repository<Product>();
@@ -259,13 +326,16 @@ namespace drinking_be.Services
                 // Nếu Store override giá gốc, ta cần update lại FinalPrice của các Size trong DTO
                 if (storeData.PriceOverride.HasValue)
                 {
+                    decimal newBasePrice = storeData.PriceOverride.Value;
+
                     foreach (var size in dto.ProductSizes)
                     {
-                        // Nếu Size này không có override riêng, thì nó = Giá Store Override + Modifier
-                        if (size.PriceOverride == null)
-                        {
-                            size.FinalPrice = storeData.PriceOverride.Value + size.SizeModifierPrice;
-                        }
+                        // 1. Xác định phần "Cộng thêm" của size này
+                        // Nếu có Override riêng thì dùng, không thì dùng Modifier chuẩn
+                        decimal effectiveModifier = size.PriceOverride ?? size.SizeModifierPrice;   
+
+                        // 2. Tính lại FinalPrice theo giá gốc mới của cửa hàng
+                        size.FinalPrice = newBasePrice + effectiveModifier;
                     }
                 }
 

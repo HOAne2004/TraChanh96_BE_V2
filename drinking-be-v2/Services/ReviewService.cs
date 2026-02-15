@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
+using drinking_be.Dtos.Common;
 using drinking_be.Dtos.ReviewDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.FeedbackInterfaces;
 using drinking_be.Models;
+using drinking_be.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace drinking_be.Services
@@ -37,50 +39,159 @@ namespace drinking_be.Services
             var orderRepo = _unitOfWork.Repository<Order>();
             var reviewRepo = _unitOfWork.Repository<Review>();
 
-            // 1. Kiểm tra Đơn hàng có tồn tại và thuộc về User này không?
-            // 🔴 SỬA: Bỏ includeProperties: "OrderDetails" vì bạn không có
+            // 1. Lấy đơn hàng (Kèm OrderItems để validate)
             var order = await orderRepo.GetFirstOrDefaultAsync(
-                filter: o => o.Id == dto.OrderId && o.UserId == userId
+                filter: o => o.Id == dto.OrderId && o.UserId == userId,
+                includeProperties: "OrderItems" 
             );
 
             if (order == null)
                 throw new KeyNotFoundException("Đơn hàng không tồn tại hoặc không thuộc về bạn.");
 
-            // 2. Kiểm tra trạng thái đơn hàng (Phải giao xong mới được review)
-            // Lưu ý: Đảm bảo Model Order của bạn có trường Status
+            // 2. Validate Trạng thái
             if (order.Status != OrderStatusEnum.Completed)
                 throw new InvalidOperationException("Bạn chỉ có thể đánh giá khi đơn hàng đã hoàn thành.");
 
-            // 🔴 BỎ BƯỚC 3 (Check sản phẩm trong đơn) VÌ KHÔNG CÓ ORDER DETAIL
-            // var hasProduct = order.OrderDetails.Any(od => od.ProductId == dto.ProductId);
-            // if (!hasProduct) throw ...
+            // 3. VALIDATE SẢN PHẨM CÓ TRONG ĐƠN KHÔNG (Logic mới)
+            var hasProduct = order.OrderItems.Any(oi => oi.ProductId == dto.ProductId);
+            if (!hasProduct)
+            {
+                throw new InvalidOperationException("Bạn không thể đánh giá sản phẩm không có trong đơn hàng này.");
+            }
 
-            // 4. Kiểm tra đã review chưa (Unique Constraint: OrderId + ProductId)
-            // Vẫn giữ check này để tránh 1 đơn đánh giá 2 lần cho cùng 1 món
+            // 4. Validate Duplicate (1 Đơn - 1 Sản phẩm - 1 Review)
             var existingReview = await reviewRepo.GetFirstOrDefaultAsync(
                 r => r.OrderId == dto.OrderId && r.ProductId == dto.ProductId
             );
 
             if (existingReview != null)
-                throw new InvalidOperationException("Bạn đã đánh giá sản phẩm này trong đơn hàng này rồi.");
+                throw new InvalidOperationException("Bạn đã đánh giá sản phẩm này rồi.");
 
             // 5. Tạo Review
             var review = _mapper.Map<Review>(dto);
             review.UserId = userId;
-            review.Status = ReviewStatusEnum.Pending;
+            review.Status = ReviewStatusEnum.Approved; // Hoặc Pending tùy chính sách
             review.CreatedAt = DateTime.UtcNow;
-            review.IsEdited = false;
-
+            var moderationResult = ContentModerator.CheckContent(dto.Content);
+            if (!moderationResult.IsClean)
+            {
+                // Nếu vi phạm -> Ẩn luôn & Ghi lý do
+                review.Status = ReviewStatusEnum.Rejected; 
+                review.AdminResponse = $"[Hệ thống]: Đánh giá bị ẩn tự động. Lý do: {moderationResult.Reason}";
+            }
+            else
+            {
+                // Nếu sạch -> Hiện luôn
+                review.Status = ReviewStatusEnum.Approved;
+            }
             await reviewRepo.AddAsync(review);
+
+            // 6. 🟢 TÍNH LẠI RATING SẢN PHẨM (Trigger Update)
+            // Chỉ tính lại Rating nếu review được Approved
+            if (review.Status == ReviewStatusEnum.Approved)
+            {
+                await UpdateProductRatingAsync(dto.ProductId);
+            }
+
             await _unitOfWork.SaveChangesAsync();
 
-            // Load lại review kèm thông tin User để trả về
-            var createdReview = await reviewRepo.GetFirstOrDefaultAsync(
-                r => r.Id == review.Id,
-                includeProperties: "User,Product"
-            );
+            return _mapper.Map<ReviewReadDto>(review);
+        }
 
-            return _mapper.Map<ReviewReadDto>(createdReview);
+        // Hàm phụ trợ tính lại sao trung bình
+        private async Task UpdateProductRatingAsync(int productId)
+        {
+            var reviews = await _unitOfWork.Repository<Review>()
+                .GetAllAsync(r => r.ProductId == productId && r.Status == ReviewStatusEnum.Approved);
+
+            if (reviews.Any())
+            {
+                double avgRating = reviews.Average(r => r.Rating);
+                var product = await _unitOfWork.Repository<Product>().GetByIdAsync(productId);
+                if (product != null)
+                {
+                    product.TotalRating = Math.Round(avgRating, 1); // Làm tròn 1 số thập phân
+                    _unitOfWork.Repository<Product>().Update(product);
+                }
+            }
+        }
+        // 2. HÀM LẤY REVIEW CHO ADMIN (Full Filter)
+        public async Task<PagedResult<ReviewReadDto>> GetReviewsForAdminAsync(ReviewFilterDto filter)
+        {
+            var query = _unitOfWork.Repository<Review>().GetQueryable()
+                .Include(r => r.User)
+                .Include(r => r.Product)
+                .Include(r => r.Order) // Include Order để hiện mã đơn
+                .AsNoTracking();
+
+            // --- Filter Logic ---
+            if (filter.StoreId.HasValue)
+            {
+                query = query.Where(r =>
+                    r.Order != null &&
+                    r.Order.StoreId == filter.StoreId
+                );
+            }
+
+            if (filter.ProductId.HasValue)
+                query = query.Where(r => r.ProductId == filter.ProductId);
+            if (filter.UserPublicId.HasValue)
+                query = query.Where(r => r.User.PublicId == filter.UserPublicId);
+            if (filter.FromDate.HasValue)
+            {
+                var fromUtc = DateTime.SpecifyKind(filter.FromDate.Value.Date, DateTimeKind.Utc);
+                query = query.Where(r => r.CreatedAt >= fromUtc);
+            }
+
+            if (filter.ToDate.HasValue)
+            {
+                var toUtc = DateTime.SpecifyKind(
+                    filter.ToDate.Value.Date.AddDays(1),
+                    DateTimeKind.Utc
+                );
+                query = query.Where(r => r.CreatedAt < toUtc);
+            }
+
+            if (filter.Status.HasValue)
+                query = query.Where(r => r.Status == filter.Status);
+
+            if (filter.Rating.HasValue)
+                query = query.Where(r => r.Rating == filter.Rating);
+
+            if (filter.HasReply.HasValue)
+            {
+                if (filter.HasReply.Value)
+                    query = query.Where(r => !string.IsNullOrEmpty(r.AdminResponse));
+                else
+                    query = query.Where(r => string.IsNullOrEmpty(r.AdminResponse));
+            }
+
+            if (!string.IsNullOrEmpty(filter.Keyword))
+            {
+                // 1. Chuyển từ khóa tìm kiếm về chữ thường
+                var k = filter.Keyword.Trim().ToLower();
+
+                // 2. So sánh: Chuyển dữ liệu trong DB về chữ thường trước khi check Contains
+                query = query.Where(r =>
+                    (r.Content != null && r.Content.ToLower().Contains(k)) ||
+                    (r.User != null && r.User.Username.ToLower().Contains(k)) ||
+                    (r.Order != null && r.Order.OrderCode.ToLower().Contains(k)) ||
+                    (r.Product != null && r.Product.Name.ToLower().Contains(k))
+                );
+            }
+
+            // --- Paging & Sorting ---
+            int totalRow = await query.CountAsync();
+
+            // Mặc định mới nhất lên đầu
+            var items = await query.OrderByDescending(r => r.CreatedAt)
+                                   .Skip((filter.PageIndex - 1) * filter.PageSize)
+                                   .Take(filter.PageSize)
+                                   .ToListAsync();
+
+            var dtos = _mapper.Map<List<ReviewReadDto>>(items);
+
+            return new PagedResult<ReviewReadDto>(dtos, totalRow, filter.PageIndex, filter.PageSize);
         }
 
         // --- USER: SỬA REVIEW ---
@@ -145,23 +256,25 @@ namespace drinking_be.Services
         // --- HELPER CHO FE (ĐÃ SỬA) ---
         public async Task<bool> CanReviewAsync(int userId, int productId)
         {
-            // Logic Mới: Chỉ kiểm tra User có đơn hàng thành công nào CHƯA review sản phẩm này không.
-            // Do không có OrderDetail, ta chấp nhận mọi đơn hàng hoàn thành đều "có thể" review món này.
-
             var orderRepo = _unitOfWork.Repository<Order>();
 
-            // 1. Tìm các đơn hàng đã hoàn thành của user
-            var completedOrders = await orderRepo.GetAllAsync(
+            // 1. Lấy các đơn hàng Completed của User
+            // ⚠️ QUAN TRỌNG: Phải Include OrderItems để biết mua gì
+            var orders = await orderRepo.GetAllAsync(
                 filter: o => o.UserId == userId && o.Status == OrderStatusEnum.Completed,
-                includeProperties: "Reviews" // Cần include Reviews để check
+                includeProperties: "OrderItems,Reviews"
             );
 
-            // 2. Duyệt qua các đơn hàng
-            foreach (var order in completedOrders)
+            foreach (var order in orders)
             {
-                // Nếu trong đơn hàng này, chưa có Review nào cho ProductId này
-                // -> Thì cho phép review (Giả định sản phẩm có trong đơn)
-                if (order.Reviews == null || !order.Reviews.Any(r => r.ProductId == productId))
+                // 2. Check xem đơn này có chứa ProductId không?
+                var hasProduct = order.OrderItems.Any(oi => oi.ProductId == productId);
+
+                // 3. Check xem đơn này đã review ProductId này chưa?
+                var alreadyReviewed = order.Reviews.Any(r => r.ProductId == productId);
+
+                // Nếu có mua VÀ chưa review -> Cho phép
+                if (hasProduct && !alreadyReviewed)
                 {
                     return true;
                 }

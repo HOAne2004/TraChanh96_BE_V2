@@ -89,7 +89,7 @@ namespace drinking_be.Controllers
         }
 
         // --- ADMIN SECTION ---
-
+         
         [HttpGet("admin")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetAllForAdmin([FromQuery] int? productId, [FromQuery] ReviewStatusEnum? status)
@@ -101,6 +101,26 @@ namespace drinking_be.Controllers
         [HttpPut("{id}/admin")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> AdminUpdate(int id, [FromBody] ReviewAdminUpdateDto dto)
+        {
+            try
+            {
+                var result = await _reviewService.UpdateReviewByAdminAsync(id, dto);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException) { return NotFound(); }
+        }
+
+        [HttpGet("admin-search")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetReviewsForAdmin([FromQuery] ReviewFilterDto filter)
+        {
+            var result = await _reviewService.GetReviewsForAdminAsync(filter);
+            return Ok(result);
+        }
+
+        [HttpPut("{id}/admin-reply")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> AdminReply(int id, [FromBody] ReviewAdminUpdateDto dto)
         {
             try
             {

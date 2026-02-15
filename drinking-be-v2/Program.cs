@@ -1,4 +1,5 @@
 ﻿using drinking_be.Data;
+using drinking_be.Domain.Services;
 using drinking_be.Hubs;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.AuthInterfaces;
@@ -147,6 +148,8 @@ builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IOrderPaymentService, OrderPaymentService>();
 builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
+builder.Services.AddScoped<ShippingCalculator>();
+builder.Services.AddScoped<OrderPriceCalculator>();
 
 // --- F. MARKETING & CONTENT ---
 builder.Services.AddScoped<IBannerService, BannerService>();

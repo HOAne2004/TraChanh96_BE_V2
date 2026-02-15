@@ -8,17 +8,17 @@ namespace drinking_be.Dtos.ReviewDtos
 
         public int ProductId { get; set; }
         public string ProductName { get; set; } = null!;
+        public string? ProductSlug { get; set; }
         public string? ProductImage { get; set; } // Nên thêm ảnh sản phẩm để hiển thị cho đẹp
-
+        
         // ⭐️ Thêm thông tin đơn hàng để User biết họ review cho lần mua nào
         public long OrderId { get; set; }
-
+        public string OrderCode { get; set; } = null!;
         public int UserId { get; set; }
         public string UserName { get; set; } = null!;
         public string? UserThumbnailUrl { get; set; }
-
         public string? Content { get; set; }
-        public byte Rating { get; set; }
+        public byte? Rating { get; set; }
         public string? MediaUrl { get; set; }
 
         // Status trả về string (VD: "Pending", "Approved") thay vì Enum để FE dễ hiện

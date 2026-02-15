@@ -34,5 +34,6 @@ namespace drinking_be.Dtos.ProductDtos
         public DateTime? LaunchDateTime { get; set; }
 
         public ICollection<ProductSizeCreateDto>? ProductSizes { get; set; }
+        public List<int>? AllowedToppingIds { get; set; }
     }
 }

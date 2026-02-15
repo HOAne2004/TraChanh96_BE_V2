@@ -48,4 +48,5 @@ public partial class Product : ISoftDelete
     // ⭐ HOOK CHO STORE (SẼ DÙNG Ở BƯỚC SAU)
     public virtual Brand Brand { get; set; } = null!;
     public virtual ICollection<ProductStore> ProductStores { get; set; } = new List<ProductStore>();
+    public List<int> AllowedToppingIds { get; set; } = new List<int>();
 }

@@ -190,7 +190,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
             .ForMember(dest => dest.OrderType, opt => opt.MapFrom(src => src.OrderType))
             .ForMember(dest => dest.CancelReason, opt => opt.MapFrom(src => src.CancelReason))
-
+            .ForMember(dest => dest.OrderCode, opt => opt.MapFrom(src => src.OrderCode))
             // 2. Map các Label (Dùng Extension Method để lấy tiếng Việt)
             .ForMember(dest => dest.StatusLabel,
                 opt => opt.MapFrom(src => src.Status.GetDescription()))
@@ -442,11 +442,12 @@ public class MappingProfile : Profile
         // 2. Read: Map từ Entity sang DTO hiển thị
         CreateMap<Review, ReviewReadDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString())) // Enum -> String
-
+            .ForMember(dest => dest.OrderCode,
+                opt => opt.MapFrom(src => src.Order != null ? src.Order.OrderCode : null))
             // Flattening dữ liệu Sản phẩm
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name))
+            .ForMember(dest => dest.ProductName,
+                opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null))
             .ForMember(dest => dest.ProductImage, opt => opt.MapFrom(src => src.Product.ImageUrl))
-
             // Flattening dữ liệu User
             .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Username)) // Hoặc FullName tùy bạn
             .ForMember(dest => dest.UserThumbnailUrl, opt => opt.MapFrom(src => src.User.ThumbnailUrl));

@@ -56,6 +56,8 @@ public partial class OrderItem
 
     [ForeignKey(nameof(ParentItemId))]
     public virtual OrderItem? ParentItem { get; set; }
+    [ForeignKey("ProductId")]
+    public virtual Product? Product { get; set; }
 
     public virtual ICollection<OrderItem> InverseParentItem { get; set; } = new List<OrderItem>();
 }

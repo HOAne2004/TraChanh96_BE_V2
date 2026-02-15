@@ -21,6 +21,18 @@ public class UserAddressesController : ControllerBase
     public async Task<IActionResult> GetAll()
         => Ok(await _addressService.GetAllMyAddressesAsync(GetUserId()));
 
+    /// <summary>
+    /// [ADMIN] Lấy danh sách địa chỉ của khách hàng theo UserID
+    /// </summary>
+    [HttpGet("user/{userId}")]
+    [Authorize(Roles = "Admin, Manager")] // Chỉ Admin/Manager được phép gọi
+    public async Task<IActionResult> GetByUserId(int userId)
+    {
+        // Tái sử dụng hàm GetAllMyAddressesAsync của Service (vì nó nhận userId int)
+        var result = await _addressService.GetAllMyAddressesAsync(userId);
+        return Ok(result);
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(long id)
     {

@@ -1,6 +1,7 @@
 ﻿using drinking_be.Dtos.OrderItemDtos;
 using drinking_be.Dtos.OrderPaymentDtos;
 using drinking_be.Dtos.PaymentMethodDtos;
+using drinking_be.Dtos.ReviewDtos;
 using drinking_be.Enums;
 
 namespace drinking_be.Dtos.OrderDtos
@@ -77,5 +78,6 @@ namespace drinking_be.Dtos.OrderDtos
         // --- Collections ---
         public List<OrderItemReadDto> Items { get; set; } = new();
         public List<OrderPaymentReadDto> Payments { get; set; } = new();
+        public ICollection<ReviewReadDto> Reviews { get; set; } = new List<ReviewReadDto>();
     }
 }

@@ -1,11 +1,12 @@
-﻿using drinking_be.Dtos.ProductDtos;
+﻿using drinking_be.Dtos.Common;
+using drinking_be.Dtos.ProductDtos;
 
 namespace drinking_be.Interfaces.ProductInterfaces
 {
     public interface IProductService
     {
         // Lấy danh sách có phân trang, lọc, tìm kiếm
-        Task<IEnumerable<ProductReadDto>> GetAllAsync(string? search, string? categorySlug, string? sort);
+        Task<PagedResult<ProductReadDto>> GetAllAsync(ProductFilterDto filter);
 
         Task<ProductReadDto?> GetByIdAsync(int id);
         Task<ProductReadDto?> GetBySlugAsync(string slug);

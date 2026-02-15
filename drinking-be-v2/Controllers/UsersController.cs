@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using drinking_be.Interfaces.AuthInterfaces;
+using drinking_be.Dtos.Common;
 
 namespace drinking_be.Controllers
 {
@@ -20,7 +21,6 @@ namespace drinking_be.Controllers
         }
 
         // Helper function để lấy PublicId từ Token
-
         protected Guid GetUserPublicId()
         {
             // 1. Chưa được xác thực
@@ -43,6 +43,27 @@ namespace drinking_be.Controllers
             throw new UnauthorizedAccessException("Token không chứa PublicId hợp lệ.");
         }
 
+        // Get all
+        [HttpGet]
+        [Authorize(Roles = "Admin, Manager")]
+        public async Task<IActionResult> GetAll([FromQuery] UserFilterDto filter)
+        {
+            var result = await _userService.GetAllAsync(filter);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// [ADMIN] Xem chi tiết người dùng theo PublicId
+        /// </summary>
+        [HttpGet("{id}")]
+        [Authorize(Roles = "Admin, Manager")] // Chỉ Admin/Manager được xem
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var user = await _userService.GetUserByPublicIdAsync(id);
+
+            if (user == null) return NotFound(new { message = "Không tìm thấy người dùng." });
+            return Ok(user);
+        }
 
         /// <summary>
         /// Xem hồ sơ cá nhân (Profile)
@@ -72,6 +93,22 @@ namespace drinking_be.Controllers
             var updatedUser = await _userService.UpdateUserByPublicIdAsync(publicId, updateDto);
 
             if (updatedUser == null) return NotFound();
+            return Ok(updatedUser);
+        }
+
+        /// <summary>
+        /// [ADMIN] Cập nhật thông tin người dùng (Status, Role,...)
+        /// </summary>
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin, Manager")] // Chỉ Admin được sửa người khác
+        public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UserUpdateDto updateDto)
+        {
+            // Gọi service update (Cần đảm bảo hàm UpdateUserByPublicIdAsync cho phép sửa Status/Role)
+            // Nếu UserUpdateDto của bạn chưa có Status, hãy tạo UserAdminUpdateDto riêng hoặc bổ sung vào.
+
+            var updatedUser = await _userService.UpdateUserByPublicIdAsync(id, updateDto);
+
+            if (updatedUser == null) return NotFound(new { message = "Không tìm thấy người dùng." });
             return Ok(updatedUser);
         }
 
