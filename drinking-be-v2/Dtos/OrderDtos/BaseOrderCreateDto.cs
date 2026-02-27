@@ -31,9 +31,9 @@ namespace drinking_be.Dtos.OrderDtos
     public class PickupOrderCreateDto : BaseOrderCreateDto // Kế thừa các field chung như StoreId, Items, Note...
     {
         [Required]
-        public int PaymentMethodId { get; set; }
+        public new int PaymentMethodId { get; set; }
 
-        public string? VoucherCode { get; set; }
+        public new string? VoucherCode { get; set; }
 
         [Required]
         public DateTime PickupTime { get; set; } // 🟢 Thời gian khách hẹn đến lấy

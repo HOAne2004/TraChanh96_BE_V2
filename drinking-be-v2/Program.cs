@@ -15,16 +15,17 @@ using drinking_be.Repositories;
 using drinking_be.Services;
 using drinking_be.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Supabase;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-// Fix lỗi timestamp của PostgreSQL
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,8 +33,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR();
 
 
-// --- 1. CẤU HÌNH DATABASE ---
-//var runtimeConnection = builder.Configuration.GetConnectionString("RuntimeConnection");
+// --- 1.1. CẤU HÌNH DATABASE ---
 
 builder.Services.AddDbContext<DBDrinkContext>(options =>
 {
@@ -42,15 +42,30 @@ builder.Services.AddDbContext<DBDrinkContext>(options =>
     );
 });
 
+// --- 1.2. CẤU HÌNH FLUENT EMAIL ---
+var emailSettings = builder.Configuration.GetSection("EmailSettings");
 
-
+builder.Services.AddFluentEmail(emailSettings["DefaultFromEmail"] ?? "admin@example.com")
+    .AddRazorRenderer()
+    .AddSmtpSender(() =>
+    {
+        return new SmtpClient(emailSettings["SmtpServer"] ?? "smtp.gmail.com")
+        {
+            Port = int.Parse(emailSettings["Port"] ?? "587"),
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+            UseDefaultCredentials = false,
+            Credentials = new System.Net.NetworkCredential(
+                emailSettings["Username"],
+                emailSettings["Password"]?.Replace(" ", "") 
+            ),
+            EnableSsl = true,
+        };
+    });
 
 // --- 2. CẤU HÌNH SUPABASE  ---
-// Phải đăng ký trước khi build app và trước khi các Service khác cần dùng nó
 var supabaseUrl = builder.Configuration["Supabase:Url"];
 var supabaseKey = builder.Configuration["Supabase:Key"];
 
-// Fix CS8604: Ensure supabaseUrl and supabaseKey are not null
 if (string.IsNullOrWhiteSpace(supabaseUrl))
     throw new InvalidOperationException("Supabase:Url configuration is missing or empty.");
 if (string.IsNullOrWhiteSpace(supabaseKey))
@@ -77,7 +92,6 @@ builder.Services.AddSwaggerGen(option =>
 {
     option.SwaggerDoc("v1", new OpenApiInfo { Title = "Drinking API", Version = "v1" });
 
-    // Cấu hình nút Authorize (Ổ khóa)
     option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
@@ -111,6 +125,8 @@ builder.Services.AddHostedService<drinking_be.Services.Background.AutoCancelOrde
 // 4. ĐĂNG KÝ DEPENDENCY INJECTION (DI)
 // ==================================================================
 
+// --- EMAIL SERVICES ---
+builder.Services.AddScoped<IEmailService, EmailService>();
 // --- A. CORE & UTILS ---
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -228,6 +244,15 @@ builder.Services.AddCors(options =>
                   .AllowAnyHeader()
                   .AllowCredentials();
         });
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("loginPolicy", opt =>
+    {
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.PermitLimit = 5;
+        opt.QueueLimit = 0;
+    });
 });
 
 // ==========================================================

@@ -5,11 +5,6 @@ namespace drinking_be.Enums
 {
     public enum UserStatusEnum : short
     {
-        // Trạng thái chuẩn bị
-
-        [Description("Chờ xác thực Email")]
-        PendingVerification = 1,
-
         // Trạng thái hoạt động (Dùng lại giá trị số của PublicStatusEnum)
 
         [Description("Đang hoạt động")]

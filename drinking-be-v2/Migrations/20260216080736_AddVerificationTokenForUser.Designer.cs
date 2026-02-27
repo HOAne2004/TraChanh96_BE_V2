@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using drinking_be.Models;
@@ -12,9 +13,11 @@ using drinking_be.Models;
 namespace drinking_be.Migrations
 {
     [DbContext(typeof(DBDrinkContext))]
-    partial class DBDrinkContextModelSnapshot : ModelSnapshot
+    [Migration("20260216080736_AddVerificationTokenForUser")]
+    partial class AddVerificationTokenForUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -892,15 +895,9 @@ namespace drinking_be.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("email_verified");
 
-                    b.Property<int>("FailedLoginAttempts")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime?>("LastLogin")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("last_login");
-
-                    b.Property<DateTime?>("LockoutEnd")
-                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -965,12 +962,6 @@ namespace drinking_be.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("username");
-
-                    b.Property<string>("VerificationToken")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("VerificationTokenExpiresAt")
-                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id")
                         .HasName("PK_User_Id");

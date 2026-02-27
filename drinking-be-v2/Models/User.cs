@@ -21,6 +21,8 @@ public partial class User : ISoftDelete
     public string PasswordHash { get; set; } = null!;
 
     public bool EmailVerified { get; set; } = false;
+    public string? VerificationToken { get; set; }
+    public DateTime? VerificationTokenExpiresAt { get; set; }
 
     public UserStatusEnum Status { get; set; } = UserStatusEnum.Active;
 
@@ -42,7 +44,8 @@ public partial class User : ISoftDelete
     public virtual ICollection<Cart> Carts { get; set; } = new List<Cart>();
     public virtual Membership? Membership { get; set; }
     public virtual Staff? Staff { get; set; }
-
+    public int FailedLoginAttempts { get; set; } = 0;
+    public DateTime? LockoutEnd { get; set; }
     public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
     public virtual ICollection<Address> Addresses { get; set; } = new List<Address>();
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();

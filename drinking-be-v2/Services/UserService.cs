@@ -22,7 +22,8 @@ namespace drinking_be.Services
 
         public async Task<PagedResult<UserReadDto>> GetAllAsync(UserFilterDto filter){
             var query = _unitOfWork.Repository<User>().GetQueryable()
-                .Include(u => u.Membership).ThenInclude(m => m.Level)
+                .Include(u => u.Membership!) // Add null-forgiving operator to suppress CS8602
+                .ThenInclude(m => m.Level!)
                 .AsNoTracking();
 
             if (filter.RoleId.HasValue)

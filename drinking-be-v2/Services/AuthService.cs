@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using drinking_be.Dtos.Common;
 using drinking_be.Dtos.UserDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
@@ -6,6 +7,7 @@ using drinking_be.Interfaces.AuthInterfaces;
 using drinking_be.Models;
 using drinking_be.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 
 namespace drinking_be.Services
@@ -15,13 +17,17 @@ namespace drinking_be.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IJwtGenerator _jwtGenerator;
         private readonly IMapper _mapper;
-        // private readonly IEmailService _emailService; // Cần inject EmailService để gửi mail thật
+        private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
 
-        public AuthService(IUnitOfWork unitOfWork, IJwtGenerator jwtGenerator, IMapper mapper)
+        public AuthService(IUnitOfWork unitOfWork, IJwtGenerator jwtGenerator, IMapper mapper, IEmailService emailService, IConfiguration configuration
+            )
         {
             _unitOfWork = unitOfWork;
             _jwtGenerator = jwtGenerator;
             _mapper = mapper;
+            _emailService = emailService;
+            _configuration = configuration;
         }
 
         public async Task<UserReadDto> RegisterAsync(UserRegisterDto registerDto)
@@ -30,20 +36,23 @@ namespace drinking_be.Services
             var membershipRepo = _unitOfWork.Repository<Membership>();
             var levelRepo = _unitOfWork.Repository<MembershipLevel>();
 
-            if (await userRepo.ExistsAsync(u => u.Email == registerDto.Email || u.Username == registerDto.Username))
+            if (await userRepo.ExistsAsync(u => u.Email == registerDto.Email))
             {
-                throw new Exception("Email hoặc Tên đăng nhập đã được sử dụng.");
+                throw new Exception("Email đăng nhập đã được sử dụng.");
             }
 
             var user = _mapper.Map<User>(registerDto);
             user.PasswordHash = PasswordHasher.HashPassword(registerDto.Password);
             user.RoleId = UserRoleEnum.Customer;
             user.Status = UserStatusEnum.Active;
+            user.EmailVerified = false;
 
+            var token = new Random().Next(100000, 999999).ToString();
+            user.VerificationToken = token;
+            user.VerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24);
             await userRepo.AddAsync(user);
-            await _unitOfWork.SaveChangesAsync(); // Commit User để lấy ID
+            await _unitOfWork.SaveChangesAsync();
 
-            // Tạo Membership mặc định
             var levels = await levelRepo.GetAllAsync(orderBy: q => q.OrderBy(l => l.MinCoinsRequired));
             var baseLevel = levels.FirstOrDefault();
 
@@ -64,14 +73,100 @@ namespace drinking_be.Services
                 await _unitOfWork.SaveChangesAsync();
             }
 
+            try
+            {
+                var clientUrl = _configuration["ClientAppUrl"] ?? "http://localhost:5173";
+                var verificationLink = $"{clientUrl}/verify-email?email={user.Email}&token={token}";
+
+                await _emailService.SendVerificationEmailAsync(
+                    user.Email,
+                    user.Username ?? "Khách hàng mới",
+                    verificationLink,
+                    token
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Lỗi gửi mail khi đăng ký: {ex.Message}");
+            }
+
             return _mapper.Map<UserReadDto>(user);
         }
-
-        public async Task<TokenResponseDto> LoginAsync(UserLoginDto loginDto)
+        public async Task<ServiceResponse<string>> VerifyEmailAsync(VerifyEmailDto dto)
         {
             var userRepo = _unitOfWork.Repository<User>();
 
-            // Include Staff để JWT Generator lấy được StoreId
+            // 1. Tìm user theo ID
+            var user = await userRepo.GetFirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (user == null)
+            {
+                return new ServiceResponse<string> { Success = false, Message = "Tài khoản không tồn tại." };
+            }
+
+            // 2. Kiểm tra tài khoản đã xác thực chưa
+            if (user.EmailVerified)
+            {
+                return new ServiceResponse<string> { Success = true, Message = "Tài khoản này đã được xác thực trước đó." };
+            }
+
+            // 3. Kiểm tra Token
+            // - Token phải khớp
+            // - Token chưa hết hạn (ExpiresAt > Now)
+            if (user.VerificationToken != dto.Token)
+            {
+                return new ServiceResponse<string> { Success = false, Message = "Mã xác thực không hợp lệ." };
+            }
+
+            if (user.VerificationTokenExpiresAt < DateTime.UtcNow)
+            {
+                return new ServiceResponse<string> { Success = false, Message = "Mã xác thực đã hết hạn. Vui lòng yêu cầu gửi lại mã mới." };
+            }
+
+            // 4. Xác thực thành công
+            user.EmailVerified = true;
+            user.VerificationToken = null; // Xóa token để không dùng lại được
+            user.VerificationTokenExpiresAt = null;
+            user.Status = Enums.UserStatusEnum.Active; // Đảm bảo user active
+
+            userRepo.Update(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            return new ServiceResponse<string> { Success = true, Message = "Xác thực email thành công!" };
+        }
+        public async Task ResendVerificationCodeAsync(string email)
+        {
+            var userRepo = _unitOfWork.Repository<User>();
+            var user = await userRepo.GetFirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null || user.EmailVerified)
+            {
+                return;
+            }
+
+            var token = new Random().Next(100000, 999999).ToString();
+            user.VerificationToken = token;
+            user.VerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24);
+
+            userRepo.Update(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Gửi lại email
+            try
+            {
+                var clientUrl = _configuration["ClientAppUrl"] ?? "http://localhost:5173";
+                var verificationLink = $"{clientUrl}/verify-email?email={user.Email}&token={token}";
+
+                await _emailService.SendVerificationEmailAsync(user.Email, user.Username, verificationLink, user.VerificationToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Resend email failed: {ex.Message}");
+            }
+        }
+        public async Task<ServiceResponse<TokenResponseDto>> LoginAsync(UserLoginDto loginDto)
+        {
+            var userRepo = _unitOfWork.Repository<User>();
+
             var user = await userRepo.GetFirstOrDefaultAsync(
                 filter: u => u.Email == loginDto.Email || u.Username == loginDto.Email,
                 includeProperties: "Staff"
@@ -79,40 +174,77 @@ namespace drinking_be.Services
 
             if (user == null || !PasswordHasher.VerifyPassword(loginDto.Password, user.PasswordHash))
             {
-                throw new Exception("Tài khoản hoặc mật khẩu không chính xác.");
+                return new ServiceResponse<TokenResponseDto>
+                {
+                    Success = false,
+                    Message = "Tài khoản hoặc mật khẩu không chính xác."
+                };
+            }
+
+            if (!user.EmailVerified)
+            {
+                return new ServiceResponse<TokenResponseDto>
+                {
+                    Success = false,
+                    Message = "Tài khoản chưa được xác thực.",
+                };
             }
 
             if (user.Status == UserStatusEnum.Locked)
             {
-                throw new Exception("Tài khoản của bạn đã bị khóa.");
+                return new ServiceResponse<TokenResponseDto>
+                {
+                    Success = false,
+                    Message = "Tài khoản đã bị khóa."
+                };
             }
 
-            // Tạo Access Token & Refresh Token
+            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+            {
+                throw new Exception("Tài khoản đang bị khóa tạm thời.");
+            }
+            else
+            {
+                user.FailedLoginAttempts++;
+
+                if (user.FailedLoginAttempts >= 5)
+                {
+                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15);
+                    user.FailedLoginAttempts = 0;
+                }
+            }
+            user.FailedLoginAttempts = 0;
+            user.LockoutEnd = null;
+
             var accessToken = _jwtGenerator.CreateToken(user);
             var refreshToken = GenerateRefreshToken();
 
-            // Lưu Refresh Token vào DB
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30); // 30 ngày
+            user.RefreshToken = BCrypt.Net.BCrypt.HashPassword(refreshToken);
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
             user.LastLogin = DateTime.UtcNow;
 
             userRepo.Update(user);
             await _unitOfWork.SaveChangesAsync();
 
-            return new TokenResponseDto { AccessToken = accessToken, RefreshToken = refreshToken };
+            return new ServiceResponse<TokenResponseDto>
+            {
+                Success = true,
+                Data = new TokenResponseDto
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken
+                }
+            };
         }
-
         public async Task<TokenResponseDto> RefreshTokenAsync(RefreshTokenRequestDto requestDto)
         {
             var userRepo = _unitOfWork.Repository<User>();
 
-            // Tìm user có RefreshToken trùng khớp
-            var user = await userRepo.GetFirstOrDefaultAsync(
-                filter: u => u.RefreshToken == requestDto.RefreshToken,
-                includeProperties: "Staff"
-            );
+            var user = await userRepo.GetFirstOrDefaultAsync(u => u.RefreshToken != null);
 
-            if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+            if (user == null ||
+                !BCrypt.Net.BCrypt.Verify(requestDto.RefreshToken, user.RefreshToken) ||
+                user.RefreshTokenExpiryTime <= DateTime.UtcNow)
             {
                 throw new Exception("Refresh Token không hợp lệ hoặc đã hết hạn.");
             }
@@ -130,32 +262,38 @@ namespace drinking_be.Services
 
             return new TokenResponseDto { AccessToken = newAccessToken, RefreshToken = newRefreshToken };
         }
-
         public async Task ForgotPasswordAsync(ForgotPasswordDto forgotPasswordDto)
         {
             var userRepo = _unitOfWork.Repository<User>();
             var user = await userRepo.GetFirstOrDefaultAsync(u => u.Email == forgotPasswordDto.Email);
 
-            if (user == null)
-            {
-                // Vì lý do bảo mật, không nên báo lỗi nếu email không tồn tại
-                return;
-            }
+            if (user == null) return; 
 
-            // Tạo Reset Token
             var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
             user.ResetPasswordToken = token;
-            user.ResetPasswordTokenExpiryTime = DateTime.UtcNow.AddHours(1); // Hết hạn sau 1 giờ
+            user.ResetPasswordTokenExpiryTime = DateTime.UtcNow.AddHours(1);
 
             userRepo.Update(user);
             await _unitOfWork.SaveChangesAsync();
 
-            // TODO: Gửi Email chứa link reset password
-            // Ví dụ: _emailService.SendEmail(user.Email, "Reset Password", $"Mã của bạn là: {token}");
-            // Trong môi trường Dev, bạn có thể Log token ra console hoặc trả về API (không khuyến khích)
-            Console.WriteLine($"[DEBUG] Reset Token for {user.Email}: {token}");
-        }
+            try
+            {
+                var clientUrl = _configuration["ClientAppUrl"] ?? "http://localhost:5173";
 
+                var resetLink = $"{clientUrl}/reset-password?token={token}";
+
+                // Gọi Email Service
+                await _emailService.SendResetPasswordEmailAsync(
+                    user.Email,
+                    user.Username ?? "Khách hàng",
+                    resetLink
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Lỗi gửi mail Reset Pass: {ex.Message}");
+            }
+        }
         public async Task ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
         {
             var userRepo = _unitOfWork.Repository<User>();

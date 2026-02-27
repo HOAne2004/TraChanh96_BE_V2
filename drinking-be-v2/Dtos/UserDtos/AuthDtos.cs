@@ -34,4 +34,13 @@ namespace drinking_be.Dtos.UserDtos
         [Required, MinLength(6)]
         public string NewPassword { get; set; } = string.Empty;
     }
+    public class VerifyEmailDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
+    }
+    public class ResendVerificationDto
+    {
+        public string Email { get; set; } = string.Empty;
+    }
 }
