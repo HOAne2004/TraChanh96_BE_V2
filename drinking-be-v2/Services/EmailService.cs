@@ -24,21 +24,21 @@ namespace drinking_be.Services
         {
             try
             {
-                string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "Utils", "VerifyEmail.cshtml");
-
-                var emailModel = new VerifyEmailModel
-                {
-                    Username = username,
-                    VerificationLink = verificationLink,
-                    Token = token,
-                    CompanyName = "Trà chanh 96"
-                };
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "VerifyEmail.cshtml");
+                
+                string templateContent = await System.IO.File.ReadAllTextAsync(templatePath);
+                templateContent = templateContent
+                    .Replace("@model drinking_be.Dtos.EmailDtos.VerifyEmailModel", "")
+                    .Replace("@Model.Username", username)
+                    .Replace("@Model.CompanyName", "Trà Chanh 96")
+                    .Replace("@Model.Token", token)
+                    .Replace("@Model.VerificationLink", verificationLink);
 
                 var email = _fluentEmailFactory
                     .Create()
                     .To(toEmail)
                     .Subject("Xác thực tài khoản - Trà chanh 96")
-                    .UsingTemplateFromFile(templatePath, emailModel);
+                    .Body(templateContent, isHtml: true);
 
                 var response = await email.SendAsync();
 
@@ -62,19 +62,20 @@ namespace drinking_be.Services
         {
             try
             {
-                string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "Utils", "ResetPassword.cshtml");
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "ResetPassword.cshtml");
 
-                var emailModel = new ResetPasswordEmailModel
-                {
-                    Username = username,
-                    ResetLink = resetLink
-                };
+                string templateContent = await System.IO.File.ReadAllTextAsync(templatePath);
+                templateContent = templateContent
+                    .Replace("@model drinking_be.Dtos.EmailDtos.ResetPasswordEmailModel", "")
+                    .Replace("@Model.Username", username)
+                    .Replace("@Model.CompanyName", "Trà Chanh 96")
+                    .Replace("@Model.ResetLink", resetLink);
 
                 var email = _fluentEmailFactory
                     .Create()
                     .To(toEmail)
                     .Subject("Yêu cầu đặt lại mật khẩu - Trà chanh 96")
-                    .UsingTemplateFromFile(templatePath, emailModel);
+                    .Body(templateContent, isHtml: true);
 
                 var response = await email.SendAsync();
 
