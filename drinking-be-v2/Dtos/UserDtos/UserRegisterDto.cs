@@ -11,7 +11,8 @@ namespace drinking_be.Dtos.UserDtos
         public string Username { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Email không được để trống.")]
-        [EmailAddress(ErrorMessage = "Email không đúng định dạng.")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ.")]
+        [RegularExpression(@"^[^\s@]+@[^\s@]+\.[^\s@]+$", ErrorMessage = "Email không đúng định dạng (Ví dụ: user@gmail.com, không chứa dấu cách).")]
         [MaxLength(100)]
         public string Email { get; set; } = string.Empty;
 
@@ -20,7 +21,7 @@ namespace drinking_be.Dtos.UserDtos
         [DataType(DataType.Password)]
         public string Password { get; set; } = string.Empty;
 
-        [Phone(ErrorMessage = "Số điện thoại không đúng định dạng.")]
+        [RegularExpression(@"^(0|\+84)(3|5|7|8|9)\d{8}$", ErrorMessage = "Số điện thoại không hợp lệ (Phải đúng chuẩn Việt Nam, VD: 0912345678).")]
         [MaxLength(20)]
         public string? Phone { get; set; }
     }

@@ -88,6 +88,7 @@ namespace drinking_be.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"[ERROR] Lỗi gửi mail khi đăng ký: {ex.Message}");
+                throw new Exception($"Đăng ký thành công nhưng lỗi gửi mail: {ex.Message}");
             }
 
             return _mapper.Map<UserReadDto>(user);

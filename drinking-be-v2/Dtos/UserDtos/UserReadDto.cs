@@ -2,6 +2,7 @@
 
 using drinking_be.Enums;
 using drinking_be.Dtos.MembershipDtos;
+using drinking_be.Dtos.StaffDtos;
 
 namespace drinking_be.Dtos.UserDtos
 {
@@ -30,5 +31,7 @@ namespace drinking_be.Dtos.UserDtos
 
         // Thông tin Thành viên (Cần Include Membership)
         public MembershipReadDto? Membership { get; set; }
+
+        public StaffReadDto? Staff { get; set; }
     }
 }

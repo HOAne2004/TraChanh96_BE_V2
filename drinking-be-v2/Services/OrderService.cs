@@ -482,7 +482,7 @@ namespace drinking_be.Services
                 {
                     if (item.Product != null)
                     {
-                        item.Product.TotalSold += item.Quantity;
+                        item.Product.TotalSold = (item.Product.TotalSold ?? 0) + item.Quantity;
                         _unitOfWork.Repository<Product>().Update(item.Product);
                     }
                 }

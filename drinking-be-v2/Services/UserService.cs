@@ -64,7 +64,7 @@ namespace drinking_be.Services
             // Include Membership để hiển thị hạng thành viên trong Profile
             var user = await userRepo.GetFirstOrDefaultAsync(
                 filter: u => u.PublicId == publicId,
-                includeProperties: "Membership,Membership.Level"
+                includeProperties: "Membership,Membership.Level,Staff,Staff.Store"
             );
 
             return _mapper.Map<UserReadDto>(user);
