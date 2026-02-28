@@ -9,6 +9,7 @@ namespace drinking_be.Interfaces.ProductInterfaces
     {
         Task<IEnumerable<CategoryReadDto>> GetAllAsync();
         Task<CategoryReadDto?> GetByIdAsync(int id);
+        Task<IEnumerable<CategoryReadDto>> GetActiveCateAsync(); 
         Task<CategoryReadDto> CreateAsync(CategoryCreateDto createDto);
         Task<CategoryReadDto?> UpdateAsync(int id, CategoryUpdateDto updateDto);
         Task<bool> DeleteAsync(int id);

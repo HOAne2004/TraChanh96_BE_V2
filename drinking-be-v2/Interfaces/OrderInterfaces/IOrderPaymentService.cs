@@ -14,6 +14,8 @@ namespace drinking_be.Interfaces.OrderInterfaces
         Task<bool> RecalculateOrderPaymentStatusAsync(long orderId);
         Task<OrderPaymentSnapshot> BuildPaymentSnapshotAsync(long orderId);
         Task AutoConfirmPaymentAsync(long orderId, int paymentMethodId, string paymentMethodName, decimal amount, string note);
+        Task<decimal> GetTotalRefundedAsync(long orderId);
+        Task<decimal> GetTotalRefundedOverallAsync(int? storeId = null, DateTime? fromDate = null, DateTime? toDate = null);
 
     }
 

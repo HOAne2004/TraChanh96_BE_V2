@@ -1,4 +1,5 @@
 ﻿using drinking_be.Models;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace drinking_be.Interfaces
 {
@@ -17,5 +18,6 @@ namespace drinking_be.Interfaces
         Task<int> SaveChangesAsync();
         Task<int> CompleteAsync();
         IGenericRepository<T> Repository<T>() where T : class;
+        Task<IDbContextTransaction> BeginTransactionAsync();
     }
 }

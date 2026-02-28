@@ -24,6 +24,13 @@ namespace drinking_be.Controllers
             return Ok(categories);
         }
 
+        [HttpGet("active")]
+        public async Task<IActionResult> GetActiveCate()
+        {
+            var categories = await _categoryService.GetActiveCateAsync();
+            return Ok(categories);
+        }
+
         // GET: api/categories/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)

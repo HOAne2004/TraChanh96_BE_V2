@@ -68,25 +68,20 @@ namespace drinking_be.Services
             // 4. Tính toán giảm giá
             decimal discount = 0;
 
-            // Giả sử Template có DiscountType (1: Percent, 2: Fixed) - Check lại model của bạn
-            // Ở đây tôi dùng string theo DTO cũ của bạn ("Percent", "Fixed") hoặc Enum nếu có.
-            // Tạm dùng logic thông dụng:
             if (template.DiscountType == VoucherDiscountTypeEnum.FixedAmount) // Giảm tiền mặt
             {
                 discount = template.DiscountValue;
             }
-            else // Percent (Phần trăm)
+            else 
             {
                 discount = applyDto.OrderTotalAmount * (template.DiscountValue / 100);
 
-                // Giới hạn giảm tối đa
                 if (template.MaxDiscountAmount.HasValue && discount > template.MaxDiscountAmount.Value)
                 {
                     discount = template.MaxDiscountAmount.Value;
                 }
             }
 
-            // Không giảm quá giá trị đơn hàng
             if (discount > applyDto.OrderTotalAmount) discount = applyDto.OrderTotalAmount;
 
             return new VoucherApplyResultDto
@@ -95,7 +90,8 @@ namespace drinking_be.Services
                 Message = "Áp dụng thành công.",
                 VoucherCode = voucher.VoucherCode ?? string.Empty,
                 DiscountAmount = discount,
-                FinalAmount = applyDto.OrderTotalAmount - discount
+                FinalAmount = applyDto.OrderTotalAmount - discount,
+                UserVoucherId = voucher.Id
             };
         }
 

@@ -7,6 +7,7 @@
         public string VoucherCode { get; set; } = string.Empty;
 
         public decimal DiscountAmount { get; set; }
-        public decimal FinalAmount { get; set; } // Sau khi giảm
+        public decimal FinalAmount { get; set; } 
+        public long? UserVoucherId { get; set; }
     }
 }

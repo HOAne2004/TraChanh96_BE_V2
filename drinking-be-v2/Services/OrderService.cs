@@ -7,6 +7,7 @@ using drinking_be.Dtos.NotificationDtos;
 using drinking_be.Dtos.OrderDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
+using drinking_be.Interfaces.MarketingInterfaces;
 using drinking_be.Interfaces.OrderInterfaces;
 using drinking_be.Models;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,7 @@ namespace drinking_be.Services
         private readonly IMapper _mapper;
         private readonly IOrderPaymentService _orderPaymentService;
         private readonly INotificationService _notificationService;
-
+        private readonly IUserVoucherService _voucherService;
         // Domain Services (DDD Lite)
         private readonly ShippingCalculator _shippingCalculator;
         private readonly OrderPriceCalculator _priceCalculator;
@@ -29,6 +30,7 @@ namespace drinking_be.Services
             IMapper mapper,
             IOrderPaymentService orderPaymentService,
             INotificationService notificationService,
+            IUserVoucherService voucherService,
             ShippingCalculator shippingCalculator,
             OrderPriceCalculator priceCalculator
         )
@@ -37,6 +39,7 @@ namespace drinking_be.Services
             _mapper = mapper;
             _orderPaymentService = orderPaymentService;
             _notificationService = notificationService;
+            _voucherService = voucherService;
             _shippingCalculator = shippingCalculator;
             _priceCalculator = priceCalculator;
         }
@@ -60,23 +63,34 @@ namespace drinking_be.Services
             var order = InitializeOrder(dto, userId);
             order.RecipientName = address.RecipientName;
             order.RecipientPhone = address.RecipientPhone;
-            order.ShippingAddress = !string.IsNullOrWhiteSpace(address.FullAddress)
-                ? address.FullAddress
-                : $"{address.AddressDetail}, {address.Commune}, {address.District}, {address.Province}";
+            order.ShippingAddress = address.FullAddress;
+
+            order.TotalAmount = await _priceCalculator.CalculateAndCreateItemsAsync(order, dto.Items);
+            order.ShippingFee = _shippingCalculator.CalculateFee(store, address, order.TotalAmount);
+            long? userVoucherId = null;
+            
+            if(!string.IsNullOrEmpty(dto.VoucherCode) && userId.HasValue)
+            {
+                var applyResult = await _voucherService.ApplyVoucherAsync(userId.Value, new Dtos.VoucherDtos.VoucherApplyDto
+                {
+                    VoucherCode = dto.VoucherCode,
+                    OrderTotalAmount = order.TotalAmount + (order.ShippingFee ?? 0)
+                });
+                if (!applyResult.IsValid)
+                {
+                    throw new AppException(applyResult.Message);
+                }
+
+                order.DiscountAmount = applyResult.DiscountAmount;
+                order.VoucherCodeUsed = applyResult.VoucherCode;
+                userVoucherId = applyResult.UserVoucherId;
+            }
 
             if (!dto.PaymentMethodId.HasValue)
                 throw new AppException("Phương thức thanh toán không hợp lệ.");
             await ValidatePaymentMethodAsync(order, dto.PaymentMethodId.Value);
 
-            // 3. Calculate Items & Price (Domain Service)
-            order.TotalAmount = await _priceCalculator.CalculateAndCreateItemsAsync(order, dto.Items);
-
-            // 4. Calculate Shipping Fee (Domain Service)
-            // Truyền TotalAmount để check logic FreeShip > 500k
-            order.ShippingFee = _shippingCalculator.CalculateFee(store, address, order.TotalAmount);
-
-            // 5. Finalize & Save
-            await FinalizeAndSaveOrderAsync(order);
+            await FinalizeAndSaveOrderAsync(order, userId!.Value, dto.VoucherCode, userVoucherId);
 
             // 6. Notify
             await NotifyStaffAsync(
@@ -118,7 +132,7 @@ namespace drinking_be.Services
             order.DeliveryAddressId = null;
 
             // 5. Save & Notify
-            await FinalizeAndSaveOrderAsync(order);
+            await FinalizeAndSaveOrderAsync(order, userId.HasValue ? userId.Value : 0, null, null);
 
             await NotifyStaffAsync(
                 "Có đơn tại quầy mới! 🍽️",
@@ -173,7 +187,7 @@ namespace drinking_be.Services
             order.DeliveryAddressId = null;
 
             // 6. Save & Notify
-            await FinalizeAndSaveOrderAsync(order);
+            await FinalizeAndSaveOrderAsync(order, userId, null, null);
 
             await NotifyStaffAsync(
                 "Có đơn khách đến lấy! 🛍️",
@@ -220,15 +234,33 @@ namespace drinking_be.Services
             return method;
         }
 
-        private async Task FinalizeAndSaveOrderAsync(Order order)
+        private async Task FinalizeAndSaveOrderAsync(Order order, int userId, string? voucherCode, long? userVoucherId)
         {
-            // Tính tổng cuối cùng
-            order.DiscountAmount = 0; // TODO: Voucher logic
-            order.GrandTotal = order.TotalAmount + (order.ShippingFee ?? 0) - (order.DiscountAmount ?? 0);
-            order.CoinsEarned = (int)(order.GrandTotal * 0.01m);
-
-            await _unitOfWork.Orders.AddAsync(order);
-            await _unitOfWork.CompleteAsync();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                order.GrandTotal = order.TotalAmount + (order.ShippingFee ?? 0) - (order.DiscountAmount ?? 0);
+                order.CoinsEarned = (int)(order.GrandTotal * 0.01m);
+                await _unitOfWork.Orders.AddAsync(order);
+                await _unitOfWork.CompleteAsync();
+                if(userVoucherId.HasValue)
+                {
+                    var uv = await _unitOfWork.Repository<UserVoucher>().GetByIdAsync(userVoucherId.Value);
+                    if (uv != null)
+                    {
+                        uv.Status = UserVoucherStatusEnum.Used;
+                        uv.UsedDate = DateTime.UtcNow;
+                        uv.OrderIdUsed = order.Id;
+                        _unitOfWork.Repository<UserVoucher>().Update(uv);
+                        await _unitOfWork.CompleteAsync();
+                    }
+                }
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex) {
+                await transaction.RollbackAsync();
+                throw new AppException("Lỗi khi tạo đơn hàng: " + ex.Message);
+            }
         }
 
         private string GenerateOrderCode() => $"ORD-{DateTime.Now:yyMMdd}-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
@@ -367,7 +399,7 @@ namespace drinking_be.Services
 
         public async Task<OrderQuickStatsDto> GetQuickStatsAsync(int? storeId, DateTime? dateInput)
         {
-            // TimeZone Handling
+            // TimeZone handling (giữ nguyên)
             TimeZoneInfo vnTimeZone;
             try { vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"); }
             catch { vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh"); }
@@ -382,24 +414,35 @@ namespace drinking_be.Services
 
             var dailyQuery = baseQuery.Where(o => o.CreatedAt >= startUtc && o.CreatedAt <= endUtc);
 
+            // Doanh thu gộp hôm nay
+            var todayGrossRevenue = await dailyQuery
+                .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
+                .SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
+
+            // Refund hôm nay (của các đơn hoàn thành hôm nay? Hoặc refund được tạo hôm nay?)
+            // Ở đây ta tính refund dựa trên ngày thanh toán refund (PaymentDate)
+            var todayRefund = await _orderPaymentService.GetTotalRefundedOverallAsync(storeId, startUtc, endUtc);
+
+            // Doanh thu ròng hôm nay
+            var todayNetRevenue = todayGrossRevenue + todayRefund; // todayRefund là số âm
+
+            // Tương tự cho tổng doanh thu mọi thời
+            var totalGrossRevenue = await baseQuery
+                .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
+                .SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
+
+            var totalRefund = await _orderPaymentService.GetTotalRefundedOverallAsync(storeId);
+            var totalNetRevenue = totalGrossRevenue + totalRefund;
+
             return new OrderQuickStatsDto
             {
-                TodayRevenue = await dailyQuery
-                    .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
-                    .SumAsync(o => (decimal?)o.GrandTotal) ?? 0,
-
+                TodayRevenue = todayNetRevenue, // Doanh thu ròng
                 TodayOrders = await dailyQuery.CountAsync(),
-
-                TotalRevenueAllTime = await baseQuery
-                    .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
-                    .SumAsync(o => (decimal?)o.GrandTotal) ?? 0,
-
+                TotalRevenueAllTime = totalNetRevenue,
                 TotalCompletedOrders = await baseQuery
                     .CountAsync(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received),
-
                 PendingOrders = await baseQuery
                     .CountAsync(o => o.Status == OrderStatusEnum.New || o.Status == OrderStatusEnum.Confirmed || o.Status == OrderStatusEnum.Preparing),
-
                 ShippingOrders = await baseQuery
                     .CountAsync(o => o.Status == OrderStatusEnum.Delivering)
             };
@@ -413,19 +456,17 @@ namespace drinking_be.Services
             var order = await _unitOfWork.Orders.Find(o => o.Id == orderId)
                 .Include(o => o.PaymentMethod)
                 .Include(o => o.User)
-                .Include(o => o.OrderItems).ThenInclude(oi => oi.Product) // 🟢 Include Product để update TotalSold
+                .Include(o => o.OrderItems).ThenInclude(oi => oi.Product) 
                 .FirstOrDefaultAsync()
                 ?? throw new AppException("Đơn hàng không tồn tại.");
 
             var paymentSnapshot = await _orderPaymentService.BuildPaymentSnapshotAsync(orderId);
+            var paymentMethodType = order.PaymentMethod?.PaymentType ?? PaymentTypeEnum.COD;
 
-            // 1. Validate Transition
-            OrderStateMachine.ValidateTransition(order.Status, newStatus, paymentSnapshot, actorRole, order.GrandTotal);
+            OrderStateMachine.ValidateTransition(order.Status, newStatus, paymentSnapshot, actorRole, order.GrandTotal, paymentMethodType);
 
-            // 2. Logic khi Hoàn tất
             if (newStatus == OrderStatusEnum.Completed || newStatus == OrderStatusEnum.Received)
             {
-                // Auto Payment
                 if (!paymentSnapshot.IsFullyPaid(order.GrandTotal) && order.PaymentMethod != null)
                 {
                     await _orderPaymentService.AutoConfirmPaymentAsync(
@@ -437,7 +478,6 @@ namespace drinking_be.Services
                     );
                 }
 
-                // Update TotalSold
                 foreach (var item in order.OrderItems.Where(oi => oi.ParentItemId == null))
                 {
                     if (item.Product != null)
@@ -448,13 +488,11 @@ namespace drinking_be.Services
                 }
             }
 
-            // 3. Update & Save
             order.Status = newStatus;
             order.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Orders.Update(order);
             await _unitOfWork.CompleteAsync();
 
-            // 4. Notify User
             if (order.UserId.HasValue)
             {
                 string msg = newStatus switch
@@ -491,44 +529,65 @@ namespace drinking_be.Services
             if (order.Status != OrderStatusEnum.New && order.Status != OrderStatusEnum.PendingPayment)
                 throw new Exception("Đơn hàng đã được tiếp nhận, không thể hủy.");
 
-            order.Status = OrderStatusEnum.Cancelled;
-            order.CancelReason = cancelDto.Reason;
-            order.CancelNote = cancelDto.Note;
-            order.CancelledByUserId = userId ?? 0;
-
-            // Revert Voucher
-            if (order.UserVoucherId.HasValue)
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            try
             {
-                var uv = await _unitOfWork.Repository<UserVoucher>().GetByIdAsync(order.UserVoucherId.Value);
-                if (uv != null)
+                order.Status = OrderStatusEnum.Cancelled;
+                order.CancelReason = cancelDto.Reason;
+                order.CancelNote = cancelDto.Note;
+                order.CancelledByUserId = userId ?? 0;
+                _unitOfWork.Orders.Update(order);
+                // Hoàn voucher nếu có
+                if (order.UserVoucherId.HasValue)
                 {
-                    uv.Status = UserVoucherStatusEnum.Unused;
-                    uv.UsedDate = null;
-                    uv.OrderIdUsed = null;
-                    _unitOfWork.Repository<UserVoucher>().Update(uv);
+                    var userVoucher = await _unitOfWork.Repository<UserVoucher>()
+                        .GetByIdAsync(order.UserVoucherId.Value);
+                    if (userVoucher != null)
+                    {
+                        userVoucher.Status = UserVoucherStatusEnum.Unused;
+                        userVoucher.UsedDate = null;
+                        userVoucher.OrderIdUsed = null;
+                        _unitOfWork.Repository<UserVoucher>().Update(userVoucher);
+
+                        // Giảm UsedCount của template (nếu cần)
+                        var template = await _unitOfWork.Repository<VoucherTemplate>()
+                            .GetByIdAsync(userVoucher.VoucherTemplateId);
+                        if (template != null && template.UsedCount > 0)
+                        {
+                            template.UsedCount--;
+                            _unitOfWork.Repository<VoucherTemplate>().Update(template);
+                        }
+                    }
                 }
-            }
+                await _unitOfWork.CompleteAsync();
+                await transaction.CommitAsync();
 
-            _unitOfWork.Orders.Update(order);
-            var success = await _unitOfWork.CompleteAsync() > 0;
+                var success = true;
 
-            if (success && order.UserId.HasValue)
-            {
-                var paymentSnapshot = await _orderPaymentService.BuildPaymentSnapshotAsync(orderId);
-                string content = paymentSnapshot.IsFullyPaid(order.GrandTotal)
-                    ? $"Đơn hàng #{order.OrderCode} đã hủy. Cửa hàng sẽ hoàn tiền trong 24h."
-                    : $"Đơn hàng #{order.OrderCode} đã hủy thành công.";
-
-                await _notificationService.CreateAsync(new NotificationCreateDto
+                if (success && order.UserId.HasValue)
                 {
-                    UserId = order.UserId.Value,
-                    Title = "Đơn hàng đã bị hủy",
-                    Content = content,
-                    Type = NotificationTypeEnum.Order,
-                    ReferenceId = order.OrderCode
-                });
+                    var paymentSnapshot = await _orderPaymentService.BuildPaymentSnapshotAsync(orderId);
+                    string content = paymentSnapshot.IsFullyPaid(order.GrandTotal)
+                        ? $"Đơn hàng #{order.OrderCode} đã hủy. Cửa hàng sẽ hoàn tiền trong 24h."
+                        : $"Đơn hàng #{order.OrderCode} đã hủy thành công.";
+
+                    await _notificationService.CreateAsync(new NotificationCreateDto
+                    {
+                        UserId = order.UserId.Value,
+                        Title = "Đơn hàng đã bị hủy",
+                        Content = content,
+                        Type = NotificationTypeEnum.Order,
+                        ReferenceId = order.OrderCode
+                    });
+                }
+                return success;
             }
-            return success;
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                throw new AppException("Lỗi khi hủy đơn hàng: " + ex.Message);
+            }
+
         }
 
         // =========================================================================
@@ -538,15 +597,24 @@ namespace drinking_be.Services
         {
             var order = await _unitOfWork.Orders.GetByIdAsync(orderId);
             if (order == null) throw new KeyNotFoundException("Đơn hàng không tồn tại.");
-            if (order.OrderType != OrderTypeEnum.Delivery) throw new AppException("Không thể gán Shipper cho đơn này.");
+
+            // Kiểm tra loại đơn hàng dựa trên Enum bạn đã định nghĩa trong project
+            if (order.OrderType != OrderTypeEnum.Delivery)
+                throw new AppException("Không thể gán Shipper cho đơn này.");
 
             var shipper = await _unitOfWork.Repository<User>().GetByIdAsync(shipperId);
-            if (shipper == null) throw new Exception("Shipper không hợp lệ.");
+            if (shipper == null) throw new AppException("Shipper không hợp lệ.");
 
             order.ShipperId = shipperId;
             order.Status = OrderStatusEnum.Delivering;
+
             _unitOfWork.Orders.Update(order);
-            return await _unitOfWork.CompleteAsync() > 0;
+
+            // Lưu thay đổi vào database thông qua Unit of Work
+            await _unitOfWork.CompleteAsync();
+
+            // Thêm dòng này để khớp với kiểu trả về Task<bool>
+            return true;
         }
 
         public async Task<bool> VerifyPickupCodeAsync(long orderId, string code)

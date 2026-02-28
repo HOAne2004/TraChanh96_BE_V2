@@ -14,12 +14,22 @@ namespace drinking_be.Domain.Orders
             OrderStatusEnum to,
             OrderPaymentSnapshot payment,
             UserRoleEnum actor,
-            decimal orderGrandTotal)
+            decimal orderGrandTotal,
+            PaymentTypeEnum paymentMethodType = PaymentTypeEnum.COD)
         {
             ValidateNotFinalState(from);
             ValidateBasicFlow(from, to);
             ValidateRole(from, to, MapActorRole(actor));
-            ValidatePayment(from, to, payment, orderGrandTotal);
+            ValidatePayment(from, to, payment, orderGrandTotal, paymentMethodType);
+
+            // CUSTOMER CAN ONLY COMPLETE/RECEIVE IF FULLY PAID
+            if (MapActorRole(actor) == OrderActorRole.Customer && (to == OrderStatusEnum.Completed || to == OrderStatusEnum.Received))
+            {
+                if (!payment.IsFullyPaid(orderGrandTotal))
+                {
+                    throw new AppException("Không thể xác nhận nhận hàng khi đơn chưa được thanh toán.");
+                }
+            }
         }
 
         // ===============================
@@ -76,8 +86,8 @@ namespace drinking_be.Domain.Orders
             switch (actor)
             {
                 case OrderActorRole.Customer:
-                    if (to != OrderStatusEnum.Cancelled)
-                        throw new AppException("Khách hàng chỉ được phép hủy đơn.");
+                    if (to != OrderStatusEnum.Cancelled && to != OrderStatusEnum.Completed && to != OrderStatusEnum.Received)
+                        throw new AppException("Khách hàng chỉ được phép hủy đơn hoặc xác nhận đã nhận hàng.");
                     break;
 
                 case OrderActorRole.Shipper:
@@ -89,7 +99,6 @@ namespace drinking_be.Domain.Orders
                 case OrderActorRole.Staff:
                 case OrderActorRole.Admin:
                 case OrderActorRole.System:
-                    // Full quyền theo flow
                     break;
 
                 default:
@@ -104,13 +113,22 @@ namespace drinking_be.Domain.Orders
         OrderStatusEnum from,
         OrderStatusEnum to,
         OrderPaymentSnapshot payment,
-        decimal grandTotal)
+        decimal grandTotal,
+        PaymentTypeEnum paymentMethodType)
         {
             if (from == OrderStatusEnum.PendingPayment && to != OrderStatusEnum.Cancelled)
             {
                 if (!payment.IsFullyPaid(grandTotal))
                 {
                     throw new AppException("Đơn hàng chưa thanh toán xong, không thể xử lý tiếp.");
+                }
+            }
+            
+            if((to ==OrderStatusEnum.Completed || to == OrderStatusEnum.Received) && paymentMethodType != PaymentTypeEnum.COD)
+            {
+                if (!payment.IsFullyPaid(grandTotal))
+                {
+                    throw new AppException("Đơn hàng chưa có thanh toán nào, không thể hoàn thành.");
                 }
             }
         }

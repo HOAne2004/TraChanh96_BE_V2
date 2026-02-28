@@ -21,8 +21,17 @@ namespace drinking_be.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] UserRegisterDto registerDto)
         {
-            var user = await _authService.RegisterAsync(registerDto);
-            return StatusCode(201, user);
+            // 🟢 ĐÃ BỌC TRY-CATCH CHUẨN XÁC
+            try
+            {
+                var user = await _authService.RegisterAsync(registerDto);
+                return StatusCode(201, user);
+            }
+            catch (Exception ex)
+            {
+                // Bắt lỗi và trả về HTTP 400 kèm message gọn gàng
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("verify-email")]
@@ -30,12 +39,7 @@ namespace drinking_be.Controllers
         public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
         {
             var result = await _authService.VerifyEmailAsync(dto);
-
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-
+            if (!result.Success) return BadRequest(result);
             return Ok(result);
         }
 

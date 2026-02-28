@@ -2,6 +2,7 @@
 using drinking_be.Interfaces;
 using drinking_be.Models;
 using drinking_be.Repositories;
+using Microsoft.EntityFrameworkCore.Storage;
 using System.Collections;
 
 namespace drinking_be.Services
@@ -54,6 +55,11 @@ namespace drinking_be.Services
         public void Dispose()
         {
             _context.Dispose();
+        }
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            return await _context.Database.BeginTransactionAsync();
         }
     }
 }

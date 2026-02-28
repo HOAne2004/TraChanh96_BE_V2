@@ -4,6 +4,7 @@ using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.ProductInterfaces;
 using drinking_be.Models;
+using System.Security.AccessControl;
 
 namespace drinking_be.Services
 {
@@ -33,6 +34,13 @@ namespace drinking_be.Services
             return _mapper.Map<CategoryReadDto>(category);
         }
 
+        public async Task<IEnumerable<CategoryReadDto>> GetActiveCateAsync()
+        {
+            var categories = await _unitOfWork.Repository<Category>().GetAllAsync(
+                filter: c => c.Status == PublicStatusEnum.Active,
+                orderBy: q => q.OrderBy(c => c.SortOrder).ThenBy(c => c.Name));
+            return _mapper.Map<IEnumerable<CategoryReadDto>>(categories);
+        }
         public async Task<CategoryReadDto> CreateAsync(CategoryCreateDto createDto)
         {
             var category = _mapper.Map<Category>(createDto);

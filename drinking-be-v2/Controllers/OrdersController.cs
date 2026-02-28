@@ -260,7 +260,7 @@ namespace drinking_be.Controllers
                 order.PaymentMethod?.Id ?? 0,
                 order.PaymentMethod?.Name ?? "Unknown",
                 amountMissing,
-                $"Nhân viên {User.Identity.Name} xác nhận thủ công."
+                $"Nhân viên {(User.Identity?.Name ?? "Unknown")} xác nhận thủ công."
             );
 
             // 🟢 4. [FIX LOGIC] CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
