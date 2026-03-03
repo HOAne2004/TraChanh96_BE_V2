@@ -29,7 +29,6 @@ namespace drinking_be.Controllers
             }
             catch (Exception ex)
             {
-                // Bắt lỗi và trả về HTTP 400 kèm message gọn gàng
                 return BadRequest(new { message = ex.Message });
             }
         }

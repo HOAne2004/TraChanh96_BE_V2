@@ -21,7 +21,6 @@ public partial class OrderItem
     [MaxLength(500)]
     public string? ProductImage { get; set; }
 
-    // [NEW] Lưu cứng tên Size (VD: "Size L", "Size M")
     [MaxLength(50)]
     public string? SizeName { get; set; }
     public decimal? SizePrice { get; set; }
@@ -31,10 +30,10 @@ public partial class OrderItem
     public int Quantity { get; set; }
 
     [Column(TypeName = "decimal(18,2)")]
-    public decimal BasePrice { get; set; } // Giá gốc 1 đơn vị
+    public decimal BasePrice { get; set; } 
 
     [Column(TypeName = "decimal(18,2)")]
-    public decimal FinalPrice { get; set; } // 🔑 TỔNG = Unit * Quantity
+    public decimal FinalPrice { get; set; } 
 
     [MaxLength(500)]
     public string? Note { get; set; }

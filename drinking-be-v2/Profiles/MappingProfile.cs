@@ -298,8 +298,6 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.FinalPrice,
                 opt => opt.MapFrom(src => src.FinalPrice));
 
-
-
         // --- OrderPayment Mappings ---
         CreateMap<OrderPayment, OrderPaymentReadDto>()
             .ForMember(dest => dest.Status,
@@ -355,7 +353,6 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.SizeLabel, opt => opt.MapFrom(src => src.Size.Label))
             .ForMember(dest => dest.SizeModifierPrice, opt => opt.MapFrom(src => src.Size.PriceModifier ?? 0))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            // FinalPrice sẽ được tính toán sau (vì cần BasePrice của cha)
             .ForMember(dest => dest.FinalPrice, opt => opt.Ignore());
         // B. Map từ CreateDto -> Entity (Lưu vào DB)
         CreateMap<ProductSizeCreateDto, ProductSize>()
@@ -382,7 +379,6 @@ public class MappingProfile : Profile
             {
                 foreach (var sizeDto in dest.ProductSizes)
                 {
-                    // Logic: Nếu có PriceOverride thì dùng, nếu không thì lấy Giá gốc + Giá Size
                     if (sizeDto.PriceOverride.HasValue)
                     {
                         sizeDto.FinalPrice = sizeDto.PriceOverride.Value;

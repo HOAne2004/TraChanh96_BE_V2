@@ -49,7 +49,6 @@ public partial class Order : ISoftDelete
     public DateTime? DeletedAt { get; set; }
 
     // --- TÀI CHÍNH (MONEY) ---
-    // Vẫn giữ lại cấu hình Decimal để tránh lỗi database
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal TotalAmount { get; set; } = 0;

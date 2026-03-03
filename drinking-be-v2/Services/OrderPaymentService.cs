@@ -61,8 +61,8 @@ namespace drinking_be.Services
             if (payment.Status == OrderPaymentStatusEnum.Paid)
                 return true; 
 
-            //if (payment.Status == OrderPaymentStatusEnum.Refunded)
-            //    throw new AppException("Không thể xác nhận thanh toán cho giao dịch hoàn tiền.");
+            if (payment.Status == OrderPaymentStatusEnum.Refunded)
+               throw new AppException("Không thể xác nhận thanh toán cho giao dịch hoàn tiền.");
 
             payment.Status = OrderPaymentStatusEnum.Paid;
             payment.TransactionCode = transactionCode;
@@ -95,10 +95,7 @@ namespace drinking_be.Services
             return await _unitOfWork.CompleteAsync() > 0;
         }
 
-        public async Task<OrderPaymentReadDto> RefundAsync(
-            long orderId,
-    decimal amount,
-    string reason)
+        public async Task<OrderPaymentReadDto> RefundAsync(long orderId, decimal amount, string reason)
         {
             if (amount <= 0)
                 throw new AppException("Số tiền hoàn phải lớn hơn 0.");

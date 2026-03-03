@@ -11,12 +11,9 @@ namespace drinking_be.Dtos.OrderDtos
         public long Id { get; set; }
         public string OrderCode { get; set; } = null!;
 
-        // 🟢 [SỬA 1] Đổi từ string sang Enum để logic FE so sánh bằng số (0, 1, 2...)
         public OrderTypeEnum OrderType { get; set; }
-        // 🟢 [THÊM] Label hiển thị tiếng Việt
         public string OrderTypeLabel { get; set; } = string.Empty;
 
-        // 🟢 [GIỮ NGUYÊN] Đã đúng (Enum cho logic, String cho hiển thị)
         public OrderStatusEnum Status { get; set; }
         public string StatusLabel { get; set; } = null!;
 
@@ -67,9 +64,7 @@ namespace drinking_be.Dtos.OrderDtos
         public DateTime? DeliveryDate { get; set; }
 
         // --- Cancellation ---
-        // 🟢 [SỬA 2] Đổi từ string sang Enum (để FE so sánh lý do)
         public OrderCancelReasonEnum? CancelReason { get; set; }
-        // 🟢 [THÊM] Label hiển thị tiếng Việt cho lý do hủy
         public string? CancelReasonLabel { get; set; }
 
         public string? CancelNote { get; set; }

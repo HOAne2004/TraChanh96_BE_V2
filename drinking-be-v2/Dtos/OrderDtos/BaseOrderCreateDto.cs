@@ -7,7 +7,7 @@ namespace drinking_be.Dtos.OrderDtos
     {
         [Required]
         public int StoreId { get; set; }
-        public int? PaymentMethodId { get; set; } // Nếu thanh toán online
+        public int? PaymentMethodId { get; set; }
         public string? UserNotes { get; set; }
         public string? VoucherCode { get; set; }
 
@@ -18,24 +18,22 @@ namespace drinking_be.Dtos.OrderDtos
     public class DeliveryOrderCreateDto : BaseOrderCreateDto
     {
         [Required]
-        public long DeliveryAddressId { get; set; } // ID địa chỉ trong sổ địa chỉ của User
+        public long DeliveryAddressId { get; set; } 
     }
 
     // 2. DTO Tạo đơn Tại quầy
     public class AtCounterOrderCreateDto : BaseOrderCreateDto
     {
-        public int? TableId { get; set; } // Có thể null nếu mang về
+        public int? TableId { get; set; } 
     }
 
     // 3. DTO tạo đơn Đến lấy
-    public class PickupOrderCreateDto : BaseOrderCreateDto // Kế thừa các field chung như StoreId, Items, Note...
+    public class PickupOrderCreateDto : BaseOrderCreateDto
     {
         [Required]
         public new int PaymentMethodId { get; set; }
-
         public new string? VoucherCode { get; set; }
-
         [Required]
-        public DateTime PickupTime { get; set; } // 🟢 Thời gian khách hẹn đến lấy
+        public DateTime PickupTime { get; set; } 
     }
 }
