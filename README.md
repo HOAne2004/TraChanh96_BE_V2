@@ -56,9 +56,7 @@ git clone https://github.com/HOAne2004/TraChanh96_BE_V2
 cd TraChanh96_BE_V2
 dotnet restore
 dotnet run
-##📌 Notes
-This project focuses on backend design and business logic
-Some advanced features (caching, message queue, distributed processing) are not included
-👤 Author
+---
 
+👤 Author
 Le Huy Hoan
