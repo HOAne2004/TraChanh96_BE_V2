@@ -7,12 +7,12 @@ using drinking_be.Enums;
 
 namespace drinking_be.Services
 {
-    public class AdminService : IAdminService
+    public class UserManagerService : IAdminService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public AdminService(IUnitOfWork unitOfWork, IMapper mapper)
+        public UserManagerService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;

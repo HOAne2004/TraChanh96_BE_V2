@@ -9,11 +9,11 @@ namespace drinking_be.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin")]
-    public class AdminController : ControllerBase
+    public class UserManagerController : ControllerBase
     {
         private readonly IAdminService _adminService;
 
-        public AdminController(IAdminService adminService)
+        public UserManagerController(IAdminService adminService)
         {
             _adminService = adminService;
         }

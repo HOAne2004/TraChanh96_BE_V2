@@ -1,4 +1,4 @@
-﻿using drinking_be.Enums;
+using drinking_be.Enums;
 using System.Collections.Generic;
 
 namespace drinking_be.Dtos.CartDtos
@@ -10,6 +10,7 @@ namespace drinking_be.Dtos.CartDtos
         public int ProductId { get; set; }
 
         public string ProductName { get; set; } = null!;
+        public string? ProductSlug { get; set; }
         public string? ImageUrl { get; set; }
 
         public int Quantity { get; set; }

@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using drinking_be.Dtos.CartDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
@@ -389,6 +389,7 @@ namespace drinking_be.Services
                     if (mainItem.Product != null)
                     {
                         itemDto.ProductName = mainItem.Product.Name;
+                        itemDto.ProductSlug = mainItem.Product.Slug;
                         itemDto.ImageUrl = mainItem.Product.ImageUrl;
                     }
                     if (mainItem.Size != null) itemDto.SizeLabel = mainItem.Size.Label;

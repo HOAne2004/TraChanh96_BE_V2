@@ -47,6 +47,11 @@ namespace drinking_be.Services
         {
             var repo = _unitOfWork.Repository<Address>();
 
+            var currentAddressCount = await repo.CountAsync(a => a.UserId == userId && a.Status == PublicStatusEnum.Active);
+            if(currentAddressCount >= 5)
+            {
+                throw new InvalidOperationException("Bạn chỉ có thể tạo tối đa 5 địa chỉ. Vui lòng xóa bớt địa chỉ cũ trước khi thêm mới.");
+            }
             // 1. Logic tự động set Default nếu đây là địa chỉ đầu tiên
             var hasAnyAddress = await repo.ExistsAsync(a => a.UserId == userId && a.Status == PublicStatusEnum.Active);
             if (!hasAnyAddress)
