@@ -10,6 +10,7 @@ using drinking_be.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using static drinking_be.Services.OrderService;
+using Microsoft.Extensions.DependencyInjection;
 using static Supabase.Postgrest.Constants;
 
 namespace drinking_be.Services
@@ -257,30 +258,69 @@ namespace drinking_be.Services
                 PaidAmount = paidAmount
             };
         }
-
+        
         public async Task AutoConfirmPaymentAsync(long orderId, int paymentMethodId, string paymentMethodName, decimal amount, string note)
         {
+            // 1. Tạo bản ghi thanh toán
             var payment = new OrderPayment
             {
                 OrderId = orderId,
                 PaymentMethodId = paymentMethodId,
                 PaymentMethodName = paymentMethodName,
-
                 Amount = amount,
-                TransactionCode = $"AUTO-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}", // Mã tự sinh: AUTO-XXXXXXXX
-
+                TransactionCode = $"AUTO-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
                 Status = OrderPaymentStatusEnum.Paid,
-                Type = OrderPaymentTypeEnum.Charge,  
-
+                Type = OrderPaymentTypeEnum.Charge,
                 PaymentDate = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
             await _unitOfWork.Repository<OrderPayment>().AddAsync(payment);
-            await _unitOfWork.CompleteAsync(); 
+            await _unitOfWork.CompleteAsync();
 
+            // 2. Cập nhật trạng thái IsPaid của đơn hàng
             await RecalculateOrderPaymentStatusAsync(orderId);
+
+            // =========================================================
+            // 3. 🟢 LOGIC BỔ SUNG: GỬI THÔNG BÁO VÀ EMAIL (LAZY LOAD)
+            // =========================================================
+            try
+            {
+                // Sử dụng _serviceProvider để lấy IOrderService (Tránh lỗi vòng lặp DI)
+                var orderService = _serviceProvider.GetRequiredService<IOrderService>();
+                var orderDto = await orderService.GetOrderByIdAsync(orderId);
+
+                var user = orderDto.UserId.HasValue ? await _unitOfWork.Repository<User>().GetByIdAsync(orderDto.UserId.Value) : null;
+
+                // 3.1 Gửi Notification (In-App) cho khách
+                if (orderDto.UserId.HasValue)
+                {
+                    await _notificationService.CreateAsync(new NotificationCreateDto
+                    {
+                        UserId = orderDto.UserId.Value,
+                        Title = "Thanh toán thành công! 🎉",
+                        Content = $"Đơn hàng #{orderDto.OrderCode} đã được thanh toán {amount:N0}đ qua {paymentMethodName}.",
+                        Type = NotificationTypeEnum.Order,
+                        ReferenceId = orderDto.OrderCode
+                    });
+                }
+
+                // 3.2 Gửi Email Hóa đơn cho khách
+                if (user != null && !string.IsNullOrEmpty(user.Email))
+                {
+                    _ = _emailService.SendOrderReceiptEmailAsync(user.Email, orderDto);
+                }
+
+                // 3.3 Gửi Email Alert cho Admin
+                string adminEmail = "admin.trachanh1996@yopmail.com"; // Thay bằng email thật
+                _ = _emailService.SendAdminPaymentAlertEmailAsync(adminEmail, orderDto, amount);
+            }
+            catch (Exception)
+            {
+                // Bọc try-catch để nếu lỗi gửi mail cũng không làm sập luồng chính (không bị throw lỗi 500 ra ngoài)
+                // Nếu có ILogger, bạn có thể log lỗi ở đây
+            }
         }
 
         public async Task<decimal> GetTotalRefundedAsync(long orderId)
