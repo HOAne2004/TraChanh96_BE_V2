@@ -233,9 +233,9 @@ namespace drinking_be.Services
                     order.IsPaid = true;
                     order.PaymentDate = DateTime.UtcNow;
 
-                    if (order.Status == OrderStatusEnum.PendingPayment || order.Status == OrderStatusEnum.New)
+                    if (order.Status == OrderStatusEnum.PendingPayment)
                     {
-                        order.Status = OrderStatusEnum.Confirmed;
+                        order.Status = OrderStatusEnum.New;
                     }
 
                     _unitOfWork.Orders.Update(order);
