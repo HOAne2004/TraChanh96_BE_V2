@@ -24,6 +24,8 @@ public partial class DBDrinkContext : DbContext
     public virtual DbSet<Category> Categories { get; set; }
     public virtual DbSet<Comment> Comments { get; set; }
     public virtual DbSet<CommentLike> CommentLikes { get; set; }
+    public virtual DbSet<ChatSession> ChatSessions { get; set; }
+    public virtual DbSet<ChatMessage> ChatMessages { get; set; }
     public virtual DbSet<FranchiseRequest> FranchiseRequests { get; set; }
     public virtual DbSet<Inventory> Inventories { get; set; }
     public virtual DbSet<Membership> Memberships { get; set; }
@@ -576,6 +578,42 @@ public partial class DBDrinkContext : DbContext
                   .WithMany(c => c.Likes)
                   .HasForeignKey(cl => cl.CommentId)
                   .OnDelete(DeleteBehavior.Cascade); // Xóa comment thì xóa luôn like
+        });
+
+        // ==========================================
+        // CẤU HÌNH AI CHAT MODELS
+        // ==========================================
+
+        modelBuilder.Entity<ChatSession>(entity =>
+        {
+            entity.ToTable("ChatSessions");
+            entity.HasKey(e => e.Id);
+
+            // Quan hệ với User (Nếu User bị xóa, Session giữ nguyên và UserId = null)
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.ToTable("ChatMessages");
+            entity.HasKey(e => e.Id);
+
+            // Giới hạn độ dài Role để tối ưu DB (Role chỉ chứa "User" hoặc "Model")
+            entity.Property(e => e.Role)
+                  .IsRequired()
+                  .HasMaxLength(20);
+
+            entity.Property(e => e.Content)
+                  .IsRequired(); // Content có thể dài vô hạn (nvarchar(max))
+
+            // Quan hệ 1-N: Xóa ChatSession thì tự động xóa hết ChatMessage bên trong (Cascade)
+            entity.HasOne(e => e.ChatSession)
+                  .WithMany(s => s.Messages)
+                  .HasForeignKey(e => e.ChatSessionId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<FranchiseRequest>(entity =>

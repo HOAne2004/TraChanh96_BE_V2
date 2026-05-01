@@ -190,6 +190,10 @@ builder.Services.AddScoped<IBrandService, BrandService>();
 builder.Services.Configure<VnPayConfig>(builder.Configuration.GetSection("VnPayConfig"));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IVnPayService, VnPayService>();
+
+// --- I. AI ---
+builder.Services.AddHttpClient<IAIService, AIService>();
+
 // ==================================================================
 
 // --- 5. CẤU HÌNH JWT AUTH ---

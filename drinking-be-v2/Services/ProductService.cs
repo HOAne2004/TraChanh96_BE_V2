@@ -5,7 +5,7 @@ using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.ProductInterfaces;
 using drinking_be.Models;
-using drinking_be.Utils; // Để dùng SlugGenerator
+using drinking_be.Utils;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
@@ -282,6 +282,7 @@ namespace drinking_be.Services
                 .Include(p => p.Category)
                 .Include(p => p.ProductSizes).ThenInclude(ps => ps.Size)
                 .Include(p => p.ProductStores) // Include để check trạng thái tại store
+                .AsSplitQuery() // <--- FIX TIMEOUT HIỆU QUẢ
                 .Where(p => p.Status == Enums.ProductStatusEnum.Active); // Chỉ lấy món TCT đang bán
 
             // 2. Filter Search & Category (Giống GetAll)
