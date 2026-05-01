@@ -236,12 +236,12 @@ namespace drinking_be.Controllers
             return Ok(new { message = "Đã khôi phục đơn hàng thành công." });
         }
 
-        // 7. XÁC NHẬN THANH TOÁN THỦ CÔNG (Dành cho Staff/Admin khi check thấy tiền về)
+        // 7. XÁC NHẬN THANH TOÁN THỦ CÔNG (Dành cho Staff/Admin khi check thấy tiền về hoặc nhận tiền mặt)
         [HttpPut("{id}/confirm-payment")]
         [Authorize(Roles = "Admin,StoreManager,Staff")]
         public async Task<IActionResult> ConfirmPayment(long id)
         {
-            // 1. Lấy đơn hàng kèm PaymentMethod
+            // 1. Lấy đơn hàng
             var order = await _orderService.GetOrderByIdAsync(id);
             if (order == null) return NotFound("Không tìm thấy đơn hàng.");
 
@@ -258,21 +258,22 @@ namespace drinking_be.Controllers
             await _orderPaymentService.AutoConfirmPaymentAsync(
                 order.Id,
                 order.PaymentMethod?.Id ?? 0,
-                order.PaymentMethod?.Name ?? "Unknown",
+                order.PaymentMethod?.Name ?? "Tiền mặt",
                 amountMissing,
                 $"Nhân viên {(User.Identity?.Name ?? "Unknown")} xác nhận thủ công."
             );
 
-            // 🟢 4. [FIX LOGIC] CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
-            // Nếu đơn đang treo ở "Chờ thanh toán", chuyển nó sang "Mới" để quy trình tiếp tục
+            // 🟢 4. [FIX LOGIC] CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG THÔNG MINH
+            // Chỉ "giải cứu" đơn hàng về trạng thái New NẾU nó đang bị kẹt ở PendingPayment.
+            // Đối với đơn Tiền mặt/COD đang làm món (Confirmed/Preparing/Delivering...), 
+            // ta để yên cho State Machine tự đi tiếp quỹ đạo của nó.
             if (order.Status == OrderStatusEnum.PendingPayment)
             {
-                // Gọi service để update status (để trigger notification, log, etc nếu có)
-                // Lưu ý: UserRoleEnum lấy từ Token (đã có code mẫu ở hàm UpdateStatus)
                 var roleStr = User.FindFirst(ClaimTypes.Role)?.Value ?? "Staff";
-                var role = Enum.Parse<UserRoleEnum>(roleStr);
-
-                await _orderService.UpdateOrderStatusAsync(order.Id, OrderStatusEnum.New, role);
+                if (Enum.TryParse<UserRoleEnum>(roleStr, out var role))
+                {
+                    await _orderService.UpdateOrderStatusAsync(order.Id, OrderStatusEnum.New, role);
+                }
             }
 
             return Ok(new { message = "Đã xác nhận thanh toán thành công." });
