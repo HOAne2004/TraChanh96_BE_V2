@@ -178,7 +178,7 @@ namespace drinking_be.Services
                             if (orderItems != null && orderItems.Any())
                             {
                                 // 🔥 ĐƯA VÀO LƯỚI LỌC VALIDATION (Truyền menuResult vào để không phải query DB lại)
-                                var validation = ValidateOrderItems(storeId, orderItems, menuResult);
+                                var validation = ValidateOrderItems(storeId, orderItems, menuResult ?? new List<StoreMenuReadDto>());
 
                                 if (validation.HasValidItems)
                                 {
