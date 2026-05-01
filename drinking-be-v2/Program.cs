@@ -192,7 +192,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IVnPayService, VnPayService>();
 
 // --- I. AI ---
-builder.Services.AddHttpClient<IAIService, AIService>();
+builder.Services.AddHttpClient<IAIService, AIService>(); //Phải dùng AddHttpClient vì trong constructor của AIService chúng ta có inject HttpClient
 
 // ==================================================================
 
