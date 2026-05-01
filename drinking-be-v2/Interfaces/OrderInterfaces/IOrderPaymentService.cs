@@ -1,7 +1,5 @@
 ﻿using drinking_be.Domain.Orders;
 using drinking_be.Dtos.OrderPaymentDtos;
-using drinking_be.Enums;
-using drinking_be.Models;
 
 namespace drinking_be.Interfaces.OrderInterfaces
 {
@@ -16,6 +14,7 @@ namespace drinking_be.Interfaces.OrderInterfaces
         Task AutoConfirmPaymentAsync(long orderId, int paymentMethodId, string paymentMethodName, decimal amount, string note);
         Task<decimal> GetTotalRefundedAsync(long orderId);
         Task<decimal> GetTotalRefundedOverallAsync(int? storeId = null, DateTime? fromDate = null, DateTime? toDate = null);
+        Task<bool> ProcessSePayWebhookAsync(SePayWebhookDto payload);
 
     }
 

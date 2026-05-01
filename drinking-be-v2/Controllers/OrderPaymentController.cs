@@ -80,5 +80,24 @@ namespace drinking_be.Controllers
 
             return Ok(result);
         }
+
+        // =========================================================
+        // 5. Webhook nhận thông báo từ dịch vụ thứ 3 (Ví dụ: SePay)
+        // =========================================================
+        [HttpPost("webhook-sepay")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SePayWebhook([FromBody] SePayWebhookDto payload)
+        {
+            // Bảo mật: Nên kiểm tra token hoặc chữ ký từ SePay ở đây
+
+            // Gọi Service để xử lý giao dịch dựa trên OrderCode (nằm trong nội dung CK)
+            var success = await _orderPaymentService.ProcessSePayWebhookAsync(payload);
+
+            if (success)
+            {
+                return Ok(new { success = true });
+            }
+            return BadRequest("Không thể xử lý giao dịch.");
+        }
     }
 }

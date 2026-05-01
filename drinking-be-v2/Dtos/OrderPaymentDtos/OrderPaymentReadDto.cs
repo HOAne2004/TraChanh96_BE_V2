@@ -13,6 +13,7 @@ namespace drinking_be.Dtos.OrderPaymentDtos
         // --- Thông tin Phương thức Thanh toán ---
         public int PaymentMethodId { get; set; }
         public string PaymentMethodName { get; set; } = null!;
+        public string? PaymentUrl { get; set; }
 
         // --- Thông tin giao dịch ---
         public decimal Amount { get; set; }

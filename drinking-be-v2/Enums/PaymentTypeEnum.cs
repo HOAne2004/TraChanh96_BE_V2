@@ -15,6 +15,9 @@ namespace drinking_be.Enums
         EWallet = 3,
 
         [Description("Thẻ tín dụng/ghi nợ")]
-        Card = 4
+        Card = 4,
+
+        [Description("Vn Pay")]
+        VNPay = 5
     }
 }

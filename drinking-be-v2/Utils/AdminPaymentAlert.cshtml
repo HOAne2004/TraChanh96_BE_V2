@@ -1,0 +1,24 @@
+﻿<div style="font-family: Arial, sans-serif; max-w-md; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
+    <div style="background-color: #10b981; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h2 style="color: white; margin: 0;">💰 THANH TOÁN THÀNH CÔNG</h2>
+    </div>
+
+    <div style="padding: 20px; background-color: #f9fafb;">
+        <p>Hệ thống vừa ghi nhận một khoản thanh toán thành công qua VietQR.</p>
+        
+        <div style="background-color: #ffffff; padding: 15px; border-left: 4px solid #10b981; margin: 20px 0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <p style="margin: 0 0 10px 0;"><strong>Mã đơn hàng:</strong> <span style="color: #ef4444; font-weight: bold; font-size: 16px;">#{{OrderCode}}</span></p>
+            <p style="margin: 0 0 10px 0;"><strong>Khách hàng:</strong> {{CustomerName}}</p>
+            <p style="margin: 0 0 10px 0;"><strong>Số tiền nhận:</strong> <span style="color: #10b981; font-weight: bold; font-size: 18px;">{{PaidAmount}}</span></p>
+            <p style="margin: 0;"><strong>Thời gian:</strong> {{PaymentTime}}</p>
+        </div>
+
+        <p>Vui lòng kiểm tra hệ thống và tiến hành chuẩn bị đơn hàng cho khách.</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{AdminOrderLink}}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                XEM CHI TIẾT ĐƠN HÀNG
+            </a>
+        </div>
+    </div>
+</div>

@@ -1,4 +1,5 @@
-﻿using drinking_be.Data;
+﻿using drinking_be.Configs;
+using drinking_be.Data;
 using drinking_be.Domain.Services;
 using drinking_be.Hubs;
 using drinking_be.Interfaces;
@@ -137,7 +138,7 @@ builder.Services.AddScoped<IEnumOptionService, EnumOptionService>();
 // --- B. AUTH & USERS ---
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IAdminService, UserManagerService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // --- C. STORE & STAFF ---
@@ -185,6 +186,10 @@ builder.Services.AddScoped<IUserVoucherService, UserVoucherService>();
 builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IBrandService, BrandService>();
 
+// --- H. VNPay ---
+builder.Services.Configure<VnPayConfig>(builder.Configuration.GetSection("VnPayConfig"));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IVnPayService, VnPayService>();
 // ==================================================================
 
 // --- 5. CẤU HÌNH JWT AUTH ---

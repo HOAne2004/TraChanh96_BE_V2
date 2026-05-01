@@ -2,8 +2,8 @@
 {
     public enum OrderPaymentTypeEnum : short
     {
-        charge = 1,
-        refund = 2,
-        adjustment = 3
+        Charge = 1,
+        Refund = 2,
+        Adjustment = 3
     }
 }

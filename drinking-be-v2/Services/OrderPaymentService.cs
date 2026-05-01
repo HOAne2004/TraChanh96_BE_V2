@@ -1,10 +1,13 @@
 ﻿using AutoMapper;
 using drinking_be.Domain.Orders;
+using drinking_be.Dtos.NotificationDtos;
 using drinking_be.Dtos.OrderPaymentDtos;
 using drinking_be.Enums;
+using drinking_be.Hubs;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.OrderInterfaces;
 using drinking_be.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using static drinking_be.Services.OrderService;
 using static Supabase.Postgrest.Constants;
@@ -15,11 +18,31 @@ namespace drinking_be.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
-        public OrderPaymentService(IUnitOfWork unitOfWork, IMapper mapper)
+        private readonly IVnPayService _vnPayService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IEmailService _emailService;
+        private readonly INotificationService _notificationService;
+                                                                    
+        public OrderPaymentService(
+            IUnitOfWork unitOfWork, 
+            IMapper mapper, 
+            IVnPayService vnPayService,
+            IHttpContextAccessor httpContextAccessor, 
+            IHubContext<NotificationHub> hubContext, 
+            IServiceProvider serviceProvider,
+            IEmailService emailService,
+            INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _vnPayService = vnPayService;
+            _httpContextAccessor = httpContextAccessor;
+            _hubContext = hubContext;
+            _serviceProvider = serviceProvider;
+            _emailService = emailService;
+            _notificationService = notificationService;
         }
 
         public async Task<OrderPaymentReadDto> CreateChargeAsync(long orderId, int paymentMethodId)
@@ -27,7 +50,7 @@ namespace drinking_be.Services
             var order = await _unitOfWork.Orders.GetByIdAsync(orderId)
                 ?? throw new AppException("Đơn hàng không tồn tại.");
 
-            if (order.Status == OrderStatusEnum.Completed|| order.Status == OrderStatusEnum.Received)
+            if (order.Status == OrderStatusEnum.Completed || order.Status == OrderStatusEnum.Received)
             {
                 throw new AppException("Đơn hàng đã hoàn tất, không thể thanh toán lại.");
             }
@@ -35,13 +58,14 @@ namespace drinking_be.Services
             var paymentMethod = await _unitOfWork.PaymentMethods.GetByIdAsync(paymentMethodId)
                 ?? throw new AppException("Phương thức thanh toán không hợp lệ.");
 
+            // 1. Lưu DB
             var payment = new OrderPayment
             {
                 OrderId = orderId,
                 PaymentMethodId = paymentMethodId,
                 PaymentMethodName = paymentMethod.Name,
-                Amount = order.GrandTotal,          
-                Type = OrderPaymentTypeEnum.charge,
+                Amount = order.GrandTotal,
+                Type = OrderPaymentTypeEnum.Charge,
                 Status = OrderPaymentStatusEnum.Pending,
                 CreatedAt = DateTime.UtcNow
             };
@@ -49,9 +73,18 @@ namespace drinking_be.Services
             await _unitOfWork.OrderPayments.AddAsync(payment);
             await _unitOfWork.CompleteAsync();
 
-            return _mapper.Map<OrderPaymentReadDto>(payment);
-        }
+            // 2. Map ra DTO để trả về
+            var resultDto = _mapper.Map<OrderPaymentReadDto>(payment);
 
+            // 3. 🟢 LOGIC SINH LINK VNPAY 
+            if (paymentMethod.PaymentType == PaymentTypeEnum.VNPay && _httpContextAccessor.HttpContext != null)
+            {
+                string vnpayUrl = _vnPayService.CreatePaymentUrl(order, _httpContextAccessor.HttpContext);
+                resultDto.PaymentUrl = vnpayUrl;
+            }
+
+            return resultDto;
+        }
 
         public async Task<bool> MarkPaymentSuccessAsync(long paymentId, string transactionCode)
         {
@@ -59,10 +92,10 @@ namespace drinking_be.Services
                 ?? throw new AppException("Giao dịch không tồn tại.");
 
             if (payment.Status == OrderPaymentStatusEnum.Paid)
-                return true; 
+                return true;
 
             if (payment.Status == OrderPaymentStatusEnum.Refunded)
-               throw new AppException("Không thể xác nhận thanh toán cho giao dịch hoàn tiền.");
+                throw new AppException("Không thể xác nhận thanh toán cho giao dịch hoàn tiền.");
 
             payment.Status = OrderPaymentStatusEnum.Paid;
             payment.TransactionCode = transactionCode;
@@ -70,13 +103,68 @@ namespace drinking_be.Services
             payment.UpdatedAt = DateTime.UtcNow;
 
             _unitOfWork.OrderPayments.Update(payment);
+
             await _unitOfWork.CompleteAsync();
 
             await RecalculateOrderPaymentStatusAsync(payment.OrderId);
 
+            await _hubContext.Clients.All.SendAsync("PaymentSuccess", payment.OrderId);
+            
+            var orderService = _serviceProvider.GetRequiredService<IOrderService>();
+            var orderDto = await orderService.GetOrderByIdAsync(payment.OrderId);
+
+            // Lấy sẵn thông tin user để dùng cho việc gửi notification và email
+            var user = orderDto.UserId.HasValue ? await _unitOfWork.Repository<User>().GetByIdAsync(orderDto.UserId.Value) : null;
+
+            // =========================================================
+            // 3. GỬI IN-APP NOTIFICATION (Quả chuông trên Web)
+            // =========================================================
+
+            // 3.1 Báo cho Khách hàng
+            if (orderDto.UserId.HasValue)
+            {
+                await _notificationService.CreateAsync(new NotificationCreateDto
+                {
+                    UserId = orderDto.UserId.Value,
+                    Title = "Thanh toán thành công! 🎉",
+                    Content = $"Đơn hàng #{orderDto.OrderCode} của bạn đã được thanh toán {payment.Amount:N0}đ. Quán đang chuẩn bị món nhé!",
+                    Type = NotificationTypeEnum.Order,
+                    ReferenceId = orderDto.OrderCode
+                });
+            }
+
+            // 3.2 Báo cho toàn bộ Staff/Manager/Admin
+            var staffUsers = await _unitOfWork.Repository<User>()
+                .GetAllAsync(u => u.RoleId == UserRoleEnum.Admin || u.RoleId == UserRoleEnum.Manager || u.RoleId == UserRoleEnum.Staff);
+
+            foreach (var staff in staffUsers)
+            {
+                await _notificationService.CreateAsync(new NotificationCreateDto
+                {
+                    UserId = staff.Id,
+                    Title = "💰 Khách đã chuyển khoản!",
+                    Content = $"Đơn hàng #{orderDto.OrderCode} vừa nhận được {payment.Amount:N0}đ qua VietQR.",
+                    Type = NotificationTypeEnum.Order,
+                    ReferenceId = orderDto.OrderCode
+                });
+            }
+
+            // =========================================================
+            // 4. GỬI EMAIL (Hóa đơn điện tử)
+            // =========================================================
+
+            // 4.1 Gửi Receipt cho Khách (Tận dụng luôn biến user đã lấy ở trên)
+            if (user != null && !string.IsNullOrEmpty(user.Email))
+            {
+                _ = _emailService.SendOrderReceiptEmailAsync(user.Email, orderDto);
+            }
+
+            // 4.2 Gửi Alert cho Admin
+            string adminEmail = "admin.trachanh1996@yopmail.com"; // Thay bằng email chủ quán
+            _ = _emailService.SendAdminPaymentAlertEmailAsync(adminEmail, orderDto, payment.Amount);
+
             return true;
         }
-
         public async Task<bool> MarkPaymentFailedAsync(long paymentId, string reason)
         {
             var payment = await _unitOfWork.OrderPayments.GetByIdAsync(paymentId)
@@ -114,7 +202,7 @@ namespace drinking_be.Services
                 PaymentMethodId = order.PaymentMethodId ?? 0,
                 PaymentMethodName = order.PaymentMethodName ?? "Refund",
                 Amount = -amount,
-                Type = OrderPaymentTypeEnum.refund,
+                Type = OrderPaymentTypeEnum.Refund,
                 Status = OrderPaymentStatusEnum.Paid,
                 PaymentDate = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
@@ -157,7 +245,6 @@ namespace drinking_be.Services
             return true;
         }
 
-
         public async Task<OrderPaymentSnapshot> BuildPaymentSnapshotAsync(long orderId)
         {
             var paidAmount = await _unitOfWork.OrderPayments
@@ -183,7 +270,7 @@ namespace drinking_be.Services
                 TransactionCode = $"AUTO-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}", // Mã tự sinh: AUTO-XXXXXXXX
 
                 Status = OrderPaymentStatusEnum.Paid,
-                Type = OrderPaymentTypeEnum.charge,  
+                Type = OrderPaymentTypeEnum.Charge,  
 
                 PaymentDate = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
@@ -199,14 +286,14 @@ namespace drinking_be.Services
         public async Task<decimal> GetTotalRefundedAsync(long orderId)
         {
             return await _unitOfWork.OrderPayments
-                .Find(p => p.OrderId == orderId && p.Type == OrderPaymentTypeEnum.refund && p.Status == OrderPaymentStatusEnum.Paid)
+                .Find(p => p.OrderId == orderId && p.Type == OrderPaymentTypeEnum.Refund && p.Status == OrderPaymentStatusEnum.Paid)
                 .SumAsync(p => p.Amount); 
         }
 
         public async Task<decimal> GetTotalRefundedOverallAsync(int? storeId = null, DateTime? fromDate = null, DateTime? toDate = null)
         {
             var query = _unitOfWork.OrderPayments
-                .Find(p => p.Type == OrderPaymentTypeEnum.refund && p.Status == OrderPaymentStatusEnum.Paid)
+                .Find(p => p.Type == OrderPaymentTypeEnum.Refund && p.Status == OrderPaymentStatusEnum.Paid)
                 .AsQueryable();
 
             if (storeId.HasValue)
@@ -227,5 +314,40 @@ namespace drinking_be.Services
             return await query.SumAsync(p => p.Amount); // Số âm
         }
 
+
+        public async Task<bool> ProcessSePayWebhookAsync(SePayWebhookDto payload)
+        {
+            // 1. Tìm đơn hàng dựa trên nội dung chuyển khoản (chứa OrderCode)
+            // Cần một logic tìm kiếm thông minh vì nội dung CK có thể có ký tự thừa
+            var orderCode = ExtractOrderCodeFromContent(payload.Content);
+            if (string.IsNullOrEmpty(orderCode)) return false;
+
+            var order = await _unitOfWork.Orders.Find(o => o.OrderCode == orderCode).FirstOrDefaultAsync();
+            if (order == null) return false;
+
+            // 2. Tìm hoặc tạo OrderPayment tương ứng
+            var payment = await _unitOfWork.OrderPayments.Find(p => p.OrderId == order.Id && p.Status == OrderPaymentStatusEnum.Pending).FirstOrDefaultAsync();
+
+            if (payment == null)
+            {
+                // Nếu không tìm thấy payment pending, có thể khách chuyển thẳng không qua nút "Thanh toán ngay"
+                // Tùy nghiệp vụ bạn có muốn tự tạo record mới không
+                return false;
+            }
+
+            // 3. (Tùy chọn) Kiểm tra số tiền chuyển có khớp không
+            // if (payload.transferAmount < payment.Amount) { /* Xử lý thiếu tiền */ }
+
+            // 4. Gọi hàm MarkPaymentSuccessAsync đã có sẵn (hoặc tái sử dụng logic trong đó)
+            return await MarkPaymentSuccessAsync(payment.Id, payload.Code);
+        }
+
+        // Helper function để trích xuất mã đơn hàng
+        private string ExtractOrderCodeFromContent(string content)
+        {
+            // Thay đổi regex tùy thuộc vào định dạng mã đơn hàng của bạn (VD: ORD-2603-ABCD)
+            var match = System.Text.RegularExpressions.Regex.Match(content, @"ORD-\d+-[A-Z0-9]{4}", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return match.Success ? match.Value.ToUpper() : string.Empty;
+        }
     }
 }

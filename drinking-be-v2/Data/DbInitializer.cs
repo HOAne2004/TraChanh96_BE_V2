@@ -898,7 +898,7 @@ namespace drinking_be.Data
                 context.PaymentMethods.AddRange(
                     new PaymentMethod
                     {
-                        Name = "Thanh toán khi nhận hàng (COD)",
+                        Name = "Thanh toán khi nhận hàng",
                         PaymentType = PaymentTypeEnum.COD,
                         ImageUrl = "https://cdn-icons-png.flaticon.com/512/2331/2331941.png",
                         ProcessingFee = 0,
@@ -908,7 +908,7 @@ namespace drinking_be.Data
                     },
                     new PaymentMethod
                     {
-                        Name = "Chuyển khoản Ngân hàng (VietQR)",
+                        Name = "Chuyển khoản Ngân hàng",
                         PaymentType = PaymentTypeEnum.BankTransfer,
                         ImageUrl = "https://img.vietqr.io/image/MB-123456789-compact2.png", // Demo
                         // Cấu hình VietQR
@@ -930,6 +930,16 @@ namespace drinking_be.Data
                         ProcessingFee = 0,
                         SortOrder = 3,
                         Status = PublicStatusEnum.Inactive, // Tạm tắt để demo tính năng Toggle
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new PaymentMethod
+                    {
+                        Name = "Thanh toán qua VNPAY",
+                        PaymentType = PaymentTypeEnum.VNPay, 
+                        ImageUrl = "https://vnpay.vn/s1/vnpay/logo.svg",
+                        ProcessingFee = 0,
+                        SortOrder = 4,
+                        Status = PublicStatusEnum.Active,
                         CreatedAt = DateTime.UtcNow
                     }
                 );
