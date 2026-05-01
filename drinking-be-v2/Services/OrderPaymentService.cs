@@ -359,7 +359,7 @@ namespace drinking_be.Services
         {
             // 1. Tìm đơn hàng dựa trên nội dung chuyển khoản (chứa OrderCode)
             // Cần một logic tìm kiếm thông minh vì nội dung CK có thể có ký tự thừa
-            var orderCode = ExtractOrderCodeFromContent(payload.Content);
+            var orderCode = ExtractOrderCodeFromContent(payload.Content!);
             if (string.IsNullOrEmpty(orderCode)) return false;
 
             var order = await _unitOfWork.Orders.Find(o => o.OrderCode == orderCode).FirstOrDefaultAsync();
@@ -379,7 +379,7 @@ namespace drinking_be.Services
             // if (payload.transferAmount < payment.Amount) { /* Xử lý thiếu tiền */ }
 
             // 4. Gọi hàm MarkPaymentSuccessAsync đã có sẵn (hoặc tái sử dụng logic trong đó)
-            return await MarkPaymentSuccessAsync(payment.Id, payload.Code);
+            return await MarkPaymentSuccessAsync(payment.Id, payload.Code!);
         }
 
         // Helper function để trích xuất mã đơn hàng

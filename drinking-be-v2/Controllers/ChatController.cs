@@ -24,10 +24,10 @@ namespace drinking_be.Controllers
             // 1. Trích xuất UserId từ Token (Nếu khách đã đăng nhập)
             // Lưu ý: Đổi ClaimTypes.NameIdentifier thành claim tương ứng mà JwtGenerator của bạn đang dùng (VD: "id", "userId"...)
             int? userId = null;
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                           ?? User.FindFirst("id")?.Value;
 
-            if (int.TryParse(userIdClaim, out int parsedUserId))
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+
+            if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out int parsedUserId))
             {
                 userId = parsedUserId;
             }
