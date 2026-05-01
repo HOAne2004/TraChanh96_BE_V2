@@ -345,9 +345,23 @@ namespace drinking_be.Services
         // Helper function để trích xuất mã đơn hàng
         private string ExtractOrderCodeFromContent(string content)
         {
-            // Thay đổi regex tùy thuộc vào định dạng mã đơn hàng của bạn (VD: ORD-2603-ABCD)
-            var match = System.Text.RegularExpressions.Regex.Match(content, @"ORD-\d+-[A-Z0-9]{4}", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            return match.Success ? match.Value.ToUpper() : string.Empty;
+            // Regex bắt chữ ORD, theo sau là cụm số (Group 1), và cụm 4 chữ số đuôi (Group 2)
+            // Dấu [- ]? nghĩa là có thể có hoặc không có dấu gạch ngang/khoảng trắng
+            var match = System.Text.RegularExpressions.Regex.Match(
+                content,
+                @"ORD[- ]?(\d+)[- ]?([A-Z0-9]{4})",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            if (match.Success)
+            {
+                // Lắp ráp lại thành chuẩn ORD-XXXXXX-YYYY để query vào Database
+                string numberPart = match.Groups[1].Value;
+                string tailPart = match.Groups[2].Value;
+
+                return $"ORD-{numberPart}-{tailPart}".ToUpper();
+            }
+
+            return string.Empty;
         }
     }
 }
