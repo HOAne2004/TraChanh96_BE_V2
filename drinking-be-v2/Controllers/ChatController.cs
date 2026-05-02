@@ -1,9 +1,10 @@
-﻿using System;
+﻿using drinking_be.Dtos.ChatDtos;
+using drinking_be.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using drinking_be.Dtos.ChatDtos;
-using drinking_be.Interfaces;
 
 namespace drinking_be.Controllers
 {
@@ -47,6 +48,15 @@ namespace drinking_be.Controllers
             }
 
             return BadRequest(response); // Trả về lỗi 400 nếu hệ thống AI hoặc DB gặp sự cố
+        }
+
+        [HttpPost("admin/generate-content")]
+        [Authorize(Roles = "Admin")] // Bảo mật endpoint
+        public async Task<IActionResult> GenerateContent([FromBody] GenerateContentRequest request)
+        {
+            var result = await _aiService.GenerateMarkdownContentAsync(request.Prompt, request.ContentType);
+            if (result.Success) return Ok(result);
+            return BadRequest(result);
         }
     }
 }

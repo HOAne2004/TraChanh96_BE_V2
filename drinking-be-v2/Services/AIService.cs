@@ -10,9 +10,11 @@ using drinking_be.Interfaces.StoreInterfaces;
 using drinking_be.Models;
 using drinking_be.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging;
 
 namespace drinking_be.Services
 {
@@ -26,6 +28,8 @@ namespace drinking_be.Services
         private readonly IStoreService _storeService;
         private readonly IBrandService _brandService;
 
+        private readonly IMemoryCache _cache;
+        private readonly ILogger<AIService> _logger;
         // SỬ DỤNG BẢN LATEST ĐỂ TRÁNH LỖI QUOTA
         private const string ModelUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
@@ -36,7 +40,9 @@ namespace drinking_be.Services
             ICartService cartService,
             IProductService productService,
             IStoreService storeService,
-            IBrandService brandService)
+            IBrandService brandService,
+            IMemoryCache cache,         
+            ILogger<AIService> logger)
         {
             _context = context;
             _httpClient = httpClient;
@@ -44,8 +50,9 @@ namespace drinking_be.Services
             _cartService = cartService;
             _productService = productService;
             _storeService = storeService;
-            _productService = productService;
             _brandService = brandService;
+            _cache = cache;
+            _logger = logger;
         }
 
         // ==============================================================================
@@ -91,6 +98,77 @@ namespace drinking_be.Services
             return response;
         }
 
+        public async Task<ServiceResponse<string>> GenerateMarkdownContentAsync(string prompt, string contentType)
+        {
+            var response = new ServiceResponse<string>();
+
+            // 1. CACHING LAYER: Kiểm tra xem đã generate nội dung này chưa
+            string cacheKey = $"AI_Content:{contentType}:{prompt.GetHashCode()}";
+            if (_cache.TryGetValue(cacheKey, out var cacheObj) && cacheObj is string cachedContent)
+            {
+                _logger.LogInformation("Lấy content từ Cache cho prompt: {prompt}", prompt);
+                response.Data = cachedContent;
+                response.Success = true;
+                return response;
+            }
+
+            try
+            {
+                var fullPrompt = BuildContentPrompt(contentType);
+                var requestBody = new
+                {
+                    system_instruction = new { parts = new[] { new { text = fullPrompt } } },
+                    contents = new[] { new { role = "user", parts = new[] { new { text = prompt } } } }
+                };
+                var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+                // 2. RETRY MECHANISM: Thử tối đa 3 lần nếu output bị lỗi format
+                int maxRetries = 3;
+                for (int i = 0; i < maxRetries; i++)
+                {
+                    int attempt = i + 1;
+                    var apiResponse = await _httpClient.PostAsync($"{ModelUrl}?key={_apiKey}", jsonContent);
+
+                    if (!apiResponse.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Gemini API gọi thất bại lần {attempt}. Status: {status}", attempt, apiResponse.StatusCode);
+                        continue; // Lỗi mạng/API thì thử lại
+                    }
+
+                    var responseString = await apiResponse.Content.ReadAsStringAsync();
+                    var jsonDoc = JsonNode.Parse(responseString);
+                    var generatedText = jsonDoc?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
+
+                    // 3. VALIDATION LAYER: Kiểm duyệt gắt gao output
+                    if (IsValidMarkdown(generatedText))
+                    {
+                        // Lưu vào cache 24h để tiết kiệm tiền API
+                        var cacheOptions = new MemoryCacheEntryOptions()
+                            .SetAbsoluteExpiration(TimeSpan.FromHours(24));
+                        _cache.Set(cacheKey, generatedText!, cacheOptions);
+
+                        response.Data = generatedText;
+                        response.Success = true;
+                        return response;
+                    }
+
+                    _logger.LogWarning("Output AI vi phạm định dạng Markdown. Thử lại lần {attempt}...", attempt);
+                }
+
+                // Nếu quá 3 lần vẫn fail
+                response.Success = false;
+                response.Message = "Hệ thống AI hiện không thể tạo được nội dung đúng định dạng. Vui lòng thử lại sau.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi nghiêm trọng khi Generate Content");
+                response.Success = false;
+                response.Message = "Đã xảy ra lỗi trong quá trình kết nối với AI.";
+            }
+
+            return response;
+        }
+
         // ==============================================================================
         // 2. CÁC HÀM PRIVATE XỬ LÝ NGHIỆP VỤ (CLEAN ARCHITECTURE)
         // ==============================================================================
@@ -115,9 +193,9 @@ namespace drinking_be.Services
             return session;
         }
 
-        private async Task SaveAIMessageAsync(Guid sessionId, string content)
+        private async Task SaveAIMessageAsync(Guid sessionId, string? content)
         {
-            var aiMsg = new ChatMessage { Role = "model", Content = content, ChatSessionId = sessionId };
+            var aiMsg = new ChatMessage { Role = "model", Content = content ?? string.Empty, ChatSessionId = sessionId };
             _context.ChatMessages.Add(aiMsg);
             await _context.SaveChangesAsync();
         }
@@ -132,7 +210,9 @@ namespace drinking_be.Services
                 p.Name,
                 p.DisplayPrice,
                 p.IsSoldOut,
-                p.AllowedToppingIds
+                p.AllowedToppingIds,
+                p.CategoryName,
+                ProductType = p.ProductType.ToString()
             }).ToList() ?? new List<dynamic>();
 
             // 2.2. Lấy trạng thái Giỏ Hàng hiện tại (Để AI biết khách đang có gì mà sửa đổi)
@@ -260,8 +340,8 @@ namespace drinking_be.Services
         {
             var historyContents = messages.OrderBy(m => m.Timestamp).Select(m => new
             {
-                role = m.Role,
-                parts = new[] { new { text = m.Content } }
+                role = m.Role ?? string.Empty,
+                parts = new[] { new { text = m.Content ?? string.Empty } }
             }).ToArray();
 
             bool isLoggedIn = userId.HasValue && userId.Value > 0;
@@ -287,12 +367,18 @@ namespace drinking_be.Services
                     QUY TẮC NGHIỆP VỤ BẮT BUỘC:
                     1. {loginStatusInstruction}
                     2. TRẢ LỜI CÂU HỎI PUBLIC: Nếu khách hỏi ngoài lề hoặc các thông tin bạn không biết, hãy trả lời lịch sự: 'Dạ thông tin này em đang cập nhật thêm, anh/chị cần hỗ trợ gì về order đồ uống không ạ?'
-                    3. THÊM MÓN MỚI: Dùng công cụ AddToCart. Ánh xạ: SizeId(1=S, 2=M, 3=L), SugarLevelId/IceLevelId(1=Bình thường, 2=Ít, 3=Không).
+                    3. THÊM MÓN MỚI: Dùng công cụ AddToCart. Ánh xạ các tùy chọn như sau:
+                    - SizeId: 1=S, 2=M, 3=L, 4=XL. (Luật mặc định nếu khách không chọn size: Các món thuộc danh mục 'Cà phê' -> Size S. Tất cả các món còn lại -> Size M).
+                    - SugarLevelId: 100=Bình thường/100%, 70=70%, 50=Ít/50%, 30=30%, 1=Không đường (Mặc định 100).
+                    - IceLevelId: 100=Bình thường/100%, 70=70%, 50=Ít/50%, 30=30%, 1=Không đá, 2=Ấm, 3=Nóng (Mặc định 100).                    
                     4. SỬA MÓN ĐÃ CÓ TRONG GIỎ: Nếu khách muốn thêm topping, đổi size cho một món ĐÃ CÓ trong giỏ, hãy đọc ID món trong 'Giỏ hàng hiện tại' và dùng công cụ UpdateCartItem. TUYỆT ĐỐI KHÔNG tạo mới.
-                    5. TOPPING: Chỉ thêm topping nếu mã Topping nằm trong AllowedToppingIds của món chính." } }
+                    5. TOPPING: Chỉ thêm topping nếu mã Topping nằm trong AllowedToppingIds của món chính.
+                    6. CHỐT ĐƠN: Khi khách đã đồng ý các món trong giỏ và muốn đặt hàng, bạn BẮT BUỘC phải tạo một liên kết Markdown trỏ tới trang thanh toán với cú pháp chính xác như sau: 
+                    [Xác nhận đơn hàng](/checkout) hoặc [Tới trang thanh toán](/checkout)
+                    Tuyệt đối không dùng dấu ngoặc kép thông thường như ""Xác nhận đơn hàng""." } }
                 },
                 contents = historyContents,
-                tools = new[]
+                tools = new[] 
                 {
                     new {
                         function_declarations = new object[] {
@@ -413,9 +499,45 @@ namespace drinking_be.Services
             return result;
         }
 
-        // ==============================================================================
+        private string BuildContentPrompt(string contentType)
+        {
+            // Cấu trúc Prompt "Hard Constraint" chống Hallucination
+            string roleBase = contentType.ToLower() == "product"
+                ? "viết mô tả sản phẩm đồ uống thật hấp dẫn, độ dài 120-200 từ, kích thích vị giác"
+                : "viết bài blog chia sẻ kiến thức/tin tức chuẩn SEO, độ dài 300-600 từ";
+
+            return $@"Bạn là một Copywriter chuyên nghiệp cho chuỗi cửa hàng đồ uống.
+            Nhiệm vụ: {roleBase}.
+
+            QUY TẮC BẮT BUỘC BẰNG MỌI GIÁ (SẼ BỊ TỪ CHỐI NẾU VI PHẠM):
+            1. CHỈ trả về văn bản Markdown hợp lệ. TUYỆT ĐỐI KHÔNG bọc kết quả trong thẻ ```markdown ... ```.
+            2. CẤU TRÚC BẮT BUỘC: 
+               - Phải có 1 heading chính (##).
+               - Phải có ít nhất 2 heading phụ (###).
+               - Phải sử dụng Bullet points (- hoặc *) để liệt kê.
+               - Phải in đậm (**text**) các từ khóa quan trọng hoặc nguyên liệu nổi bật.
+            3. NGÔN NGỮ: Tiếng Việt tự nhiên, hấp dẫn.
+            4. KHÔNG sử dụng bất kỳ thẻ HTML nào (như <br>, <p>, <b>).
+            5. KHÔNG giải thích, KHÔNG thêm lời chào (như 'Dưới đây là...', 'Hy vọng...'). Chỉ trả về duy nhất nội dung bài viết.";
+        }
+
+        private bool IsValidMarkdown(string? content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return false;
+
+            // Kiểm tra không chứa thẻ HTML
+            if (content.Contains("<div>") || content.Contains("<p>") || content.Contains("<br>"))
+                return false;
+
+            // Kiểm tra cấu trúc bắt buộc: Có H2, H3 và Bullet points
+            bool hasH2 = content.Contains("## ");
+            bool hasH3 = content.Contains("### ");
+            bool hasList = content.Contains("- ") || content.Contains("* ");
+
+            return hasH2 && hasH3 && hasList;
+        }        // ============================================================================== 
         // LỚP VALIDATION
-        // ==============================================================================
+        // ============================================================================== ==============
         public class AIOrderValidationResult
         {
             public List<string> Errors { get; set; } = new();

@@ -1,15 +1,16 @@
 ﻿using AutoMapper;
-using drinking_be.Data;
 using drinking_be.Domain.Orders;
 using drinking_be.Domain.Services;
 using drinking_be.Dtos.Common;
 using drinking_be.Dtos.NotificationDtos;
 using drinking_be.Dtos.OrderDtos;
 using drinking_be.Enums;
+using drinking_be.Hubs;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.MarketingInterfaces;
 using drinking_be.Interfaces.OrderInterfaces;
 using drinking_be.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace drinking_be.Services
@@ -24,15 +25,16 @@ namespace drinking_be.Services
         // Domain Services (DDD Lite)
         private readonly ShippingCalculator _shippingCalculator;
         private readonly OrderPriceCalculator _priceCalculator;
-
-        public OrderService(
+        private readonly IHubContext<NotificationHub> _hubContext; public OrderService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             IOrderPaymentService orderPaymentService,
             INotificationService notificationService,
             IUserVoucherService voucherService,
             ShippingCalculator shippingCalculator,
-            OrderPriceCalculator priceCalculator
+            OrderPriceCalculator priceCalculator,
+            IHubContext<NotificationHub> hubContext
+
         )
         {
             _unitOfWork = unitOfWork;
@@ -42,6 +44,7 @@ namespace drinking_be.Services
             _voucherService = voucherService;
             _shippingCalculator = shippingCalculator;
             _priceCalculator = priceCalculator;
+            _hubContext = hubContext;
         }
 
         public class AppException : Exception
@@ -492,6 +495,11 @@ namespace drinking_be.Services
             order.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Orders.Update(order);
             await _unitOfWork.CompleteAsync();
+            if(order.UserId.HasValue)
+            {
+                await _hubContext.Clients.User(order.UserId.ToString())
+                 .SendAsync("OrderStatusChanged", order.OrderCode, order.Status);
+            }
 
             if (order.UserId.HasValue)
             {

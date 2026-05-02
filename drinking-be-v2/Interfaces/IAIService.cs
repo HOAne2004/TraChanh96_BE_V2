@@ -13,5 +13,7 @@ namespace drinking_be.Interfaces
         /// <param name="userId">ID người dùng (nếu đã đăng nhập, null nếu là khách).</param>
         /// <param name="userMessage">Nội dung khách hàng chat.</param>
         Task<ServiceResponse<AIChatResponseDto>> SendMessageAsync(int storeId, Guid sessionId, int? userId, string userMessage);
+
+        Task<ServiceResponse<string>> GenerateMarkdownContentAsync(string prompt, string contentType);
     }
 }

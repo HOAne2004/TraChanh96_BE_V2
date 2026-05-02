@@ -33,7 +33,6 @@ var builder = WebApplication.CreateBuilder(args);
 // Thêm dịch vụ SignalR dùng trong thông báo real-time
 builder.Services.AddSignalR();
 
-
 // --- 1.1. CẤU HÌNH DATABASE ---
 
 builder.Services.AddDbContext<DBDrinkContext>(options =>
@@ -80,6 +79,7 @@ builder.Services.AddScoped<Supabase.Client>(_ =>
     }));
 
 // --- 3. CẤU HÌNH CƠ BẢN ---
+builder.Services.AddMemoryCache();
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddControllers()
@@ -263,7 +263,6 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
 });
-
 // ==========================================================
 // ⭐️ QUAN TRỌNG: MỌI CẤU HÌNH builder.Services PHẢI NẰM TRÊN DÒNG NÀY
 var app = builder.Build();
