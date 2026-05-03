@@ -19,6 +19,6 @@ namespace drinking_be.Dtos.ShopTableDtos
         // Cập nhật bàn mẹ (chỉ dùng khi thay đổi cấu hình gộp bàn)
         public int? MergedWithTableId { get; set; }
 
-        public PublicStatusEnum? Status { get; set; }
+        public TableStatusEnum? Status { get; set; }
     }
 }

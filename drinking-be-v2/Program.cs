@@ -150,6 +150,7 @@ builder.Services.AddScoped<IPayslipService, PayslipService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IShopTableService, ShopTableService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
+builder.Services.AddScoped<IStoreAnalyticsService, StoreAnalyticsService>();
 
 // --- D. PRODUCT & INVENTORY ---
 builder.Services.AddScoped<ICategoryService, CategoryService>();

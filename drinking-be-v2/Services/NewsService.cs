@@ -4,7 +4,8 @@ using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.MarketingInterfaces;
 using drinking_be.Models;
-using drinking_be.Utils; // Cần class SlugGenerator
+using drinking_be.Utils;
+using Microsoft.EntityFrameworkCore; 
 
 namespace drinking_be.Services
 {
@@ -49,29 +50,58 @@ namespace drinking_be.Services
 
         // --- ADMIN METHODS ---
 
-        public async Task<IEnumerable<NewsReadDto>> GetAllNewsAsync(string? search, ContentStatusEnum? status)
+        public async Task<PagedResult<NewsReadDto>> GetAllNewsAsync(string? search, ContentStatusEnum? status, int pageIndex = 1, int pageSize = 10)
         {
+            // Đảm bảo tham số phân trang hợp lệ
+            if (pageIndex < 1) pageIndex = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100; // Bảo vệ khỏi request quá lớn
+
             var repo = _unitOfWork.Repository<News>();
 
-            var query = await repo.GetAllAsync(
-                includeProperties: "User",
-                orderBy: q => q.OrderByDescending(n => n.CreatedAt)
-            );
+            // 1. Tạo query cơ bản
+            var query = repo.GetQueryable()
+                .Include(n => n.User)
+                .AsQueryable();
 
-            // 1. Lọc theo trạng thái
+            // 2. Lọc theo trạng thái
             if (status.HasValue)
             {
                 query = query.Where(n => n.Status == status.Value);
             }
-
-            // 2. Tìm kiếm
-            if (!string.IsNullOrEmpty(search))
+            else
             {
-                search = search.ToLower();
-                query = query.Where(n => n.Title.ToLower().Contains(search));
+                // Mặc định thường sẽ ẩn các tin đã xóa, trừ khi có filter rõ ràng
+                query = query.Where(n => n.Status != ContentStatusEnum.Deleted);
             }
 
-            return _mapper.Map<IEnumerable<NewsReadDto>>(query);
+            // 3. Tìm kiếm
+            if (!string.IsNullOrEmpty(search))
+            {
+                var lowerSearch = search.ToLower();
+                query = query.Where(n => n.Title.ToLower().Contains(lowerSearch));
+            }
+
+            // 4. Đếm tổng số bản ghi (Quan trọng: Đếm TRƯỚC khi phân trang)
+            var totalCount = await query.CountAsync();
+
+            // 5. Phân trang và sắp xếp
+            var newsList = await query
+                .OrderByDescending(n => n.CreatedAt)
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // 6. Map sang DTO và đóng gói vào PagedResult
+            var dtoList = _mapper.Map<IEnumerable<NewsReadDto>>(newsList);
+
+            return new PagedResult<NewsReadDto>
+            {
+                Items = dtoList,
+                TotalCount = totalCount,
+                PageIndex = pageIndex,
+                PageSize = pageSize
+            };
         }
 
         public async Task<NewsReadDto?> GetNewsByIdAsync(int id)

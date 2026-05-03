@@ -1978,7 +1978,7 @@ public partial class DBDrinkContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("deleted_at");
             entity.Property(e => e.Status)
-                .HasDefaultValue(PublicStatusEnum.Active)
+                .HasDefaultValue(TableStatusEnum.Available)
                 .HasColumnName("status")
                 .HasConversion<short>();
             entity.Property(e => e.MergedWithTableId).HasColumnName("merged_with_table_id");

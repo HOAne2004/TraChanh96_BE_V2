@@ -1,7 +1,7 @@
-﻿using drinking_be.Dtos.StoreDtos;
+﻿using drinking_be.Dtos;
+using drinking_be.Dtos.StoreDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces.StoreInterfaces;
-using drinking_be.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,10 +13,12 @@ namespace drinking_be.Controllers
     {
         private readonly IStoreService _storeService;
         private readonly IStoreMenuService _storeMenuService;
-        public StoreController(IStoreService storeService, IStoreMenuService storeMenuService)
+        private IStoreAnalyticsService _storeAnalyticsService;
+        public StoreController(IStoreService storeService, IStoreMenuService storeMenuService, IStoreAnalyticsService storeAnalyticsService)
         {
             _storeService = storeService;
             _storeMenuService = storeMenuService;
+            _storeAnalyticsService = storeAnalyticsService;
         }
 
         // --- PUBLIC ---
@@ -112,6 +114,14 @@ namespace drinking_be.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        [HttpGet("{storeId}/dashboard")]
+        [Authorize(Roles = "Admin, Staff")] // Cấp quyền
+        public async Task<IActionResult> GetDashboard(int storeId, [FromQuery] string timeFilter = "today")
+        {
+            var data = await _storeAnalyticsService.GetStoreDashboardAsync(storeId, timeFilter);
+            return Ok(new ApiResponse<StoreDashboardDto>(data, "Lấy thống kê thành công"));
         }
     }
 }

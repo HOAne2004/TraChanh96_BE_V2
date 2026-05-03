@@ -24,6 +24,6 @@ namespace drinking_be.Dtos.ShopTableDtos
         // Nếu bàn này được tạo ra để là một phần của bàn gộp, ta gán MergedWithTableId
         public int? MergedWithTableId { get; set; }
 
-        public PublicStatusEnum Status { get; set; } = PublicStatusEnum.Active;
+        public TableStatusEnum Status { get; set; } = TableStatusEnum.Available;
     }
 }
