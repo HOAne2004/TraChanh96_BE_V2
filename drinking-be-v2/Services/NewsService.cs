@@ -5,7 +5,9 @@ using drinking_be.Interfaces;
 using drinking_be.Interfaces.MarketingInterfaces;
 using drinking_be.Models;
 using drinking_be.Utils;
+using drinking_be.Dtos.Common;
 using Microsoft.EntityFrameworkCore; 
+
 
 namespace drinking_be.Services
 {
@@ -93,12 +95,12 @@ namespace drinking_be.Services
                 .ToListAsync();
 
             // 6. Map sang DTO và đóng gói vào PagedResult
-            var dtoList = _mapper.Map<IEnumerable<NewsReadDto>>(newsList);
+            var dtoList = _mapper.Map<IEnumerable<NewsReadDto>>(newsList).ToList();
 
             return new PagedResult<NewsReadDto>
             {
                 Items = dtoList,
-                TotalCount = totalCount,
+                TotalRecords = totalCount,
                 PageIndex = pageIndex,
                 PageSize = pageSize
             };

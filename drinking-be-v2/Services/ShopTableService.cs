@@ -24,9 +24,8 @@ namespace drinking_be.Services
             var repo = _unitOfWork.Repository<ShopTable>();
 
             // Lấy danh sách bàn active
-            // Include Room và Store
             var query = await repo.GetAllAsync(
-                filter: t => t.StoreId == storeId && t.Status == PublicStatusEnum.Active,
+                filter: t => t.StoreId == storeId && t.Status != TableStatusEnum.OutOfService,
                 orderBy: q => q.OrderBy(t => t.Name),
                 includeProperties: "Store,Room"
             );
@@ -76,6 +75,7 @@ namespace drinking_be.Services
 
             // 3. Tạo mới
             var table = _mapper.Map<ShopTable>(dto);
+            table.Status = TableStatusEnum.Available;
             table.CreatedAt = DateTime.UtcNow;
 
             await repo.AddAsync(table);
@@ -121,7 +121,7 @@ namespace drinking_be.Services
             if (table == null) return false;
 
             // Soft Delete
-            table.Status = PublicStatusEnum.Inactive;
+            table.Status = TableStatusEnum.OutOfService;
             table.DeletedAt = DateTime.UtcNow;
 
             // Nếu bàn này đang là bàn mẹ, cần giải phóng các bàn con (Optional)

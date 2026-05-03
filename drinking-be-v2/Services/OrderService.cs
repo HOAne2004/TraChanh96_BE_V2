@@ -491,17 +491,21 @@ namespace drinking_be.Services
                 }
             }
 
+            // Capture nullable user id before any awaits to preserve nullability state for later use.
+            int? capturedUserId = order.UserId;
+
             order.Status = newStatus;
             order.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.Orders.Update(order);
             await _unitOfWork.CompleteAsync();
-            if(order.UserId.HasValue)
+
+            if (capturedUserId.HasValue)
             {
-                await _hubContext.Clients.User(order.UserId.ToString())
+                await _hubContext.Clients.User(capturedUserId.Value.ToString())
                  .SendAsync("OrderStatusChanged", order.OrderCode, order.Status);
             }
 
-            if (order.UserId.HasValue)
+            if (capturedUserId.HasValue)
             {
                 string msg = newStatus switch
                 {
@@ -517,7 +521,7 @@ namespace drinking_be.Services
                 {
                     await _notificationService.CreateAsync(new NotificationCreateDto
                     {
-                        UserId = order.UserId.Value,
+                        UserId = capturedUserId.Value,
                         Title = "Cập nhật đơn hàng",
                         Content = msg,
                         Type = NotificationTypeEnum.Order,

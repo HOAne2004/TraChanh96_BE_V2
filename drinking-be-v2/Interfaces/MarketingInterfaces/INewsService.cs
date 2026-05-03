@@ -1,5 +1,6 @@
 ﻿using drinking_be.Dtos.NewsDtos;
 using drinking_be.Enums;
+using drinking_be.Dtos.Common;
 
 namespace drinking_be.Interfaces.MarketingInterfaces
 {
@@ -12,7 +13,7 @@ namespace drinking_be.Interfaces.MarketingInterfaces
         Task<NewsReadDto?> GetNewsBySlugAsync(string slug);
 
         // Admin: Lấy tất cả tin (kể cả Draft, Hidden...)
-        Task<IEnumerable<NewsReadDto>> GetAllNewsAsync(string? search, ContentStatusEnum? status);
+        Task<PagedResult<NewsReadDto>> GetAllNewsAsync(string? search, ContentStatusEnum? status, int pageIndex = 1, int pageSize = 10);
 
         // Admin: Lấy chi tiết theo ID
         Task<NewsReadDto?> GetNewsByIdAsync(int id);

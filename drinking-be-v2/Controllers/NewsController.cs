@@ -1,6 +1,8 @@
-﻿using drinking_be.Dtos.NewsDtos;
+﻿using drinking_be.Dtos;
+using drinking_be.Dtos.NewsDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces.MarketingInterfaces;
+using drinking_be.Dtos.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -59,10 +61,10 @@ namespace drinking_be.Controllers
 
         [HttpGet("admin")] // Route: /api/news/admin
         [Authorize(Roles = "Admin,Manager")]
-        public async Task<IActionResult> GetAllNews([FromQuery] string? search, [FromQuery] ContentStatusEnum? status)
+        public async Task<IActionResult> GetAllAdmin([FromQuery] string? search, [FromQuery] ContentStatusEnum? status, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _newsService.GetAllNewsAsync(search, status);
-            return Ok(result);
+            var result = await _newsService.GetAllNewsAsync(search, status, pageIndex, pageSize);
+            return Ok(new ApiResponse<PagedResult<NewsReadDto>>(result, "Lấy danh sách thành công"));
         }
 
         [HttpPost]

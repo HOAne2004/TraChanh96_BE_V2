@@ -64,7 +64,7 @@ namespace drinking_be.Services
                           && oi.Order.CreatedAt >= startDate
                           && oi.Order.CreatedAt <= endDate
                           && oi.Order.Status != OrderStatusEnum.Cancelled)
-                .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.ImageUrl })
+                .GroupBy(oi => new { oi.ProductId, oi.Product!.Name, oi.Product.ImageUrl })
                 .Select(g => new TopProductDto
                 {
                     Id = g.Key.ProductId,
