@@ -41,7 +41,7 @@ namespace drinking_be.Services
             IProductService productService,
             IStoreService storeService,
             IBrandService brandService,
-            IMemoryCache cache,         
+            IMemoryCache cache,
             ILogger<AIService> logger)
         {
             _context = context;
@@ -140,7 +140,7 @@ namespace drinking_be.Services
                     var generatedText = jsonDoc?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
 
                     // 3. VALIDATION LAYER: Kiểm duyệt gắt gao output
-                    if (IsValidMarkdown(generatedText))
+                    if (IsValidMarkdown(generatedText, contentType))
                     {
                         // Lưu vào cache 24h để tiết kiệm tiền API
                         var cacheOptions = new MemoryCacheEntryOptions()
@@ -205,7 +205,8 @@ namespace drinking_be.Services
         {
             // 2.1. Lấy Menu
             var menuResult = await _productService.GetMenuByStoreAsync(storeId, null, null);
-            var simplifiedMenu = menuResult?.Select(p => (dynamic)new {
+            var simplifiedMenu = menuResult?.Select(p => (dynamic)new
+            {
                 p.Id,
                 p.Name,
                 p.DisplayPrice,
@@ -225,7 +226,8 @@ namespace drinking_be.Services
 
                 if (cart != null && cart.Items != null && cart.Items.Any())
                 {
-                    currentCart = cart.Items.Select(i => new {
+                    currentCart = cart.Items.Select(i => new
+                    {
                         i.Id,
                         i.ProductName,
                         i.Quantity,
@@ -244,18 +246,19 @@ namespace drinking_be.Services
                     .FirstOrDefaultAsync(a => a.UserId == userId.Value && a.IsDefault == true);
 
                 // Ensure nullable coordinates have values before accessing .Value
-                    if (userAddress != null && userAddress.Latitude.HasValue && userAddress.Longitude.HasValue)
-                    {
-                        // Lấy tất cả các cửa hàng đang hoạt động kèm địa chỉ
-                        var activeStores = await _context.Stores
-                            .Include(s => s.Address)
-                            .Where(s => s.Status == StoreStatusEnum.Active) 
-                            .ToListAsync();
+                if (userAddress != null && userAddress.Latitude.HasValue && userAddress.Longitude.HasValue)
+                {
+                    // Lấy tất cả các cửa hàng đang hoạt động kèm địa chỉ
+                    var activeStores = await _context.Stores
+                        .Include(s => s.Address)
+                        .Where(s => s.Status == StoreStatusEnum.Active)
+                        .ToListAsync();
 
                     /// Tính khoảng cách
                     var storeDistances = activeStores
                         .Where(s => s.Address != null && s.Address.Latitude.HasValue && s.Address.Longitude.HasValue)
-                        .Select(s => new {
+                        .Select(s => new
+                        {
                             StoreId = s.Id,
                             StoreName = s.Name,
                             // Thay .Value bằng .GetValueOrDefault()
@@ -270,18 +273,18 @@ namespace drinking_be.Services
                         .ToList();
 
                     if (storeDistances.Any())
+                    {
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Hiện tại khách chưa chọn cửa hàng để order. Dưới đây là 5 cửa hàng gần với địa chỉ mặc định của khách nhất:");
+                        foreach (var s in storeDistances)
                         {
-                            var sb = new StringBuilder();
-                            sb.AppendLine("Hiện tại khách chưa chọn cửa hàng để order. Dưới đây là 5 cửa hàng gần với địa chỉ mặc định của khách nhất:");
-                            foreach (var s in storeDistances)
-                            {
-                                sb.AppendLine($"- Cửa hàng: {s.StoreName} (ID: {s.StoreId}) | Cách khoảng: {s.Distance:F1} km");
-                            }
-                            sb.AppendLine("YÊU CẦU CHO AI: Hãy thông báo cho khách biết họ đang ở gần cửa hàng nào nhất, và hỏi xem khách có muốn order tại cửa hàng đó không (với lời văn tự nhiên, thân thiện).");
-
-                            storeSuggestion = sb.ToString();
+                            sb.AppendLine($"- Cửa hàng: {s.StoreName} (ID: {s.StoreId}) | Cách khoảng: {s.Distance:F1} km");
                         }
+                        sb.AppendLine("YÊU CẦU CHO AI: Hãy thông báo cho khách biết họ đang ở gần cửa hàng nào nhất, và hỏi xem khách có muốn order tại cửa hàng đó không (với lời văn tự nhiên, thân thiện).");
+
+                        storeSuggestion = sb.ToString();
                     }
+                }
             }
 
             // 2.4. Lấy thông tin cửa hàng 
@@ -320,7 +323,8 @@ namespace drinking_be.Services
                 brandInfo.Slogan, // Thêm Slogan để AI giao tiếp có bản sắc hơn
 
                 // Nếu Policy có sẵn và không quá dài, trích xuất thêm ý chính
-                Policies = brandInfo.Policies?.Select(p => new {
+                Policies = brandInfo.Policies?.Select(p => new
+                {
                     p.Title, // Ví dụ: "Chính sách đổi trả"
                     p.Content // Cố gắng giữ Content ngắn gọn, hoặc tạo thêm trường Summary ở Policy
                 }).ToList()
@@ -378,7 +382,7 @@ namespace drinking_be.Services
                     Tuyệt đối không dùng dấu ngoặc kép thông thường như ""Xác nhận đơn hàng""." } }
                 },
                 contents = historyContents,
-                tools = new[] 
+                tools = new[]
                 {
                     new {
                         function_declarations = new object[] {
@@ -501,40 +505,88 @@ namespace drinking_be.Services
 
         private string BuildContentPrompt(string contentType)
         {
-            // Cấu trúc Prompt "Hard Constraint" chống Hallucination
-            string roleBase = contentType.ToLower() == "product"
-                ? "viết mô tả sản phẩm đồ uống thật hấp dẫn, độ dài 120-200 từ, kích thích vị giác"
-                : "viết bài blog chia sẻ kiến thức/tin tức chuẩn SEO, độ dài 300-600 từ";
+            string roleBase = "";
+            string structuralRules = "";
+
+            // Phân loại ngữ cảnh để thay đổi cả "Độ dài" lẫn "Định dạng bắt buộc"
+            switch (contentType.ToLower())
+            {
+                case "product":
+                    roleBase = "viết mô tả chi tiết sản phẩm đồ uống thật hấp dẫn, kích thích vị giác (khoảng 120-200 từ).";
+                    structuralRules = @"- Phải có 1 heading chính (##).
+   - Phải có ít nhất 1-2 heading phụ (###).
+   - Phải sử dụng Bullet points để liệt kê điểm nổi bật.
+   - Phải in đậm (**text**) các từ khóa quan trọng.";
+                    break;
+
+                case "product_ingredient": // <-- CASE BẠN ĐANG CẦN
+                case "ingredient":
+                    roleBase = "viết danh sách thành phần nguyên liệu cho đồ uống siêu ngắn gọn, trực quan (dưới 50 từ).";
+                    structuralRules = @"- KHÔNG CẦN sử dụng heading (## hay ###).
+   - BẮT BUỘC chỉ sử dụng Bullet points (kèm icon phù hợp như 🥛, 🍃, 🍋, 🧊) để gạch đầu dòng từng thành phần.
+   - Đi thẳng vào liệt kê, TUYỆT ĐỐI KHÔNG viết thành đoạn văn dài thượt.
+   - In đậm (**text**) tên nguyên liệu chính.";
+                    break;
+
+                case "store":
+                    roleBase = "viết mô tả giới thiệu không gian, vị trí và tiện ích của cửa hàng (khoảng 100-150 từ).";
+                    structuralRules = @"- Phải có 1 heading chính (##) tên cửa hàng hoặc câu slogan.
+   - Dùng Bullet points (kèm icon 📍, 🕒, 🛵, 📶) để liệt kê địa chỉ, giờ mở cửa, tiện ích.
+   - Lời văn thân thiện, mời gọi.";
+                    break;
+
+                case "blog":
+                    roleBase = "viết bài tin tức/blog chia sẻ kiến thức chuẩn SEO (khoảng 300-600 từ).";
+                    structuralRules = @"- Phải có 1 heading chính (##).
+   - Phải có ít nhất 2-3 heading phụ (###) chia bố cục rõ ràng.
+   - Phải in đậm (**text**) các từ khóa SEO.
+   - Cấu trúc mạch lạc, dẫn dắt chuyên nghiệp.";
+                    break;
+
+                default: // Dành cho các mô tả ngắn chung chung (short_desc, room...)
+                    roleBase = "viết một đoạn mô tả ngắn gọn, súc tích (khoảng 50-100 từ).";
+                    structuralRules = @"- Không yêu cầu chia heading phức tạp.
+   - Dùng Bullet points nếu cần liệt kê.
+   - Tập trung đi thẳng vào nội dung chính, không dài dòng.";
+                    break;
+            }
 
             return $@"Bạn là một Copywriter chuyên nghiệp cho chuỗi cửa hàng đồ uống.
-            Nhiệm vụ: {roleBase}.
+                    Nhiệm vụ: {roleBase}
 
-            QUY TẮC BẮT BUỘC BẰNG MỌI GIÁ (SẼ BỊ TỪ CHỐI NẾU VI PHẠM):
-            1. CHỈ trả về văn bản Markdown hợp lệ. TUYỆT ĐỐI KHÔNG bọc kết quả trong thẻ ```markdown ... ```.
-            2. CẤU TRÚC BẮT BUỘC: 
-               - Phải có 1 heading chính (##).
-               - Phải có ít nhất 2 heading phụ (###).
-               - Phải sử dụng Bullet points (- hoặc *) để liệt kê.
-               - Phải in đậm (**text**) các từ khóa quan trọng hoặc nguyên liệu nổi bật.
-            3. NGÔN NGỮ: Tiếng Việt tự nhiên, hấp dẫn.
-            4. KHÔNG sử dụng bất kỳ thẻ HTML nào (như <br>, <p>, <b>).
-            5. KHÔNG giải thích, KHÔNG thêm lời chào (như 'Dưới đây là...', 'Hy vọng...'). Chỉ trả về duy nhất nội dung bài viết.";
+                    QUY TẮC BẮT BUỘC BẰNG MỌI GIÁ (SẼ BỊ TỪ CHỐI NẾU VI PHẠM):
+                    1. CHỈ trả về văn bản Markdown hợp lệ. TUYỆT ĐỐI KHÔNG bọc kết quả trong thẻ ```markdown ... ```.
+                    2. CẤU TRÚC ĐỊNH DẠNG BẮT BUỘC:
+                    {structuralRules}
+                    3. NGÔN NGỮ: Tiếng Việt tự nhiên, hấp dẫn.
+                    4. KHÔNG sử dụng bất kỳ thẻ HTML nào (như <br>, <p>, <b>).
+                    5. KHÔNG giải thích, KHÔNG thêm lời chào (như 'Dưới đây là...', 'Hy vọng...'). Chỉ trả về duy nhất nội dung bài viết.";
         }
 
-        private bool IsValidMarkdown(string? content)
+        private bool IsValidMarkdown(string? content, string contentType)
         {
             if (string.IsNullOrWhiteSpace(content)) return false;
 
-            // Kiểm tra không chứa thẻ HTML
+            // Chặn thẻ HTML là luật chung
             if (content.Contains("<div>") || content.Contains("<p>") || content.Contains("<br>"))
                 return false;
 
-            // Kiểm tra cấu trúc bắt buộc: Có H2, H3 và Bullet points
-            bool hasH2 = content.Contains("## ");
-            bool hasH3 = content.Contains("### ");
-            bool hasList = content.Contains("- ") || content.Contains("* ");
+            // Với Product và Blog: Vẫn bắt buộc kiểm tra rất gắt (Phải có H2 và H3)
+            if (contentType == "product" || contentType == "blog")
+            {
+                bool hasH2 = content.Contains("## ");
+                bool hasH3 = content.Contains("### ");
+                return hasH2 && hasH3;
+            }
 
-            return hasH2 && hasH3 && hasList;
+            // Với Thành phần (Ingredient) hoặc các dạng ngắn: 
+            // Chỉ cần kiểm tra xem nó có dùng Bullet point (dấu -, *, hoặc emoji đầu dòng) là đạt chuẩn.
+            if (contentType == "product_ingredient" || contentType == "ingredient")
+            {
+                return content.Contains("- ") || content.Contains("* ") || content.Contains("\n");
+            }
+
+            return true; // Các trường hợp default khác cho qua
         }        // ============================================================================== 
         // LỚP VALIDATION
         // ============================================================================== ==============
