@@ -372,9 +372,10 @@ namespace drinking_be.Services
                     1. {loginStatusInstruction}
                     2. TRẢ LỜI CÂU HỎI PUBLIC: Nếu khách hỏi ngoài lề hoặc các thông tin bạn không biết, hãy trả lời lịch sự: 'Dạ thông tin này em đang cập nhật thêm, anh/chị cần hỗ trợ gì về order đồ uống không ạ?'
                     3. THÊM MÓN MỚI: Dùng công cụ AddToCart. Ánh xạ các tùy chọn như sau:
-                    - SizeId: 1=S, 2=M, 3=L, 4=XL. (Luật mặc định nếu khách không chọn size: Các món thuộc danh mục 'Cà phê' -> Size S. Tất cả các món còn lại -> Size M).
-                    - SugarLevelId: 100=Bình thường/100%, 70=70%, 50=Ít/50%, 30=30%, 1=Không đường (Mặc định 100).
-                    - IceLevelId: 100=Bình thường/100%, 70=70%, 50=Ít/50%, 30=30%, 1=Không đá, 2=Ấm, 3=Nóng (Mặc định 100).                    
+                        - StoreId: BẮT BUỘC truyền chính xác ID của cửa hàng mà khách đang muốn đặt (Tìm ID trong phần 'Thông tin các cửa hàng' hoặc 'Vị trí cửa hàng gần khách').
+                        - SizeId: 1=S, 2=M, 3=L, 4=XL. (Luật mặc định nếu khách không chọn size: Các món thuộc danh mục 'Cà phê' -> Size S. Tất cả các món còn lại -> Size M).
+                        - SugarLevelId: 100=Bình thường/100%, 70=70%, 50=Ít/50%, 30=30%, 1=Không đường (Mặc định 100).
+                        - IceLevelId: 100=Bình thường/100%, 70=70%, 50=Ít/50%, 30=30%, 1=Không đá, 2=Ấm, 3=Nóng (Mặc định 100).                   
                     4. SỬA MÓN ĐÃ CÓ TRONG GIỎ: Nếu khách muốn thêm topping, đổi size cho một món ĐÃ CÓ trong giỏ, hãy đọc ID món trong 'Giỏ hàng hiện tại' và dùng công cụ UpdateCartItem. TUYỆT ĐỐI KHÔNG tạo mới.
                     5. TOPPING: Chỉ thêm topping nếu mã Topping nằm trong AllowedToppingIds của món chính.
                     6. CHỐT ĐƠN: Khi khách đã đồng ý các món trong giỏ và muốn đặt hàng, bạn BẮT BUỘC phải tạo một liên kết Markdown trỏ tới trang thanh toán với cú pháp chính xác như sau: 
@@ -397,12 +398,13 @@ namespace drinking_be.Services
                                             items = new {
                                                 type = "OBJECT",
                                                 properties = new {
+                                                    StoreId = new { type = "INTEGER", description = "ID của cửa hàng khách đã chốt để đặt đồ" },
                                                     ProductId = new { type = "INTEGER" },
                                                     Quantity = new { type = "INTEGER" },
                                                     SizeId = new { type = "INTEGER" },
                                                     ToppingIds = new { type = "ARRAY", items = new { type = "INTEGER" } }
                                                 },
-                                                required = new[] { "ProductId", "Quantity" }
+                                                required = new[] { "StoreId", "ProductId", "Quantity" }
                                             }
                                         }
                                     },
@@ -622,7 +624,7 @@ namespace drinking_be.Services
                     continue;
                 }
 
-                item.StoreId = storeId;
+                item.StoreId = item.StoreId > 0 ? item.StoreId : storeId;
                 result.ValidItems.Add(item);
             }
             return result;
