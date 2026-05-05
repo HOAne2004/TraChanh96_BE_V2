@@ -26,7 +26,7 @@ namespace drinking_be.Services
         {
             try
             {
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "VerifyEmail.cshtml");
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "VerifyEmail.html");
                 
                 string templateContent = await System.IO.File.ReadAllTextAsync(templatePath);
                 templateContent = templateContent
@@ -64,7 +64,7 @@ namespace drinking_be.Services
         {
             try
             {
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "ResetPassword.cshtml");
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "ResetPassword.html");
 
                 string templateContent = await System.IO.File.ReadAllTextAsync(templatePath);
                 templateContent = templateContent
@@ -99,7 +99,7 @@ namespace drinking_be.Services
         {
             try
             {
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "OrderReceipt.cshtml");
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "OrderReceipt.html");
                 string templateContent = await System.IO.File.ReadAllTextAsync(templatePath);
 
                 // Build danh sách món hàng (bao gồm Topping)
@@ -177,7 +177,7 @@ namespace drinking_be.Services
         {
             try
             {
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "AdminPaymentAlert.cshtml");
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "AdminPaymentAlert.html");
                 string templateContent = await File.ReadAllTextAsync(templatePath);
 
                 string customerName = !string.IsNullOrEmpty(order.RecipientName) ? order.RecipientName : order.UserName;
