@@ -42,14 +42,14 @@ namespace drinking_be.Services
                     .Subject("Xác thực tài khoản - Trà chanh 96")
                     .Body(templateContent, isHtml: true);
 
-                var response = await email.SendAsync();
+                //var response = await email.SendAsync();
 
-                if (!response.Successful)
-                {
-                    var errors = string.Join(", ", response.ErrorMessages);
-                    _logger.LogError($"Gửi email thất bại đến {toEmail}. Lỗi: {errors}");
-                    throw new Exception($"Không thể gửi email xác thực: {errors}");
-                }
+                //if (!response.Successful)
+                //{
+                //    var errors = string.Join(", ", response.ErrorMessages);
+                //    _logger.LogError($"Gửi email thất bại đến {toEmail}. Lỗi: {errors}");
+                //    throw new Exception($"Không thể gửi email xác thực: {errors}");
+                //}
 
                 _logger.LogInformation($"[SUCCESS] Đã gửi mail thành công đến: {toEmail}");
             }
@@ -79,14 +79,14 @@ namespace drinking_be.Services
                     .Subject("Yêu cầu đặt lại mật khẩu - Trà chanh 96")
                     .Body(templateContent, isHtml: true);
 
-                var response = await email.SendAsync();
+                //var response = await email.SendAsync();
 
-                if (!response.Successful)
-                {
-                    var errors = string.Join(", ", response.ErrorMessages);
-                    _logger.LogError($"Gửi email reset pass thất bại đến {toEmail}. Lỗi: {errors}");
-                    throw new Exception($"Không thể gửi email: {errors}");
-                }
+                //if (!response.Successful)
+                //{
+                //    var errors = string.Join(", ", response.ErrorMessages);
+                //    _logger.LogError($"Gửi email reset pass thất bại đến {toEmail}. Lỗi: {errors}");
+                //    throw new Exception($"Không thể gửi email: {errors}");
+                //}
             }
             catch (Exception ex)
             {
@@ -156,16 +156,16 @@ namespace drinking_be.Services
                     .Subject($"Hóa đơn điện tử - Đơn hàng #{order.OrderCode} - Trà Chanh 1996")
                     .Body(templateContent, isHtml: true);
 
-                var response = await email.SendAsync();
+                //var response = await email.SendAsync();
 
-                if (!response.Successful)
-                {
-                    _logger.LogError($"Gửi hóa đơn thất bại đến {toEmail}. Lỗi: {string.Join(", ", response.ErrorMessages)}");
-                }
-                else
-                {
-                    _logger.LogInformation($"[SUCCESS] Đã gửi hóa đơn đến: {toEmail}");
-                }
+                //if (!response.Successful)
+                //{
+                //    _logger.LogError($"Gửi hóa đơn thất bại đến {toEmail}. Lỗi: {string.Join(", ", response.ErrorMessages)}");
+                //}
+                //else
+                //{
+                //    _logger.LogInformation($"[SUCCESS] Đã gửi hóa đơn đến: {toEmail}");
+                //}
             }
             catch (Exception ex)
             {
@@ -196,7 +196,7 @@ namespace drinking_be.Services
                     .Subject($"[TING TING] Đơn #{order.OrderCode} đã thanh toán {paidAmount:N0}đ")
                     .Body(templateContent, isHtml: true);
 
-                await email.SendAsync();
+                //await email.SendAsync();
             }
             catch (Exception ex)
             {
