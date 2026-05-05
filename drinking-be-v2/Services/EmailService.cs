@@ -42,14 +42,26 @@ namespace drinking_be.Services
                     .Subject("Xác thực tài khoản - Trà chanh 96")
                     .Body(templateContent, isHtml: true);
 
-                //var response = await email.SendAsync();
-
-                //if (!response.Successful)
-                //{
-                //    var errors = string.Join(", ", response.ErrorMessages);
-                //    _logger.LogError($"Gửi email thất bại đến {toEmail}. Lỗi: {errors}");
-                //    throw new Exception($"Không thể gửi email xác thực: {errors}");
-                //}
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var response = await email.SendAsync();
+                        if (!response.Successful)
+                        {
+                            var errors = string.Join(", ", response.ErrorMessages);
+                            _logger.LogError($"[Background] Gửi email thất bại đến {toEmail}. Lỗi: {errors}");
+                        }
+                        else
+                        {
+                            _logger.LogInformation($"[SUCCESS] Đã gửi mail thành công đến: {toEmail}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[Background] Lỗi hệ thống khi gửi email xác thực chạy ngầm.");
+                    }
+                });
 
                 _logger.LogInformation($"[SUCCESS] Đã gửi mail thành công đến: {toEmail}");
             }
@@ -79,14 +91,21 @@ namespace drinking_be.Services
                     .Subject("Yêu cầu đặt lại mật khẩu - Trà chanh 96")
                     .Body(templateContent, isHtml: true);
 
-                //var response = await email.SendAsync();
-
-                //if (!response.Successful)
-                //{
-                //    var errors = string.Join(", ", response.ErrorMessages);
-                //    _logger.LogError($"Gửi email reset pass thất bại đến {toEmail}. Lỗi: {errors}");
-                //    throw new Exception($"Không thể gửi email: {errors}");
-                //}
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var response = await email.SendAsync();
+                        if (!response.Successful)
+                        {
+                            _logger.LogError($"[Background] Lỗi gửi mail: {string.Join(", ", response.ErrorMessages)}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[Background] Lỗi hệ thống khi gửi email chạy ngầm.");
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -156,16 +175,21 @@ namespace drinking_be.Services
                     .Subject($"Hóa đơn điện tử - Đơn hàng #{order.OrderCode} - Trà Chanh 1996")
                     .Body(templateContent, isHtml: true);
 
-                //var response = await email.SendAsync();
-
-                //if (!response.Successful)
-                //{
-                //    _logger.LogError($"Gửi hóa đơn thất bại đến {toEmail}. Lỗi: {string.Join(", ", response.ErrorMessages)}");
-                //}
-                //else
-                //{
-                //    _logger.LogInformation($"[SUCCESS] Đã gửi hóa đơn đến: {toEmail}");
-                //}
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var response = await email.SendAsync();
+                        if (!response.Successful)
+                        {
+                            _logger.LogError($"[Background] Lỗi gửi mail: {string.Join(", ", response.ErrorMessages)}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[Background] Lỗi hệ thống khi gửi email chạy ngầm.");
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -181,7 +205,7 @@ namespace drinking_be.Services
                 string templateContent = await File.ReadAllTextAsync(templatePath);
 
                 string customerName = !string.IsNullOrEmpty(order.RecipientName) ? order.RecipientName : order.UserName;
-                string adminLink = $"http://localhost:5173/admin/orders/{order.OrderCode}"; // Đổi port cho khớp FE Admin của bạn
+                string adminLink = $"http://tra-chanh-96.vercel.app/admin/orders/{order.OrderCode}"; 
 
                 templateContent = templateContent
                     .Replace("{{OrderCode}}", order.OrderCode)
@@ -196,7 +220,21 @@ namespace drinking_be.Services
                     .Subject($"[TING TING] Đơn #{order.OrderCode} đã thanh toán {paidAmount:N0}đ")
                     .Body(templateContent, isHtml: true);
 
-                //await email.SendAsync();
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var response = await email.SendAsync();
+                        if (!response.Successful)
+                        {
+                            _logger.LogError($"[Background] Lỗi gửi mail: {string.Join(", ", response.ErrorMessages)}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[Background] Lỗi hệ thống khi gửi email chạy ngầm.");
+                    }
+                });
             }
             catch (Exception ex)
             {

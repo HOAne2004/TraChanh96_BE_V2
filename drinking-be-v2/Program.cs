@@ -59,6 +59,7 @@ builder.Services.AddFluentEmail(emailSettings["DefaultFromEmail"] ?? "admin@exam
                 emailSettings["Password"]?.Replace(" ", "") 
             ),
             EnableSsl = true,
+            Timeout = 10000 // 10 giây
         };
     });
 
