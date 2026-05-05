@@ -46,12 +46,11 @@
 		<None Update="Utils\ResetPassword.cshtml">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-	</ItemGroup>
-
-	<ItemGroup>
-		<!-- Ép C# phải copy các file .cshtml trong thư mục Utils lên Server -->
-		<Content Update="Utils\**\*.cshtml">
+		<None Update="Utils\AdminPaymentAlert.cshtml">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
+		</None>
+		<None Update="Utils\OrderReceipt.cshtml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 </Project>
