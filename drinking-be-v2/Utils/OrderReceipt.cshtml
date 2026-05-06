@@ -1,0 +1,78 @@
+﻿@model dynamic
+
+<div style="font-family: Arial, sans-serif; max-w-md; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px; background-color: #f9fafb;">
+    <!-- Header -->
+    <div style="text-align: center; border-bottom: 2px dashed #d1d5db; padding-bottom: 15px; margin-bottom: 15px;">
+        <h2 style="color: #111827; margin: 0; font-size: 24px; text-transform: uppercase;">Trà Chanh 1996</h2>
+        <p style="color: #6b7280; font-size: 14px; margin: 5px 0 0 0;">HÓA ĐƠN ĐIỆN TỬ</p>
+    </div>
+
+    <!-- Thông tin đơn hàng -->
+    <div style="margin-bottom: 20px; font-size: 14px; color: #374151;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding-bottom: 5px;">Mã đơn:</td><td style="text-align: right; font-weight: bold;">#@Model.OrderCode</td></tr>
+            <tr><td style="padding-bottom: 5px;">Ngày:</td><td style="text-align: right;">@Model.OrderDate</td></tr>
+            <tr><td style="padding-bottom: 5px;">Khách hàng:</td><td style="text-align: right; font-weight: bold;">@Model.CustomerName</td></tr>
+            <tr><td style="padding-bottom: 5px;">Loại đơn:</td><td style="text-align: right;">@Model.OrderType</td></tr>
+            <tr><td style="padding-bottom: 5px;">Trạng thái:</td><td style="text-align: right; color: #10b981; font-weight: bold;">@Model.PaymentStatus</td></tr>
+            <tr><td style="padding-bottom: 5px;">Phương thức:</td><td style="text-align: right;">@Model.PaymentMethod</td></tr>
+        </table>
+    </div>
+
+    <!-- Danh sách món -->
+    <table style="width: 100%; font-size: 14px; color: #374151; border-top: 2px dashed #d1d5db; border-bottom: 2px dashed #d1d5db; padding: 10px 0; margin-bottom: 15px;">
+        <thead>
+            <tr>
+                <th style="text-align: left; padding: 10px 0;">Món</th>
+                <th style="text-align: center; padding: 10px 0;">SL</th>
+                <th style="text-align: right; padding: 10px 0;">Thành tiền</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Items)
+            {
+                <tr>
+                    <td style="padding: 5px 0;">
+                        <strong>@item.ProductName</strong><br />
+                        <span style="font-size:12px;color:#6b7280;">(@(item.SizeName ?? "Vừa"))</span>
+                    </td>
+                    <td style="text-align: center; padding: 5px 0;">@item.Quantity</td>
+                    <td style="text-align: right; padding: 5px 0;">@item.TotalPrice.ToString("N0")đ</td>
+                </tr>
+                @if (item.Toppings != null)
+                {
+                    foreach (var topping in item.Toppings)
+                    {
+                        <tr>
+                            <td style="padding: 2px 0 2px 10px; font-size: 12px; color:#4b5563;">+ @topping.ProductName</td>
+                            <td style="text-align: center; font-size: 12px; color:#4b5563;">@topping.Quantity</td>
+                            <td style="text-align: right; font-size: 12px; color:#4b5563;">@topping.FinalPrice.ToString("N0")đ</td>
+                        </tr>
+                    }
+                }
+            }
+        </tbody>
+    </table>
+
+    <!-- Tổng kết tiền -->
+    <div style="font-size: 14px; color: #374151;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding-bottom: 5px;">Tạm tính:</td><td style="text-align: right;">@Model.TotalAmount</td></tr>
+            <tr><td style="padding-bottom: 5px;">Phí giao hàng:</td><td style="text-align: right;">@Model.ShippingFee</td></tr>
+            <tr><td style="padding-bottom: 5px;">Giảm giá:</td><td style="text-align: right;">-@Model.Discount</td></tr>
+        </table>
+    </div>
+
+    <!-- Grand Total -->
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #111827;">
+        <table style="width: 100%; font-size: 18px; font-weight: bold; color: #111827;">
+            <tr><td>TỔNG CỘNG:</td><td style="text-align: right; color: #ef4444;">@Model.GrandTotal</td></tr>
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; margin-top: 30px; font-size: 13px; color: #9ca3af;">
+        <p>Cảm ơn quý khách đã ủng hộ Trà Chanh 1996!</p>
+        <p>Email này được gửi tự động từ hệ thống. Vui lòng không trả lời!</p>
+    </div>
+</div>

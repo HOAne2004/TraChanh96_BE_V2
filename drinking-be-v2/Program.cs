@@ -26,6 +26,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FluentEmail.Razor;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -56,7 +57,7 @@ builder.Services.AddFluentEmail(emailSettings["DefaultFromEmail"] ?? "admin@exam
             UseDefaultCredentials = false,
             Credentials = new System.Net.NetworkCredential(
                 emailSettings["Username"],
-                emailSettings["Password"]?.Replace(" ", "") 
+                emailSettings["Password"]?.Replace(" ", "")
             ),
             EnableSsl = true,
             Timeout = 10000 // 10 giây

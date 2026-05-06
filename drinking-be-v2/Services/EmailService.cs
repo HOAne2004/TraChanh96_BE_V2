@@ -8,7 +8,7 @@ namespace drinking_be.Services
         Task SendVerificationEmailAsync(string toEmail, string username, string verificationLink, string token);
         Task SendResetPasswordEmailAsync(string toEmail, string username, string resetLink);
         Task SendOrderReceiptEmailAsync(string toEmail, Dtos.OrderDtos.OrderReadDto order);
-        Task SendAdminPaymentAlertEmailAsync(string toEmail,Dtos.OrderDtos.OrderReadDto order, decimal paidAmount);
+        Task SendAdminPaymentAlertEmailAsync(string toEmail, Dtos.OrderDtos.OrderReadDto order, decimal paidAmount);
     }
 
     public class EmailService : IEmailService
@@ -22,224 +22,157 @@ namespace drinking_be.Services
             _logger = logger;
         }
 
+        // 1. GỬI EMAIL XÁC THỰC
         public async Task SendVerificationEmailAsync(string toEmail, string username, string verificationLink, string token)
         {
             try
             {
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "VerifyEmail.html");
-                
-                string templateContent = await System.IO.File.ReadAllTextAsync(templatePath);
-                templateContent = templateContent
-                    .Replace("@model drinking_be.Dtos.EmailDtos.VerifyEmailModel", "")
-                    .Replace("@Model.Username", username)
-                    .Replace("@Model.CompanyName", "Trà Chanh 96")
-                    .Replace("@Model.Token", token)
-                    .Replace("@Model.VerificationLink", verificationLink);
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "VerifyEmail.cshtml");
+
+                var model = new
+                {
+                    Username = username,
+                    CompanyName = "Trà Chanh 96",
+                    Token = token,
+                    VerificationLink = verificationLink
+                };
 
                 var email = _fluentEmailFactory
                     .Create()
                     .To(toEmail)
                     .Subject("Xác thực tài khoản - Trà chanh 96")
-                    .Body(templateContent, isHtml: true);
+                    .UsingTemplateFromFile(templatePath, model, isHtml: true);
 
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var response = await email.SendAsync();
-                        if (!response.Successful)
-                        {
-                            var errors = string.Join(", ", response.ErrorMessages);
-                            _logger.LogError($"[Background] Gửi email thất bại đến {toEmail}. Lỗi: {errors}");
-                        }
-                        else
-                        {
-                            _logger.LogInformation($"[SUCCESS] Đã gửi mail thành công đến: {toEmail}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[Background] Lỗi hệ thống khi gửi email xác thực chạy ngầm.");
-                    }
-                });
-
-                _logger.LogInformation($"[SUCCESS] Đã gửi mail thành công đến: {toEmail}");
+                SendEmailInBackground(email, "Xác thực tài khoản", toEmail);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Lỗi hệ thống khi gửi email đến {toEmail}");
-                throw; 
+                _logger.LogError(ex, $"Lỗi hệ thống khi chuẩn bị email xác thực đến {toEmail}");
             }
         }
 
+        // 2. GỬI EMAIL ĐẶT LẠI MẬT KHẨU
         public async Task SendResetPasswordEmailAsync(string toEmail, string username, string resetLink)
         {
             try
             {
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "ResetPassword.html");
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "ResetPassword.cshtml");
 
-                string templateContent = await System.IO.File.ReadAllTextAsync(templatePath);
-                templateContent = templateContent
-                    .Replace("@model drinking_be.Dtos.EmailDtos.ResetPasswordEmailModel", "")
-                    .Replace("@Model.Username", username)
-                    .Replace("@Model.CompanyName", "Trà Chanh 96")
-                    .Replace("@Model.ResetLink", resetLink);
+                var model = new
+                {
+                    Username = username,
+                    CompanyName = "Trà Chanh 96",
+                    ResetLink = resetLink
+                };
 
                 var email = _fluentEmailFactory
                     .Create()
                     .To(toEmail)
                     .Subject("Yêu cầu đặt lại mật khẩu - Trà chanh 96")
-                    .Body(templateContent, isHtml: true);
+                    .UsingTemplateFromFile(templatePath, model, isHtml: true);
 
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var response = await email.SendAsync();
-                        if (!response.Successful)
-                        {
-                            _logger.LogError($"[Background] Lỗi gửi mail: {string.Join(", ", response.ErrorMessages)}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[Background] Lỗi hệ thống khi gửi email chạy ngầm.");
-                    }
-                });
+                SendEmailInBackground(email, "Đặt lại mật khẩu", toEmail);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Lỗi hệ thống khi gửi email reset pass đến {toEmail}");
-                throw;
+                _logger.LogError(ex, $"Lỗi hệ thống khi chuẩn bị email reset pass đến {toEmail}");
             }
         }
 
+        // 3. GỬI EMAIL HÓA ĐƠN
         public async Task SendOrderReceiptEmailAsync(string toEmail, Dtos.OrderDtos.OrderReadDto order)
         {
             try
             {
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "OrderReceipt.html");
-                string templateContent = await System.IO.File.ReadAllTextAsync(templatePath);
-
-                // Build danh sách món hàng (bao gồm Topping)
-                var itemsHtml = new System.Text.StringBuilder();
-
-                // Vòng lặp 1: Quét qua tất cả các món chính (Vì DTO đã tách riêng Topping ra rồi)
-                foreach (var item in order.Items)
-                {
-                    // Món chính (Dùng thuộc tính TotalPrice thay vì FinalPrice * Quantity)
-                    itemsHtml.Append($@"
-            <tr>
-                <td style='padding: 5px 0;'><strong>{item.ProductName}</strong><br/><span style='font-size:12px;color:#6b7280;'>({item.SizeName ?? "Vừa"})</span></td>
-                <td style='text-align: center; padding: 5px 0;'>{item.Quantity}</td>
-                <td style='text-align: right; padding: 5px 0;'>{item.TotalPrice:N0}đ</td>
-            </tr>");
-
-                    // Các Topping đi kèm (Quét qua danh sách Toppings trong DTO)
-                    if (item.Toppings != null && item.Toppings.Any())
-                    {
-                        foreach (var topping in item.Toppings)
-                        {
-                            // LƯU Ý: Tôi đang giả định OrderToppingReadDto của bạn có các thuộc tính là ProductName, Quantity và TotalPrice. 
-                            // Nếu tên biến trong DTO đó khác (ví dụ: Name, Price), bạn hãy sửa lại một chút ở dòng dưới nhé!
-                            itemsHtml.Append($@"
-                    <tr>
-                        <td style='padding: 2px 0 2px 10px; font-size: 12px; color:#4b5563;'>+ {topping.ProductName}</td>
-                        <td style='text-align: center; font-size: 12px; color:#4b5563;'>{topping.Quantity}</td>
-                        <td style='text-align: right; font-size: 12px; color:#4b5563;'>{topping.FinalPrice:N0}đ</td>
-                    </tr>");
-                        }
-                    }
-                }
-
-                // Tên khách hàng (Ưu tiên tên người nhận, nếu không có thì lấy tên User)
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "OrderReceipt.cshtml");
                 string customerName = !string.IsNullOrEmpty(order.RecipientName) ? order.RecipientName : order.UserName;
 
-                // Thay thế các biến trong Template
-                templateContent = templateContent
-                    .Replace("{{OrderCode}}", order.OrderCode)
-                    .Replace("{{OrderDate}}", (order.OrderDate ?? order.CreatedAt).AddHours(7).ToString("dd/MM/yyyy HH:mm"))
-                    .Replace("{{CustomerName}}", customerName)
-                    .Replace("{{OrderType}}", order.OrderTypeLabel)
-                    .Replace("{{PaymentStatus}}", order.IsPaid ? "Đã thanh toán" : "Chưa thanh toán")
-                    .Replace("{{PaymentMethod}}", order.PaymentMethodName ?? "N/A")
-                    .Replace("{{OrderItemsHtml}}", itemsHtml.ToString())
-                    .Replace("{{TotalAmount}}", $"{order.TotalAmount:N0}đ")
-                    .Replace("{{ShippingFee}}", $"{order.ShippingFee ?? 0:N0}đ")
-                    .Replace("{{Discount}}", $"{order.DiscountAmount ?? 0:N0}đ")
-                    .Replace("{{GrandTotal}}", $"{order.GrandTotal:N0}đ");
+                // Bạn truyền thẳng toàn bộ object order vào Model. 
+                // Xử lý vòng lặp các món hàng sẽ được thực hiện trực tiếp bên trong file .cshtml bằng cú pháp @foreach
+                var model = new
+                {
+                    OrderCode = order.OrderCode,
+                    OrderDate = (order.OrderDate ?? order.CreatedAt).AddHours(7).ToString("dd/MM/yyyy HH:mm"),
+                    CustomerName = customerName,
+                    OrderType = order.OrderTypeLabel,
+                    PaymentStatus = order.IsPaid ? "Đã thanh toán" : "Chưa thanh toán",
+                    PaymentMethod = order.PaymentMethodName ?? "N/A",
+                    TotalAmount = $"{order.TotalAmount:N0}đ",
+                    ShippingFee = $"{order.ShippingFee ?? 0:N0}đ",
+                    Discount = $"{order.DiscountAmount ?? 0:N0}đ",
+                    GrandTotal = $"{order.GrandTotal:N0}đ",
+                    Items = order.Items // Truyền danh sách món để xử lý trong Razor
+                };
 
                 var email = _fluentEmailFactory
                     .Create()
                     .To(toEmail)
                     .Subject($"Hóa đơn điện tử - Đơn hàng #{order.OrderCode} - Trà Chanh 1996")
-                    .Body(templateContent, isHtml: true);
+                    .UsingTemplateFromFile(templatePath, model, isHtml: true);
 
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var response = await email.SendAsync();
-                        if (!response.Successful)
-                        {
-                            _logger.LogError($"[Background] Lỗi gửi mail: {string.Join(", ", response.ErrorMessages)}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[Background] Lỗi hệ thống khi gửi email chạy ngầm.");
-                    }
-                });
+                SendEmailInBackground(email, "Hóa đơn điện tử", toEmail);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Lỗi hệ thống khi gửi hóa đơn đến {toEmail}");
+                _logger.LogError(ex, $"Lỗi hệ thống khi chuẩn bị hóa đơn đến {toEmail}");
             }
         }
 
+        // 4. GỬI EMAIL THÔNG BÁO CHO ADMIN
         public async Task SendAdminPaymentAlertEmailAsync(string toEmail, Dtos.OrderDtos.OrderReadDto order, decimal paidAmount)
         {
             try
             {
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "AdminPaymentAlert.html");
-                string templateContent = await File.ReadAllTextAsync(templatePath);
-
+                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Utils", "AdminPaymentAlert.cshtml");
                 string customerName = !string.IsNullOrEmpty(order.RecipientName) ? order.RecipientName : order.UserName;
-                string adminLink = $"http://tra-chanh-96.vercel.app/admin/orders/{order.OrderCode}"; 
+                string adminLink = $"https://tra-chanh-96.vercel.app/admin/orders/{order.OrderCode}";
 
-                templateContent = templateContent
-                    .Replace("{{OrderCode}}", order.OrderCode)
-                    .Replace("{{CustomerName}}", customerName)
-                    .Replace("{{PaidAmount}}", $"{paidAmount:N0}đ")
-                    .Replace("{{PaymentTime}}", DateTime.UtcNow.AddHours(7).ToString("dd/MM/yyyy HH:mm"))
-                    .Replace("{{AdminOrderLink}}", adminLink);
+                var model = new
+                {
+                    OrderCode = order.OrderCode,
+                    CustomerName = customerName,
+                    PaidAmount = $"{paidAmount:N0}đ",
+                    PaymentTime = DateTime.UtcNow.AddHours(7).ToString("dd/MM/yyyy HH:mm"),
+                    AdminOrderLink = adminLink
+                };
 
                 var email = _fluentEmailFactory
                     .Create()
                     .To(toEmail)
                     .Subject($"[TING TING] Đơn #{order.OrderCode} đã thanh toán {paidAmount:N0}đ")
-                    .Body(templateContent, isHtml: true);
+                    .UsingTemplateFromFile(templatePath, model, isHtml: true);
 
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var response = await email.SendAsync();
-                        if (!response.Successful)
-                        {
-                            _logger.LogError($"[Background] Lỗi gửi mail: {string.Join(", ", response.ErrorMessages)}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[Background] Lỗi hệ thống khi gửi email chạy ngầm.");
-                    }
-                });
+                SendEmailInBackground(email, "Báo cáo thanh toán Admin", toEmail);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Lỗi khi gửi email báo cáo thanh toán cho admin {toEmail}");
+                _logger.LogError(ex, $"Lỗi khi chuẩn bị email báo cáo thanh toán cho admin {toEmail}");
             }
+        }
+
+        // --- HÀM HELPER: XỬ LÝ CHẠY NGẦM ĐỂ KHÔNG TREO API ---
+        private void SendEmailInBackground(IFluentEmail email, string emailType, string toEmail)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var response = await email.SendAsync();
+                    if (!response.Successful)
+                    {
+                        var errors = string.Join(", ", response.ErrorMessages);
+                        _logger.LogError($"[Background] Gửi email '{emailType}' thất bại đến {toEmail}. Lỗi: {errors}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"[SUCCESS] Đã gửi mail '{emailType}' thành công đến: {toEmail}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"[Background] Lỗi hệ thống thực thi ngầm khi gửi email '{emailType}' đến {toEmail}");
+                }
+            });
         }
     }
 }

@@ -6,6 +6,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<PreserveCompilationContext>true</PreserveCompilationContext>
 		<RootNamespace>drinking_be</RootNamespace>
+		<CopyRazorGenerateFilesToPublishDirectory>true</CopyRazorGenerateFilesToPublishDirectory>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -27,9 +28,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Update="Utils\**\*.html">
+		<Content Update="Utils\**\*.cshtml">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<CopyToPublishDirectory>Always</CopyToPublishDirectory>
 		</Content>
 	</ItemGroup>
+
 </Project>
