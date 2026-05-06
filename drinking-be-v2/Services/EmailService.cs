@@ -41,6 +41,7 @@ namespace drinking_be.Services
                     .To(toEmail)
                     .Subject("Xác thực tài khoản - Trà chanh 96")
                     .UsingTemplateFromFile(templatePath, model, isHtml: true)
+                    .Tag("Verification")
                     .SendAsync(); // GỌI TRỰC TIẾP TẠI ĐÂY
 
                 if (!response.Successful)
@@ -76,6 +77,7 @@ namespace drinking_be.Services
                     .To(toEmail)
                     .Subject("Yêu cầu đặt lại mật khẩu - Trà chanh 96")
                     .UsingTemplateFromFile(templatePath, model, isHtml: true)
+                    .Tag("ResetPassword")
                     .SendAsync();
 
                 if (!response.Successful)
@@ -120,6 +122,7 @@ namespace drinking_be.Services
                     .To(toEmail)
                     .Subject($"Hóa đơn điện tử - Đơn hàng #{order.OrderCode} - Trà Chanh 1996")
                     .UsingTemplateFromFile(templatePath, model, isHtml: true)
+                    .Tag("OrderReceipt")
                     .SendAsync();
 
                 if (!response.Successful)
@@ -159,6 +162,7 @@ namespace drinking_be.Services
                     .To(toEmail)
                     .Subject($"[TING TING] Đơn #{order.OrderCode} đã thanh toán {paidAmount:N0}đ")
                     .UsingTemplateFromFile(templatePath, model, isHtml: true)
+                    .Tag("AdminAlert")
                     .SendAsync();
 
                 if (!response.Successful)
