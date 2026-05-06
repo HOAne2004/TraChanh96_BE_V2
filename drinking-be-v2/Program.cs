@@ -45,9 +45,9 @@ builder.Services.AddDbContext<DBDrinkContext>(options =>
 // --- 1.2. CẤU HÌNH FLUENT EMAIL ---
 var emailSettings = builder.Configuration.GetSection("EmailSettings");
 
-builder.Services.AddFluentEmail(emailSettings["DefaultFromEmail"], "Trà Chanh 1996")
+builder.Services.AddFluentEmail(emailSettings["DefaultFromEmail"], "Tra Chanh 1996")
     .AddRazorRenderer()
-    .AddSendGridSender(emailSettings["SendGridApiKey"]);
+    .AddSendGridSender(emailSettings["SendGridApiKey"]?.Trim());
 
 
 // --- 2. CẤU HÌNH SUPABASE  ---
