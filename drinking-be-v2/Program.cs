@@ -26,7 +26,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FluentEmail.Razor;
+using FluentEmail.MailKitSmtp;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -46,23 +46,21 @@ builder.Services.AddDbContext<DBDrinkContext>(options =>
 // --- 1.2. CẤU HÌNH FLUENT EMAIL ---
 var emailSettings = builder.Configuration.GetSection("EmailSettings");
 
+var mailKitOptions = new SmtpClientOptions
+{
+    Server = emailSettings["SmtpServer"] ?? "smtp.gmail.com",
+    Port = int.Parse(emailSettings["Port"] ?? "587"),
+    User = emailSettings["Username"],
+    Password = emailSettings["Password"]?.Replace(" ", ""),
+    RequiresAuthentication = true,
+    // Port 587 của Gmail sử dụng StartTLS chứ không phải SSL mặc định
+    UseSsl = false,
+    SocketOptions = MailKit.Security.SecureSocketOptions.StartTls
+};
+
 builder.Services.AddFluentEmail(emailSettings["DefaultFromEmail"] ?? "admin@example.com")
     .AddRazorRenderer()
-    .AddSmtpSender(() =>
-    {
-        return new SmtpClient(emailSettings["SmtpServer"] ?? "smtp.gmail.com")
-        {
-            Port = int.Parse(emailSettings["Port"] ?? "587"),
-            DeliveryMethod = SmtpDeliveryMethod.Network,
-            UseDefaultCredentials = false,
-            Credentials = new System.Net.NetworkCredential(
-                emailSettings["Username"],
-                emailSettings["Password"]?.Replace(" ", "")
-            ),
-            EnableSsl = true,
-            Timeout = 10000 // 10 giây
-        };
-    });
+    .AddMailKitSender(mailKitOptions); // Dùng MailKit thay cho SmtpSender
 
 // --- 2. CẤU HÌNH SUPABASE  ---
 var supabaseUrl = builder.Configuration["Supabase:Url"];
