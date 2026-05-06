@@ -25,7 +25,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FluentEmail.MailKitSmtp;
+using FluentEmail.SendGrid;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -45,21 +45,10 @@ builder.Services.AddDbContext<DBDrinkContext>(options =>
 // --- 1.2. CẤU HÌNH FLUENT EMAIL ---
 var emailSettings = builder.Configuration.GetSection("EmailSettings");
 
-var mailKitOptions = new SmtpClientOptions
-{
-    Server = emailSettings["SmtpServer"] ?? "smtp.gmail.com",
-    Port = int.Parse(emailSettings["Port"] ?? "587"),
-    User = emailSettings["Username"],
-    Password = emailSettings["Password"]?.Replace(" ", ""),
-    RequiresAuthentication = true,
-    // Port 587 của Gmail sử dụng StartTLS chứ không phải SSL mặc định
-    UseSsl = false,
-    SocketOptions = MailKit.Security.SecureSocketOptions.StartTls
-};
-
-builder.Services.AddFluentEmail(emailSettings["DefaultFromEmail"] ?? "admin@example.com")
+builder.Services.AddFluentEmail(emailSettings["DefaultFromEmail"], "Trà Chanh 1996")
     .AddRazorRenderer()
-    .AddMailKitSender(mailKitOptions); // Dùng MailKit thay cho SmtpSender
+    .AddSendGridSender(emailSettings["SendGridApiKey"]);
+
 
 // --- 2. CẤU HÌNH SUPABASE  ---
 var supabaseUrl = builder.Configuration["Supabase:Url"];
