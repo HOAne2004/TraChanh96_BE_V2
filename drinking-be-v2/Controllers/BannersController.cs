@@ -1,4 +1,4 @@
-﻿using drinking_be.Dtos.BannerDtos;
+using drinking_be.Dtos.BannerDtos;
 using drinking_be.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,6 +27,14 @@ namespace drinking_be.Controllers
         public async Task<IActionResult> Create([FromBody] BannerCreateDto dto)
         {
             var result = await _bannerService.CreateAsync(dto);
+            return Ok(result);
+        }
+
+        [HttpPut("{id}")]
+        // [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int id, [FromBody] BannerUpdateDto dto)
+        {
+            var result = await _bannerService.UpdateAsync(id, dto);
             return Ok(result);
         }
 

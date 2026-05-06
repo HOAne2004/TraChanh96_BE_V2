@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using drinking_be.Dtos.BannerDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
@@ -10,6 +10,7 @@ namespace drinking_be.Services
     {
         Task<IEnumerable<BannerReadDto>> GetActiveBannersAsync(string? position);
         Task<BannerReadDto> CreateAsync(BannerCreateDto dto);
+        Task<BannerReadDto> UpdateAsync(int id, BannerUpdateDto dto);
         Task<bool> DeleteAsync(int id);
     }
 
@@ -46,6 +47,21 @@ namespace drinking_be.Services
             banner.CreatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Repository<Banner>().AddAsync(banner);
+            await _unitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<BannerReadDto>(banner);
+        }
+
+        public async Task<BannerReadDto> UpdateAsync(int id, BannerUpdateDto dto)
+        {
+            var repo = _unitOfWork.Repository<Banner>();
+            var banner = await repo.GetByIdAsync(id);
+            if (banner == null) throw new Exception("Banner not found");
+
+            _mapper.Map(dto, banner);
+            banner.UpdatedAt = DateTime.UtcNow;
+
+            repo.Update(banner);
             await _unitOfWork.SaveChangesAsync();
 
             return _mapper.Map<BannerReadDto>(banner);
