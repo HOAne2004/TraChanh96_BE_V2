@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using drinking_be.Dtos.AddressDtos;
 using drinking_be.Dtos.AttendanceDtos;
 using drinking_be.Dtos.BannerDtos;
@@ -63,6 +63,8 @@ public class MappingProfile : Profile
         // --- Banner Mappings ---
         CreateMap<Banner, BannerReadDto>();
         CreateMap<BannerCreateDto, Banner>();
+        CreateMap<BannerUpdateDto, Banner>()
+            .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
         // --- Brand Mappings ---
         CreateMap<BrandCreateDto, Brand>().ReverseMap();
