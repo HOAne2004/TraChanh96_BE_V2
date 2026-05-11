@@ -93,6 +93,7 @@ namespace drinking_be.Services
                 // BẮT LỖI MỀM: Không báo "Hệ thống bận" nữa
                 response.Data.TextResponse = "Dạ thông tin này em đang cập nhật thêm, anh/chị cần hỗ trợ gì về order đồ uống không ạ?";
                 response.Data.IsCartUpdated = false;
+                await SaveAIMessageAsync(sessionId, response.Data.TextResponse);
             }
 
             return response;
@@ -589,7 +590,8 @@ namespace drinking_be.Services
             }
 
             return true; // Các trường hợp default khác cho qua
-        }        // ============================================================================== 
+        }
+        // ============================================================================== 
         // LỚP VALIDATION
         // ============================================================================== ==============
         public class AIOrderValidationResult

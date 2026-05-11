@@ -1,9 +1,7 @@
 using drinking_be.Dtos.GlobalDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
-using drinking_be.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Linq;
 
 namespace drinking_be.Services
 {
@@ -24,14 +22,13 @@ namespace drinking_be.Services
         {
             var dto = new GlobalDashboardStatsDto();
 
-            // 1. Tổng doanh thu (Chỉ tính đơn hoàn thành/đã nhận)
+            // 1. Tổng doanh thu
             dto.TotalRevenue = await _unitOfWork.Orders.GetQueryable()
                 .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
                 .SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
 
             // 2. Tổng đơn hàng
-            dto.TotalOrders = await _unitOfWork.Orders.GetQueryable()
-                .CountAsync();
+            dto.TotalOrders = await _unitOfWork.Orders.GetQueryable().CountAsync();
 
             // 3. Tổng khách hàng hoạt động
             dto.TotalCustomers = await _unitOfWork.Repository<User>().GetQueryable()
@@ -52,7 +49,7 @@ namespace drinking_be.Services
             var recentOrdersQuery = await _unitOfWork.Orders.GetQueryable()
                 .OrderByDescending(o => o.CreatedAt)
                 .Take(5)
-                .Select(o => new 
+                .Select(o => new
                 {
                     o.OrderCode,
                     o.RecipientName,
@@ -65,7 +62,7 @@ namespace drinking_be.Services
 
             dto.RecentOrders = recentOrdersQuery.Select(o => new DashboardOrderSummaryDto
             {
-                OrderCode = o.OrderCode,
+                OrderCode = o.OrderCode ?? "N/A",
                 RecipientName = o.RecipientName,
                 RecipientPhone = o.RecipientPhone,
                 CreatedAt = o.CreatedAt,
@@ -76,10 +73,9 @@ namespace drinking_be.Services
             // 7. Dữ liệu biểu đồ (7 ngày gần nhất)
             var today = DateTime.UtcNow.Date;
             var startDate = today.AddDays(-6);
-            
-            // Lấy tất cả đơn hàng trong 7 ngày qua để xử lý local cho nhanh và tránh lỗi translation
+
             var ordersLast7Days = await _unitOfWork.Orders.GetQueryable()
-                .Where(o => o.CreatedAt >= startDate && 
+                .Where(o => o.CreatedAt >= startDate &&
                        (o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received))
                 .Select(o => new { o.CreatedAt, o.GrandTotal })
                 .ToListAsync();
@@ -98,24 +94,28 @@ namespace drinking_be.Services
                 });
             }
 
-            // 8. Top 5 sản phẩm bán chạy (Sử dụng thông tin Snapshot trên OrderItem để an toàn)
-            dto.TopProducts = await _unitOfWork.Orders.GetQueryable()
+            // 8. Top 5 sản phẩm bán chạy (BẢO VỆ TUYỆT ĐỐI KHỎI LỖI 500)
+            var completedOrdersItems = await _unitOfWork.Orders.GetQueryable()
                 .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
                 .SelectMany(o => o.OrderItems)
+                .Select(oi => new { oi.ProductId, oi.ProductName, oi.ProductImage, oi.Quantity, oi.BasePrice })
+                .ToListAsync();
+
+            dto.TopProducts = completedOrdersItems
                 .GroupBy(oi => new { oi.ProductId, oi.ProductName, oi.ProductImage })
                 .Select(g => new DashboardTopProductDto
                 {
                     Id = g.Key.ProductId,
-                    Name = g.Key.ProductName,
+                    Name = g.Key.ProductName ?? "Không xác định",
                     Image = g.Key.ProductImage,
                     Sold = g.Sum(oi => oi.Quantity),
                     Revenue = g.Sum(oi => (decimal)oi.Quantity * oi.BasePrice)
                 })
                 .OrderByDescending(x => x.Sold)
                 .Take(5)
-                .ToListAsync();
+                .ToList();
 
-            return dto;
+            return dto; 
         }
     }
 }

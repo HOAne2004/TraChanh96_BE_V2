@@ -139,6 +139,7 @@ builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IShopTableService, ShopTableService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IStoreAnalyticsService, StoreAnalyticsService>();
+builder.Services.AddScoped<ISystemAnalyticsService, SystemAnalyticsService>();
 
 // --- D. PRODUCT & INVENTORY ---
 builder.Services.AddScoped<ICategoryService, CategoryService>();
