@@ -49,4 +49,6 @@ public partial class Product : ISoftDelete
     public virtual Brand Brand { get; set; } = null!;
     public virtual ICollection<ProductStore> ProductStores { get; set; } = new List<ProductStore>();
     public List<int> AllowedToppingIds { get; set; } = new List<int>();
+    public List<SugarLevelEnum>? AllowedSugarLevels { get; set; } = new List<SugarLevelEnum>();
+    public List<IceLevelEnum>? AllowedIceLevels { get; set; } = new List<IceLevelEnum>();
 }
