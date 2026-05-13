@@ -16,7 +16,6 @@ namespace drinking_be.Dtos.ProductDtos
         [Required]
         public ProductStoreStatusEnum Status { get; set; }
 
-        // Không có PriceOverride vì bạn quyết định Store Manager không được sửa giá
     }
 
     public class ProductStoreReadDto
@@ -28,19 +27,14 @@ namespace drinking_be.Dtos.ProductDtos
         public decimal? PriceOverride { get; set; }
     }
 
-    // Kế thừa từ ProductReadDto để tận dụng các field cơ bản (Name, Image, BasePrice...)
     public class StoreMenuReadDto : ProductReadDto
     {
         // --- Các trường bổ sung cho riêng Cửa hàng ---
 
-        // Cờ đánh dấu để Frontend làm mờ (True nếu ProductStore.Status == OutOfStock)
         public bool IsSoldOut { get; set; }
 
-        // Trạng thái cụ thể tại cửa hàng (Available, OutOfStock, Disabled...)
         public string StoreStatus { get; set; } = null!;
 
-        // Giá hiển thị tại cửa hàng (Nếu có PriceOverride thì lấy, không thì lấy BasePrice)
-        // Frontend sẽ dùng giá này để hiển thị chính
         public decimal DisplayPrice { get; set; }
     }
 }

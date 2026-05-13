@@ -33,6 +33,8 @@ namespace drinking_be.Dtos.ProductDtos
         public ICollection<ProductSizeReadDto> ProductSizes { get; set; } = new List<ProductSizeReadDto>();
         public List<int> StoreIds { get; set; } = new List<int>();
         public List<int> AllowedToppingIds { get; set; } = new List<int>();
+        public List<string>? AllowedSugarLevels { get; set; } = new List<string>();
+        public List<string>? AllowedIceLevels { get; set; } = new List<string>();
         public string CategorySlug { get; set; } = string.Empty;
     }
 }

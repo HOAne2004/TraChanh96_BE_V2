@@ -35,5 +35,7 @@ namespace drinking_be.Dtos.ProductDtos
 
         public ICollection<ProductSizeCreateDto>? ProductSizes { get; set; }
         public List<int>? AllowedToppingIds { get; set; }
+        public List<SugarLevelEnum>? AllowedSugarLevels { get; set; }
+        public List<IceLevelEnum>? AllowedIceLevels { get; set; }
     }
 }

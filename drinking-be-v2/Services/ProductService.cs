@@ -29,7 +29,7 @@ namespace drinking_be.Services
             var query = _unitOfWork.Repository<Product>().GetQueryable()
                 .Include(p => p.Category)
                 .Include(p => p.ProductSizes).ThenInclude(ps => ps.Size)
-                .Include(p => p.ProductStores) // Include để lấy StoreIds sau này
+                .Include(p => p.ProductStores) 
                 .AsNoTracking();
 
             // 2. --- ÁP DỤNG BỘ LỌC (FILTERING) ---
@@ -138,8 +138,8 @@ namespace drinking_be.Services
         public async Task<ProductReadDto> CreateAsync(ProductCreateDto createDto)
         {
             var productRepo = _unitOfWork.Repository<Product>();
-            var productStoreRepo = _unitOfWork.Repository<ProductStore>(); // 🆕 Repo mới
-            var storeRepo = _unitOfWork.Repository<Store>(); // 🆕 Để lấy danh sách cửa hàng
+            var productStoreRepo = _unitOfWork.Repository<ProductStore>(); 
+            var storeRepo = _unitOfWork.Repository<Store>(); // Để lấy danh sách cửa hàng
 
             // 1. Map DTO -> Entity (Lúc này AutoMapper đã map luôn ProductSizes nhờ cấu hình ở trên)
             var product = _mapper.Map<Product>(createDto);
@@ -152,9 +152,8 @@ namespace drinking_be.Services
             await productRepo.AddAsync(product);
             await _unitOfWork.SaveChangesAsync(); // Save lần 1 để có ProductId
 
-            // 3. ⭐ LOGIC MỚI: Tự động phân phối sản phẩm về các Cửa hàng (Stores)
-            // Lấy tất cả cửa hàng đang hoạt động
-            var activeStores = await storeRepo.GetAllAsync(s => s.Status == Enums.StoreStatusEnum.Active); // Giả sử bạn có Enum Active
+            // 3. Tự động phân phối sản phẩm về các Cửa hàng (Stores)
+            var activeStores = await storeRepo.GetAllAsync(s => s.Status == StoreStatusEnum.Active); // Giả sử bạn có Enum Active
 
             if (activeStores.Any())
             {
@@ -165,7 +164,7 @@ namespace drinking_be.Services
                     {
                         ProductId = product.Id,
                         StoreId = store.Id,
-                        Status = Enums.ProductStoreStatusEnum.Available, // Mặc định là có bán
+                        Status = ProductStoreStatusEnum.Available, // Mặc định là có bán
                         PriceOverride = null, // Mặc định theo giá chung
                         SoldCount = 0
                     });
@@ -250,11 +249,6 @@ namespace drinking_be.Services
         public async Task<bool> RestoreAsync(int id)
         {
             var productRepo = _unitOfWork.Repository<Product>();
-            // Lưu ý: GetByIdAsync thường mặc định lọc bỏ DeletedAt != null
-            // Nên bạn có thể cần dùng GetFirstOrDefaultAsync với IgnoreQueryFilters nếu repo hỗ trợ, 
-            // hoặc query trực tiếp DB set.
-            // Ở đây giả sử Repository của bạn cho phép lấy theo ID dù đã xóa mềm (hoặc bạn viết hàm GetDeletedByIdAsync riêng)
-
             var product = await productRepo.GetQueryable()
                 .IgnoreQueryFilters() // Quan trọng: Bỏ qua filter mặc định để tìm thấy món đã xóa
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -273,11 +267,6 @@ namespace drinking_be.Services
             var productRepo = _unitOfWork.Repository<Product>();
 
             // 1. Lấy danh sách ProductStore của cửa hàng này
-            // Ta cần join bảng ProductStore với Product để lấy thông tin món
-            // Query: Lấy Product, Include ProductStore (lọc theo storeId)
-            // Tuy nhiên, Repository Pattern Generic thường khó join custom. 
-            // Cách đơn giản và hiệu quả với EF Core: Lấy từ Product, Include ProductStores
-
             var query = productRepo.GetQueryable()
                 .Include(p => p.Category)
                 .Include(p => p.ProductSizes).ThenInclude(ps => ps.Size)
@@ -322,9 +311,6 @@ namespace drinking_be.Services
                 // Logic DisplayPrice: Nếu Store có Override giá thì dùng, ko thì dùng BasePrice
                 dto.DisplayPrice = storeData.PriceOverride ?? p.BasePrice;
 
-                // Logic tính lại giá các Size (nếu Store có override base price, thì size cũng phải tịnh tiến theo nếu cần thiết)
-                // Ở bài trước ta đã tính FinalPrice trong Mapper. 
-                // Nếu Store override giá gốc, ta cần update lại FinalPrice của các Size trong DTO
                 if (storeData.PriceOverride.HasValue)
                 {
                     decimal newBasePrice = storeData.PriceOverride.Value;
@@ -332,7 +318,6 @@ namespace drinking_be.Services
                     foreach (var size in dto.ProductSizes)
                     {
                         // 1. Xác định phần "Cộng thêm" của size này
-                        // Nếu có Override riêng thì dùng, không thì dùng Modifier chuẩn
                         decimal effectiveModifier = size.PriceOverride ?? size.SizeModifierPrice;   
 
                         // 2. Tính lại FinalPrice theo giá gốc mới của cửa hàng

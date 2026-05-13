@@ -376,7 +376,6 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.ProductType, opt => opt.MapFrom(src => src.ProductType.ToString()))
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
             .ForMember(dest => dest.ProductSizes, opt => opt.MapFrom(src => src.ProductSizes))
-            // 🔥 TÍNH TOÁN GIÁ CUỐI CÙNG (FinalPrice)
             .AfterMap((src, dest) =>
             {
                 foreach (var sizeDto in dest.ProductSizes)
@@ -406,7 +405,6 @@ public class MappingProfile : Profile
         // Trong Constructor của MappingProfile:
 
         CreateMap<Product, StoreMenuReadDto>()
-            // Copy các map cơ bản từ ProductReadDto (hoặc dùng IncludeBase nếu cấu hình chuẩn)
             .IncludeBase<Product, ProductReadDto>()
             .ForMember(dest => dest.IsSoldOut, opt => opt.Ignore()) // Tính toán trong Service
             .ForMember(dest => dest.StoreStatus, opt => opt.Ignore()) // Tính toán trong Service

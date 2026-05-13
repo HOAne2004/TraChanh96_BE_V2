@@ -19,9 +19,9 @@ namespace drinking_be.Controllers
 
         [HttpGet("global-stats")]
         [Authorize(Roles = "Admin")] // Chỉ Admin mới được xem
-        public async Task<IActionResult> GetGlobalStats()
+        public async Task<IActionResult> GetGlobalStats([FromQuery] string timeframe = "today")
         {
-            var stats = await _analyticsService.GetGlobalStatsAsync();
+            var stats = await _analyticsService.GetGlobalStatsAsync(timeframe);
             return Ok(new ApiResponse<GlobalDashboardStatsDto>(stats, "Success"));
         }
     }

@@ -1,14 +1,16 @@
 using drinking_be.Dtos.GlobalDtos;
 using drinking_be.Enums;
 using drinking_be.Interfaces;
+using drinking_be.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace drinking_be.Services
 {
     public interface ISystemAnalyticsService
     {
-        Task<GlobalDashboardStatsDto> GetGlobalStatsAsync();
+        Task<GlobalDashboardStatsDto> GetGlobalStatsAsync(string timeframe);
     }
+
     public class SystemAnalyticsService : ISystemAnalyticsService
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -18,90 +20,82 @@ namespace drinking_be.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<GlobalDashboardStatsDto> GetGlobalStatsAsync()
+        public async Task<GlobalDashboardStatsDto> GetGlobalStatsAsync(string timeframe)
         {
             var dto = new GlobalDashboardStatsDto();
 
-            // 1. Tổng doanh thu
-            dto.TotalRevenue = await _unitOfWork.Orders.GetQueryable()
-                .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
-                .SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
+            // Dùng giờ Việt Nam (UTC+7) để thống kê chính xác thay vì giờ UTC gốc của Server
+            var vnTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vnTimeZone);
 
-            // 2. Tổng đơn hàng
-            dto.TotalOrders = await _unitOfWork.Orders.GetQueryable().CountAsync();
+            DateTime? startDate = null;
 
-            // 3. Tổng khách hàng hoạt động
+            // 1. Lọc "chuẩn" theo thời gian thực (Tuần này, Tháng này, Năm nay)
+            switch (timeframe?.ToLower())
+            {
+                case "today":
+                    startDate = now.Date;
+                    break;
+                case "week":
+                    // Lấy ngày Thứ 2 của tuần hiện tại
+                    int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+                    startDate = now.Date.AddDays(-1 * diff);
+                    break;
+                case "month":
+                    startDate = new DateTime(now.Year, now.Month, 1);
+                    break;
+                case "year":
+                    startDate = new DateTime(now.Year, 1, 1);
+                    break;
+                case "all":
+                default:
+                    startDate = null; // Lấy từ thuở khai thiên lập địa
+                    break;
+            }
+
+            var ordersQuery = _unitOfWork.Orders.GetQueryable();
+            var completedOrdersQuery = ordersQuery.Where(o =>
+                o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received);
+
+            if (startDate.HasValue)
+            {
+                // Chuyển startDate về lại UTC để so sánh với Database
+                var utcStartDate = TimeZoneInfo.ConvertTimeToUtc(startDate.Value, vnTimeZone);
+                ordersQuery = ordersQuery.Where(o => o.CreatedAt >= utcStartDate);
+                completedOrdersQuery = completedOrdersQuery.Where(o => o.CreatedAt >= utcStartDate);
+            }
+
+            // 2. Các thông số tổng
+            dto.TotalRevenue = await completedOrdersQuery.SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
+            dto.TotalOrders = await ordersQuery.CountAsync();
+
+            // Khách hàng & Sản phẩm thường xem tổng số hiện có
             dto.TotalCustomers = await _unitOfWork.Repository<User>().GetQueryable()
-                .Where(u => u.RoleId == UserRoleEnum.Customer && u.Status == UserStatusEnum.Active)
-                .CountAsync();
-
-            // 4. Tổng sản phẩm đang bán
+                .CountAsync(u => u.RoleId == UserRoleEnum.Customer && u.Status == UserStatusEnum.Active);
             dto.TotalProducts = await _unitOfWork.Repository<Product>().GetQueryable()
-                .Where(p => p.Status == ProductStatusEnum.Active)
-                .CountAsync();
+                .CountAsync(p => p.Status == ProductStatusEnum.Active);
 
-            // 5. Tổng cửa hàng
-            dto.TotalStores = await _unitOfWork.Repository<Store>().GetQueryable()
-                .Where(s => s.Status == StoreStatusEnum.Active)
-                .CountAsync();
-
-            // 6. Đơn hàng gần đây (5 đơn mới nhất)
-            var recentOrdersQuery = await _unitOfWork.Orders.GetQueryable()
+            // 3. Đơn hàng gần đây
+            dto.RecentOrders = await ordersQuery
                 .OrderByDescending(o => o.CreatedAt)
                 .Take(5)
-                .Select(o => new
+                .Select(o => new DashboardOrderSummaryDto
                 {
-                    o.OrderCode,
-                    o.RecipientName,
-                    o.RecipientPhone,
-                    o.CreatedAt,
-                    o.GrandTotal,
-                    o.Status
+                    OrderCode = o.OrderCode ?? "N/A",
+                    RecipientName = o.RecipientName,
+                    RecipientPhone = o.RecipientPhone,
+                    CreatedAt = o.CreatedAt,
+                    GrandTotal = o.GrandTotal,
+                    Status = o.Status.ToString()
                 })
                 .ToListAsync();
 
-            dto.RecentOrders = recentOrdersQuery.Select(o => new DashboardOrderSummaryDto
-            {
-                OrderCode = o.OrderCode ?? "N/A",
-                RecipientName = o.RecipientName,
-                RecipientPhone = o.RecipientPhone,
-                CreatedAt = o.CreatedAt,
-                GrandTotal = o.GrandTotal,
-                Status = o.Status.ToString()
-            }).ToList();
+            // 4. Biểu đồ (Logic động)
+            await BuildChartData(dto, timeframe, completedOrdersQuery, now);
 
-            // 7. Dữ liệu biểu đồ (7 ngày gần nhất)
-            var today = DateTime.UtcNow.Date;
-            var startDate = today.AddDays(-6);
-
-            var ordersLast7Days = await _unitOfWork.Orders.GetQueryable()
-                .Where(o => o.CreatedAt >= startDate &&
-                       (o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received))
-                .Select(o => new { o.CreatedAt, o.GrandTotal })
-                .ToListAsync();
-
-            for (int i = 0; i < 7; i++)
-            {
-                var date = startDate.AddDays(i);
-                var dayRevenue = ordersLast7Days
-                    .Where(o => o.CreatedAt.Date == date)
-                    .Sum(o => o.GrandTotal);
-
-                dto.ChartData.Add(new DashboardChartDataDto
-                {
-                    Label = date.ToString("dd/MM"),
-                    Value = dayRevenue
-                });
-            }
-
-            // 8. Top 5 sản phẩm bán chạy (BẢO VỆ TUYỆT ĐỐI KHỎI LỖI 500)
-            var completedOrdersItems = await _unitOfWork.Orders.GetQueryable()
-                .Where(o => o.Status == OrderStatusEnum.Completed || o.Status == OrderStatusEnum.Received)
+            // 5. Top 5 sản phẩm
+            dto.TopProducts = await completedOrdersQuery
                 .SelectMany(o => o.OrderItems)
-                .Select(oi => new { oi.ProductId, oi.ProductName, oi.ProductImage, oi.Quantity, oi.BasePrice })
-                .ToListAsync();
-
-            dto.TopProducts = completedOrdersItems
                 .GroupBy(oi => new { oi.ProductId, oi.ProductName, oi.ProductImage })
                 .Select(g => new DashboardTopProductDto
                 {
@@ -113,9 +107,89 @@ namespace drinking_be.Services
                 })
                 .OrderByDescending(x => x.Sold)
                 .Take(5)
-                .ToList();
+                .ToListAsync();
 
-            return dto; 
+            return dto;
+        }
+
+        // HÀM VẼ BIỂU ĐỒ ĐỘNG
+        private async Task BuildChartData(GlobalDashboardStatsDto dto, string timeframe, IQueryable<Order> query, DateTime now)
+        {
+            if (timeframe == "year")
+            {
+                // VẼ 12 THÁNG
+                var rawData = await query.Select(o => new { o.CreatedAt.Month, o.GrandTotal }).ToListAsync();
+                for (int i = 1; i <= 12; i++)
+                {
+                    dto.ChartData.Add(new DashboardChartDataDto
+                    {
+                        Label = $"Tháng {i}",
+                        Value = rawData.Where(x => x.Month == i).Sum(x => x.GrandTotal)
+                    });
+                }
+            }
+            else if (timeframe == "all")
+            {
+                // VẼ CÁC NĂM
+                var rawData = await query.Select(o => new { o.CreatedAt.Year, o.GrandTotal }).ToListAsync();
+                var minYear = rawData.Any() ? rawData.Min(x => x.Year) : now.Year;
+
+                for (int i = minYear; i <= now.Year; i++)
+                {
+                    dto.ChartData.Add(new DashboardChartDataDto
+                    {
+                        Label = $"Năm {i}",
+                        Value = rawData.Where(x => x.Year == i).Sum(x => x.GrandTotal)
+                    });
+                }
+            }
+            else if (timeframe == "month")
+            {
+                // VẼ TỪNG NGÀY TRONG THÁNG NÀY (vd: 1->31)
+                var daysInMonth = DateTime.DaysInMonth(now.Year, now.Month);
+                var rawData = await query.Select(o => new { o.CreatedAt.Day, o.GrandTotal }).ToListAsync();
+
+                for (int i = 1; i <= daysInMonth; i++)
+                {
+                    dto.ChartData.Add(new DashboardChartDataDto
+                    {
+                        Label = $"{i:00}/{now.Month:00}",
+                        Value = rawData.Where(x => x.Day == i).Sum(x => x.GrandTotal)
+                    });
+                }
+            }
+            else if (timeframe == "week")
+            {
+                // VẼ 7 NGÀY TRONG TUẦN (Thứ 2 -> Chủ Nhật)
+                var rawData = await query.Select(o => new { o.CreatedAt.Date, o.GrandTotal }).ToListAsync();
+
+                int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+                var startOfWeek = now.Date.AddDays(-1 * diff);
+                string[] dayNames = { "T2", "T3", "T4", "T5", "T6", "T7", "CN" };
+
+                for (int i = 0; i < 7; i++)
+                {
+                    var currentDay = startOfWeek.AddDays(i);
+                    dto.ChartData.Add(new DashboardChartDataDto
+                    {
+                        Label = $"{dayNames[i]} ({currentDay:dd/MM})",
+                        Value = rawData.Where(x => x.Date == currentDay).Sum(x => x.GrandTotal)
+                    });
+                }
+            }
+            else // today
+            {
+                // VẼ THEO GIỜ TRONG NGÀY (Gộp mỗi 2 tiếng 1 cột cho đẹp)
+                var rawData = await query.Select(o => new { o.CreatedAt.Hour, o.GrandTotal }).ToListAsync();
+                for (int i = 0; i < 24; i += 2)
+                {
+                    dto.ChartData.Add(new DashboardChartDataDto
+                    {
+                        Label = $"{i:00}h",
+                        Value = rawData.Where(x => x.Hour == i || x.Hour == i + 1).Sum(x => x.GrandTotal)
+                    });
+                }
+            }
         }
     }
 }
