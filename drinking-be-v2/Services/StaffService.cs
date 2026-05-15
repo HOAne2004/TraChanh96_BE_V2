@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using drinking_be.Dtos.StaffDtos;
+using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.StoreInterfaces;
 using drinking_be.Models;
@@ -67,23 +68,63 @@ namespace drinking_be.Services
         public async Task<StaffReadDto> CreateAsync(StaffCreateDto createDto)
         {
             var staffRepo = _unitOfWork.Repository<Staff>();
+            var userRepo = _unitOfWork.Repository<User>();
 
-            // Validate: 1 User chỉ có 1 hồ sơ Staff
-            var existingStaff = await staffRepo.GetFirstOrDefaultAsync(s => s.UserId == createDto.UserId);
-            if (existingStaff != null)
+            // 1. KONTROL SỐ LƯỢNG QUẢN LÝ (Giữ nguyên logic cũ)
+            if (createDto.StoreId.HasValue && createDto.Position == StaffPositionEnum.StoreManager)
             {
-                throw new Exception("User này đã có hồ sơ nhân viên rồi.");
+                var managerCount = await staffRepo.GetQueryable()
+                    .CountAsync(s => s.StoreId == createDto.StoreId.Value &&
+                                     s.Position == StaffPositionEnum.StoreManager &&
+                                     s.Status != PublicStatusEnum.Inactive && s.Status != PublicStatusEnum.Deleted);
+
+                if (managerCount >= 2) throw new Exception("Cửa hàng này đã đạt giới hạn tối đa 2 Quản lý.");
             }
 
-            var staff = _mapper.Map<Staff>(createDto);
+            // 2. 🟢 LOGIC USER: Tìm hoặc tạo mới User
+            var user = await userRepo.GetFirstOrDefaultAsync(u => u.Email.ToLower() == createDto.Email.ToLower());
 
-            // PublicId tự sinh trong DB hoặc gán tại đây
+            if (user == null)
+            {
+                // Tạo mới tài khoản cho nhân viên
+                string defaultPassword = string.IsNullOrEmpty(createDto.Password) ? "Staff@123" : createDto.Password;
+                user = new User
+                {
+                    Email = createDto.Email,
+                    Username = createDto.Email.Split('@')[0], // Cắt phần đầu email làm username
+                    Phone = createDto.Phone,
+                    // Lưu ý: Nếu bạn dùng thư viện khác để Hash, hãy đổi lại dòng này
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultPassword),
+                    RoleId = createDto.Position == StaffPositionEnum.StoreManager ? UserRoleEnum.Manager : UserRoleEnum.Staff,
+                    Status = UserStatusEnum.Active,
+                    EmailVerified = false,
+                    PublicId = Guid.NewGuid(),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                await userRepo.AddAsync(user);
+                await _unitOfWork.SaveChangesAsync(); // Save để lấy user.Id
+            }
+            else
+            {
+                // User đã tồn tại -> Kiểm tra xem đã có hồ sơ nhân viên chưa
+                var existingStaff = await staffRepo.GetFirstOrDefaultAsync(s => s.UserId == user.Id && s.Status != PublicStatusEnum.Deleted);
+                if (existingStaff != null) throw new Exception("Tài khoản Email này đã có hồ sơ nhân viên.");
+
+                // Đồng bộ cập nhật lại quyền
+                user.RoleId = createDto.Position == StaffPositionEnum.StoreManager ? UserRoleEnum.Manager : UserRoleEnum.Staff;
+                userRepo.Update(user);
+            }
+
+            // 3. TẠO STAFF
+            var staff = _mapper.Map<Staff>(createDto);
+            staff.UserId = user.Id; // Gắn ID User vào
             staff.PublicId = Guid.NewGuid();
+            staff.Status = PublicStatusEnum.Active;
 
             await staffRepo.AddAsync(staff);
             await _unitOfWork.SaveChangesAsync();
 
-            // Load lại để lấy thông tin User/Store hiển thị ra
             return (await GetByIdAsync(staff.Id))!;
         }
 
@@ -91,16 +132,23 @@ namespace drinking_be.Services
         {
             var staffRepo = _unitOfWork.Repository<Staff>();
             var staff = await staffRepo.GetByIdAsync(id);
-
             if (staff == null) return null;
 
             _mapper.Map(updateDto, staff);
-
             staff.UpdatedAt = DateTime.UtcNow;
-
             staffRepo.Update(staff);
-            await _unitOfWork.SaveChangesAsync();
 
+            if (updateDto.Position.HasValue)
+            {
+                var user = await _unitOfWork.Repository<User>().GetByIdAsync(staff.UserId);
+                if (user != null)
+                {
+                    user.RoleId = updateDto.Position == StaffPositionEnum.StoreManager ? UserRoleEnum.Manager : UserRoleEnum.Staff;
+                    _unitOfWork.Repository<User>().Update(user);
+                }
+            }
+
+            await _unitOfWork.SaveChangesAsync();
             return (await GetByIdAsync(id))!;
         }
 
@@ -108,10 +156,20 @@ namespace drinking_be.Services
         {
             var staffRepo = _unitOfWork.Repository<Staff>();
             var staff = await staffRepo.GetByIdAsync(id);
-
             if (staff == null) return false;
 
-            staffRepo.Delete(staff);
+            staff.Status = PublicStatusEnum.Deleted;
+            staff.StoreId = null;
+            staff.UpdatedAt = DateTime.UtcNow;
+            staffRepo.Update(staff);
+
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(staff.UserId);
+            if (user != null)
+            {
+                user.RoleId = UserRoleEnum.Customer; // Hạ bệ thành khách hàng bình thường
+                _unitOfWork.Repository<User>().Update(user);
+            }
+
             await _unitOfWork.SaveChangesAsync();
             return true;
         }

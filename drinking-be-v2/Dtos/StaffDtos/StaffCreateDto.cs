@@ -5,8 +5,13 @@ namespace drinking_be.Dtos.StaffDtos
 {
     public class StaffCreateDto
     {
-        [Required(ErrorMessage = "Mã tài khoản User không được để trống.")]
-        public int UserId { get; set; }
+        [Required(ErrorMessage = "Email không được để trống.")]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        public string? Phone { get; set; }
+
+        public string? Password { get; set; }
 
         // Null nếu là nhân viên văn phòng/HQ
         public int? StoreId { get; set; }
