@@ -25,6 +25,7 @@ namespace drinking_be.Services
         // Domain Services (DDD Lite)
         private readonly ShippingCalculator _shippingCalculator;
         private readonly OrderPriceCalculator _priceCalculator;
+        private readonly ISettingService _settingService;
         private readonly IHubContext<NotificationHub> _hubContext; public OrderService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
@@ -33,7 +34,8 @@ namespace drinking_be.Services
             IUserVoucherService voucherService,
             ShippingCalculator shippingCalculator,
             OrderPriceCalculator priceCalculator,
-            IHubContext<NotificationHub> hubContext
+            IHubContext<NotificationHub> hubContext,
+            ISettingService settingService
 
         )
         {
@@ -45,6 +47,7 @@ namespace drinking_be.Services
             _shippingCalculator = shippingCalculator;
             _priceCalculator = priceCalculator;
             _hubContext = hubContext;
+            _settingService = settingService;
         }
 
         public class AppException : Exception
@@ -57,6 +60,14 @@ namespace drinking_be.Services
         // =========================================================================
         public async Task<OrderReadDto> CreateDeliveryOrderAsync(int? userId, DeliveryOrderCreateDto dto)
         {
+            int maxTotalItems = await _settingService.GetIntValueAsync("MaxTotalItemsPerOrder", 50);
+            int totalRequestedQuantity = dto.Items.Sum(i => i.Quantity);
+
+            if (totalRequestedQuantity > maxTotalItems)
+            {
+                throw new AppException($"Đơn hàng vượt quá giới hạn hệ thống ({maxTotalItems} sản phẩm). Vui lòng tách làm nhiều đơn hoặc liên hệ Hotline.");
+            }
+
             // 1. Validate Store & Address
             var store = await ValidateStoreAsync(dto.StoreId);
             var address = await _unitOfWork.Addresses.GetByIdAsync(dto.DeliveryAddressId)
@@ -110,6 +121,14 @@ namespace drinking_be.Services
         // =========================================================================
         public async Task<OrderReadDto> CreateAtCounterOrderAsync(int? userId, AtCounterOrderCreateDto dto)
         {
+            int maxTotalItems = await _settingService.GetIntValueAsync("MaxTotalItemsPerOrder", 50);
+            int totalRequestedQuantity = dto.Items.Sum(i => i.Quantity);
+
+            if (totalRequestedQuantity > maxTotalItems)
+            {
+                throw new AppException($"Đơn hàng vượt quá giới hạn hệ thống ({maxTotalItems} sản phẩm). Vui lòng tách làm nhiều đơn hoặc liên hệ Hotline.");
+            }
+
             // 1. Validate
             await ValidateStoreAsync(dto.StoreId);
 
@@ -151,6 +170,14 @@ namespace drinking_be.Services
         // =========================================================================
         public async Task<OrderReadDto> CreatePickupOrderAsync(int userId, PickupOrderCreateDto dto)
         {
+            int maxTotalItems = await _settingService.GetIntValueAsync("MaxTotalItemsPerOrder", 50);
+            int totalRequestedQuantity = dto.Items.Sum(i => i.Quantity);
+
+            if (totalRequestedQuantity > maxTotalItems)
+            {
+                throw new AppException($"Đơn hàng vượt quá giới hạn hệ thống ({maxTotalItems} sản phẩm). Vui lòng tách làm nhiều đơn hoặc liên hệ Hotline.");
+            }
+
             // 1. Validate Store
             var store = await ValidateStoreAsync(dto.StoreId);
 
@@ -246,16 +273,28 @@ namespace drinking_be.Services
                 order.CoinsEarned = (int)(order.GrandTotal * 0.01m);
                 await _unitOfWork.Orders.AddAsync(order);
                 await _unitOfWork.CompleteAsync();
-                if(userVoucherId.HasValue)
+                if (userVoucherId.HasValue)
                 {
                     var uv = await _unitOfWork.Repository<UserVoucher>().GetByIdAsync(userVoucherId.Value);
                     if (uv != null)
                     {
+                        if (uv.Status != UserVoucherStatusEnum.Unused)
+                            throw new AppException("Voucher này đã được sử dụng hoặc không hợp lệ.");
+
                         uv.Status = UserVoucherStatusEnum.Used;
                         uv.UsedDate = DateTime.UtcNow;
                         uv.OrderIdUsed = order.Id;
                         _unitOfWork.Repository<UserVoucher>().Update(uv);
-                        await _unitOfWork.CompleteAsync();
+
+                        try
+                        {
+                            await _unitOfWork.CompleteAsync();
+                        }
+                        catch (DbUpdateConcurrencyException)
+                        {
+                            // Bắt lỗi khi có 2 request cùng cố update 1 voucher cùng lúc
+                            throw new AppException("Voucher đang được sử dụng ở một giao dịch khác. Vui lòng thử lại.");
+                        }
                     }
                 }
                 await transaction.CommitAsync();
@@ -538,6 +577,10 @@ namespace drinking_be.Services
             var order = await _unitOfWork.Orders.GetByIdAsync(orderId);
             if (order == null) throw new KeyNotFoundException("Đơn hàng không tồn tại.");
 
+            if (userId.HasValue && order.UserId != userId.Value)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền thao tác trên đơn hàng này.");
+            }
             if (order.Status != OrderStatusEnum.New && order.Status != OrderStatusEnum.PendingPayment)
                 throw new Exception("Đơn hàng đã được tiếp nhận, không thể hủy.");
 

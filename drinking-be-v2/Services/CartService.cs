@@ -6,6 +6,7 @@ using drinking_be.Interfaces.OrderInterfaces;
 using drinking_be.Models;
 using drinking_be.Utils;
 using Microsoft.EntityFrameworkCore;
+using static drinking_be.Services.OrderService;
 
 namespace drinking_be.Services
 {
@@ -13,11 +14,13 @@ namespace drinking_be.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ISettingService _settingService;
 
-        public CartService(IUnitOfWork unitOfWork, IMapper mapper)
+        public CartService(IUnitOfWork unitOfWork, IMapper mapper, ISettingService settingService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _settingService = settingService;
         }
 
         // --- PUBLIC METHODS ---
@@ -46,8 +49,16 @@ namespace drinking_be.Services
 
         public async Task<IEnumerable<CartReadDto>> AddItemToCartAsync(int userId, CartItemCreateDto itemDto)
         {
-            // 1. Xác định StoreId
-            // ⭐ 1.1 CHECK BRAND – Product phải Active
+            // 1. Lấy cấu hình động (truyền số 20 làm mặc định dự phòng nếu lỗi)
+            int maxQtyPerItem = await _settingService.GetIntValueAsync("MaxQuantityPerItem", 20);
+            int maxTotalItems = await _settingService.GetIntValueAsync("MaxTotalItemsPerOrder", 50); // Thêm dòng này
+
+            // 2. Kiểm tra
+            if (itemDto.Quantity > maxQtyPerItem)
+            {
+                throw new AppException($"Hệ thống hiện chỉ cho phép đặt tối đa {maxQtyPerItem} ly cho mỗi món.");
+            }
+
             var product = await _unitOfWork.Repository<Product>()
                 .GetByIdAsync(itemDto.ProductId);
 
@@ -61,7 +72,6 @@ namespace drinking_be.Services
                 throw new Exception("Sản phẩm hiện không được bán.");
             }
 
-            // ⭐ 1.2 CHECK STORE – Store có bán sản phẩm này không
             int targetStoreId = itemDto.StoreId;
             var productStore = await _unitOfWork.Repository<ProductStore>()
                 .GetFirstOrDefaultAsync(ps => ps.ProductId == itemDto.ProductId && ps.StoreId == targetStoreId);
@@ -71,14 +81,23 @@ namespace drinking_be.Services
                 throw new Exception("Sản phẩm này không khả dụng tại cửa hàng đã chọn.");
             }
 
-            // 2. Tìm giỏ hàng CỤ THỂ của User tại Store đó
             var cartRepo = _unitOfWork.Repository<Cart>();
             var cart = await cartRepo.GetFirstOrDefaultAsync(
                 filter: c => c.UserId == userId && c.StoreId == targetStoreId,
                 includeProperties: "CartItems,CartItems.InverseParentItem"
             );
 
-            // 3. Nếu chưa có giỏ cho Store này -> Tạo mới
+            // SAU KHI LẤY ĐƯỢC CART (Trước nhánh xử lý thêm/sửa sản phẩm):
+            if (cart != null)
+            {
+                // Kiểm tra tổng số lượng hiện tại trong giỏ
+                int currentTotalQuantity = cart.CartItems.Where(i => i.ParentItemId == null).Sum(i => i.Quantity);
+                if (currentTotalQuantity + itemDto.Quantity > maxTotalItems)
+                {
+                    throw new AppException($"Giỏ hàng chỉ chứa tối đa {maxTotalItems} sản phẩm. Bạn hiện có {currentTotalQuantity} sản phẩm.");
+                }
+            }
+
             if (cart == null)
             {
                 cart = new Cart
@@ -98,7 +117,6 @@ namespace drinking_be.Services
                 }
                 catch (DbUpdateException)
                 {
-                    // ⚠️ Có khả năng cart đã được tạo bởi request khác
                     cart = await cartRepo.GetFirstOrDefaultAsync(
                         c => c.UserId == userId
                           && c.StoreId == targetStoreId
@@ -107,12 +125,10 @@ namespace drinking_be.Services
                     );
 
                     if (cart == null)
-                        throw; // Trường hợp cực hiếm – cho bubble lên
+                        throw; 
                 }
             }
 
-
-            // 4. Logic thêm/sửa sản phẩm
             var products = await _unitOfWork.Repository<Product>().GetAllAsync(p => p.Id == itemDto.ProductId);
             var mainProduct = products.FirstOrDefault();
             if (mainProduct == null) throw new Exception("Sản phẩm không tồn tại.");
@@ -143,21 +159,18 @@ namespace drinking_be.Services
 
             if (existingItem != null)
             {
+                // Chặn cộng dồn vượt quá Max Quantity
+                if (existingItem.Quantity + itemDto.Quantity > maxQtyPerItem)
+                {
+                    throw new AppException($"Món này đã có {existingItem.Quantity} ly trong giỏ. Tối đa chỉ được {maxQtyPerItem} ly/món.");
+                }
+
                 // Cập nhật số lượng
                 existingItem.Quantity += itemDto.Quantity;
 
                 decimal toppingTotalPerUnit = existingItem.InverseParentItem.Sum(t => t.BasePrice * (t.Quantity / (existingItem.Quantity - itemDto.Quantity)));
-                // Note: Logic chia ở trên có thể gây lỗi chia 0 nếu logic sai, nhưng tạm thời dùng cách đơn giản hơn:
-                // Ta tính lại giá topping dựa trên itemDto gửi lên (vì topping giống hệt nhau)
-
-                // Cách an toàn hơn: Tính lại từ đầu
-                // decimal itemTotalWithTopping = baseUnitPrice + (itemDto.Toppings?.Sum(t => ...) ?? 0);
-                // Nhưng để đơn giản, ta cứ update số lượng topping con theo tỉ lệ
-
-                // Fix logic đơn giản:
                 foreach (var topping in existingItem.InverseParentItem)
                 {
-                    // Giả sử topping lưu db là tổng số lượng.
                     // Tỷ lệ = topping.Quantity hiện tại / (Quantity cũ của parent)
                     int oldParentQty = existingItem.Quantity - itemDto.Quantity;
                     int qtyPerUnit = oldParentQty > 0 ? topping.Quantity / oldParentQty : 1;
@@ -176,7 +189,6 @@ namespace drinking_be.Services
             }
             else
             {
-                // Thêm mới
                 decimal itemTotalPrice = baseUnitPrice * itemDto.Quantity;
 
                 var mainCartItem = new CartItem
@@ -226,71 +238,128 @@ namespace drinking_be.Services
                 await _unitOfWork.Repository<CartItem>().AddAsync(mainCartItem);
             }
 
-            // ✅ XÓA DÒNG GỌI HÀM AddOrUpdateItemLogic VÌ LOGIC ĐÃ NẰM Ở TRÊN
-
             await _unitOfWork.SaveChangesAsync();
-
-            // Trả về danh sách giỏ hàng
             return await GetMyCartAsync(userId);
         }
 
-        // 🟢 SỬA RETURN TYPE: IEnumerable<CartReadDto>
-        public async Task<IEnumerable<CartReadDto>> UpdateItemQuantityAsync(int userId, CartItemUpdateDto updateDto)
+        public async Task<IEnumerable<CartReadDto>> UpdateCartItemAsync(int userId, CartItemUpdateDto updateDto)
         {
             var cartItemRepo = _unitOfWork.Repository<CartItem>();
+
+            // 1. Query lấy item (Cần Include Product để lấy giá gốc tính toán lại)
             var cartItem = await cartItemRepo.GetFirstOrDefaultAsync(
                 filter: ci => ci.Id == updateDto.CartItemId && ci.Cart.UserId == userId,
-                includeProperties: "Size,InverseParentItem"
+                includeProperties: "Cart,Product,Size,InverseParentItem"
             );
 
             if (cartItem == null) throw new Exception("Sản phẩm không tồn tại trong giỏ.");
 
-            int oldQuantity = cartItem.Quantity;
-            int newQuantity = updateDto.Quantity;
-
-            if (newQuantity <= 0)
+            // ==========================================
+            // 2. XỬ LÝ XÓA MÓN NẾU QUANTITY == 0
+            // ==========================================
+            if (updateDto.Quantity <= 0)
             {
-                cartItemRepo.Delete(cartItem);
-            }
-            else
-            {
-                decimal sizeModifier = cartItem.Size?.PriceModifier ?? 0;
-                decimal unitPrice = cartItem.BasePrice + sizeModifier; // BasePrice này trong DB đã bao gồm giá gốc sp
-
-                // Cập nhật món chính
-                // Lưu ý: BasePrice trong DB của CartItem lúc Add đã lưu là (Giá SP + Giá Size).
-                // Nếu muốn tính lại chuẩn xác cần lấy lại Product.BasePrice, nhưng tạm thời dùng logic này nếu BasePrice không đổi.
-
-                // Tính lại FinalPrice món chính (chưa topping)
-                // cartItem.FinalPrice = cartItem.BasePrice * newQuantity; // SAI nếu BasePrice chỉ là đơn giá. Đúng.
-
-                // Update topping
-                if (cartItem.InverseParentItem != null)
+                // Xóa các topping con trước (tránh lỗi khóa ngoại nếu DB không bật Cascade Delete)
+                if (cartItem.InverseParentItem != null && cartItem.InverseParentItem.Any())
                 {
-                    foreach (var topping in cartItem.InverseParentItem)
-                    {
-                        int toppingPerItem = oldQuantity > 0 ? topping.Quantity / oldQuantity : 1;
-                        topping.Quantity = toppingPerItem * newQuantity;
-                        topping.FinalPrice = topping.BasePrice * topping.Quantity;
-                        topping.UpdatedAt = DateTime.UtcNow;
-                        cartItemRepo.Update(topping);
-                    }
+                    cartItemRepo.DeleteRange(cartItem.InverseParentItem);
                 }
 
-                // Tính lại tổng FinalPrice (Chính + Toppings)
-                decimal totalToppingPrice = cartItem.InverseParentItem?.Sum(t => t.FinalPrice) ?? 0;
-                cartItem.FinalPrice = cartItem.BasePrice + totalToppingPrice; // BasePrice ở đây là đơn giá (đã cộng size)
-
-                cartItem.Quantity = newQuantity;
-                cartItem.UpdatedAt = DateTime.UtcNow;
-                cartItemRepo.Update(cartItem);
+                cartItemRepo.Delete(cartItem);
+                await _unitOfWork.SaveChangesAsync();
+                return await GetMyCartAsync(userId);
             }
 
-            await _unitOfWork.SaveChangesAsync();
-            return await GetMyCartAsync(userId); // ✅ Hết lỗi CS0266
-        }
+            int maxQtyPerItem = await _settingService.GetIntValueAsync("MaxQuantityPerItem", 20);
+            int maxTotalItems = await _settingService.GetIntValueAsync("MaxTotalItemsPerOrder", 50);
 
-        // 🟢 SỬA RETURN TYPE: IEnumerable<CartReadDto>
+            if (updateDto.Quantity > maxQtyPerItem)
+                throw new AppException($"Hệ thống hiện chỉ cho phép đặt tối đa {maxQtyPerItem} ly cho mỗi món.");
+
+            int qtyDifference = updateDto.Quantity - cartItem.Quantity;
+            if (qtyDifference > 0)
+            {
+                // Phải query tổng số lượng hiện có trong cùng 1 giỏ hàng
+                var allItemsInCart = await cartItemRepo.GetAllAsync(ci => ci.CartId == cartItem.CartId && ci.ParentItemId == null);
+                int currentTotalQuantity = allItemsInCart.Sum(i => i.Quantity);
+
+                if (currentTotalQuantity + qtyDifference > maxTotalItems)
+                    throw new AppException($"Giỏ hàng chỉ chứa tối đa {maxTotalItems} sản phẩm. Tăng thêm sẽ vượt giới hạn.");
+            }
+
+            // ==========================================
+            // 3. CẬP NHẬT CÁC THUỘC TÍNH CƠ BẢN
+            // ==========================================
+            if (updateDto.SizeId.HasValue && updateDto.SizeId != cartItem.SizeId)
+            {
+                // A. Lấy PriceModifier của Size mới
+                var newSize = await _unitOfWork.Repository<Size>().GetByIdAsync(updateDto.SizeId.Value);
+                decimal sizeModifier = newSize?.PriceModifier ?? 0;
+
+                // B. Lấy PriceOverride của Store (phòng trường hợp giá tại quầy khác giá web)
+                var productStore = await _unitOfWork.Repository<ProductStore>()
+                    .GetFirstOrDefaultAsync(ps => ps.ProductId == cartItem.ProductId && ps.StoreId == cartItem.Cart.StoreId);
+
+                decimal productBasePrice = productStore?.PriceOverride ?? cartItem.Product.BasePrice;
+
+                // C. Cập nhật lại BasePrice cho CartItem (Giá 1 ly đã bao gồm size, chưa topping)
+                cartItem.BasePrice = productBasePrice + sizeModifier;
+                cartItem.SizeId = updateDto.SizeId.Value;
+            }
+
+            cartItem.Quantity = updateDto.Quantity;
+            if (updateDto.SugarLevelId.HasValue) cartItem.SugarLevel = (SugarLevelEnum)updateDto.SugarLevelId.Value;
+            if (updateDto.IceLevelId.HasValue) cartItem.IceLevel = (IceLevelEnum)updateDto.IceLevelId.Value;
+            if (updateDto.Note != null) cartItem.Note = updateDto.Note;
+
+            // ==========================================
+            // 4. XỬ LÝ TOPPING MỚI
+            // ==========================================
+            // A. Dọn dẹp topping cũ (Giữ nguyên logic của bạn)
+            if (cartItem.InverseParentItem != null && cartItem.InverseParentItem.Any())
+            {
+                cartItemRepo.DeleteRange(cartItem.InverseParentItem);
+                cartItem.InverseParentItem.Clear();
+            }
+
+            decimal totalToppingPricePerUnit = 0;
+
+            // B. Thêm topping mới và tính tổng tiền topping cho MỘT đơn vị sản phẩm
+            if (updateDto.Toppings != null && updateDto.Toppings.Any())
+            {
+                var toppingIds = updateDto.Toppings.Select(t => t.ProductId).ToList();
+                var toppingProducts = await _unitOfWork.Repository<Product>().GetAllAsync(p => toppingIds.Contains(p.Id));
+
+                foreach (var toppingDto in updateDto.Toppings)
+                {
+                    var tp = toppingProducts.FirstOrDefault(p => p.Id == toppingDto.ProductId);
+                    if (tp == null) continue;
+
+                    // Lưu ý: Trong CartItem (topping), Quantity thường là số lượng cho mỗi ly món chính
+                    totalToppingPricePerUnit += tp.BasePrice * toppingDto.Quantity;
+
+                    cartItem.InverseParentItem.Add(new CartItem
+                    {
+                        CartId = cartItem.CartId,
+                        ProductId = toppingDto.ProductId,
+                        Quantity = toppingDto.Quantity * cartItem.Quantity, // Tổng số lượng topping = Qty mỗi ly * Tổng số ly
+                        BasePrice = tp.BasePrice,
+                        FinalPrice = tp.BasePrice * (toppingDto.Quantity * cartItem.Quantity),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            // Công thức: FinalPrice = (Giá món đã kèm size + Tổng tiền các topping của 1 ly) * Số lượng ly
+            cartItem.FinalPrice = (cartItem.BasePrice + totalToppingPricePerUnit) * cartItem.Quantity;
+
+            cartItem.UpdatedAt = DateTime.UtcNow;
+            cartItemRepo.Update(cartItem);
+            await _unitOfWork.SaveChangesAsync();
+
+            return await GetMyCartAsync(userId);
+        }
         public async Task<IEnumerable<CartReadDto>> RemoveItemFromCartAsync(int userId, long cartItemId)
         {
             var cartItemRepo = _unitOfWork.Repository<CartItem>();
