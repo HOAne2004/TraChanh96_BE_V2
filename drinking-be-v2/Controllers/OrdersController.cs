@@ -5,6 +5,7 @@ using drinking_be.Interfaces.OrderInterfaces;
 using drinking_be.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace drinking_be.Controllers
@@ -28,6 +29,7 @@ namespace drinking_be.Controllers
         // ==========================================================
 
         [HttpPost("delivery")]
+        [EnableRateLimiting("OrderCheckoutPolicy")]
         public async Task<IActionResult> CreateDeliveryOrder([FromBody] DeliveryOrderCreateDto dto)
         {
             var userId = GetCurrentUserId(); // Lấy ID từ Token

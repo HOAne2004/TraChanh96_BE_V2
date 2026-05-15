@@ -15,6 +15,7 @@ using drinking_be.Models;
 using drinking_be.Repositories;
 using drinking_be.Services;
 using drinking_be.Utils;
+using FluentEmail.SendGrid;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +26,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FluentEmail.SendGrid;
+using System.Threading.RateLimiting;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -252,6 +253,27 @@ builder.Services.AddRateLimiter(options =>
         opt.PermitLimit = 5;
         opt.QueueLimit = 0;
     });
+
+    options.AddFixedWindowLimiter("OrderCheckoutPolicy", opt =>
+    {
+        opt.PermitLimit = 3; // Tối đa 3 request
+        opt.Window = TimeSpan.FromMinutes(1); // Trong vòng 1 phút
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0; // Tràn 3 request là báo lỗi HTTP 429 luôn, không xếp hàng
+    });
+
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = 429;
+        await context.HttpContext.Response.WriteAsync("Bạn đang đặt hàng quá nhanh, vui lòng đợi một lát trước khi thử lại.", cancellationToken: token);
+    };
+
+    options.AddFixedWindowLimiter("aiChatPolicy", opt =>
+    {
+        opt.Window = TimeSpan.FromSeconds(30); // Trong 30 giây
+        opt.PermitLimit = 5;                   // Chỉ được chat tối đa 5 câu
+        opt.QueueLimit = 0;
+    });
 });
 // ==========================================================
 // ⭐️ QUAN TRỌNG: MỌI CẤU HÌNH builder.Services PHẢI NẰM TRÊN DÒNG NÀY
@@ -264,6 +286,7 @@ app.UseSwaggerUI();
 
 app.UseStaticFiles();
 app.UseCors(MyAllowSpecificOrigins);
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

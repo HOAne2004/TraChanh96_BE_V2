@@ -2,6 +2,7 @@
 using drinking_be.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ namespace drinking_be.Controllers
         }
 
         [HttpPost("send")]
+        [EnableRateLimiting("aiChatPolicy")]
         public async Task<IActionResult> SendMessage([FromBody] ChatRequestDto request)
         {
             // 1. Trích xuất UserId từ Token (Nếu khách đã đăng nhập)

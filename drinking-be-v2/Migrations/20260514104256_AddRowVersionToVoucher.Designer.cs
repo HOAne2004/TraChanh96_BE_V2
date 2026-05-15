@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using drinking_be.Models;
@@ -12,9 +13,11 @@ using drinking_be.Models;
 namespace drinking_be.Migrations
 {
     [DbContext(typeof(DBDrinkContext))]
-    partial class DBDrinkContextModelSnapshot : ModelSnapshot
+    [Migration("20260514104256_AddRowVersionToVoucher")]
+    partial class AddRowVersionToVoucher
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3229,35 +3232,6 @@ namespace drinking_be.Migrations
                     b.HasIndex("SupplyOrderId");
 
                     b.ToTable("supply_order_item", (string)null);
-                });
-
-            modelBuilder.Entity("drinking_be.Models.SystemSetting", b =>
-                {
-                    b.Property<string>("Key")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("key");
-
-                    b.Property<string>("DataType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("value");
-
-                    b.HasKey("Key")
-                        .HasName("PK_SystemSetting_Key");
-
-                    b.ToTable("system_setting", (string)null);
                 });
 
             modelBuilder.Entity("Address", b =>

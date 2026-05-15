@@ -1,6 +1,7 @@
 ﻿using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Models;
+using System.ComponentModel.DataAnnotations;
 
 public partial class UserVoucher : ISoftDelete
 {
@@ -25,6 +26,8 @@ public partial class UserVoucher : ISoftDelete
 
     public DateTime? DeletedAt { get; set; }
 
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = null!; // Token kiểm soát tranh chấp
     // --- Navigation ---
     public virtual User User { get; set; } = null!;
 

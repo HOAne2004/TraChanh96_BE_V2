@@ -51,6 +51,7 @@ public partial class DBDrinkContext : DbContext
     public virtual DbSet<Store> Stores { get; set; }
     public virtual DbSet<SupplyOrder> SupplyOrders { get; set; }
     public virtual DbSet<SupplyOrderItem> SupplyOrderItems { get; set; }
+    public virtual DbSet<SystemSetting> SystemSettings { get; set; }
     public virtual DbSet<User> Users { get; set; }
     public virtual DbSet<UserVoucher> UserVouchers { get; set; }
     public virtual DbSet<VoucherTemplate> VoucherTemplates { get; set; }
@@ -2378,6 +2379,29 @@ public partial class DBDrinkContext : DbContext
                 .WithMany(p => p.SupplyOrderItems) // Đã thêm vào Material.cs ở bước trước
                 .HasForeignKey(d => d.MaterialId)
                 .OnDelete(DeleteBehavior.Restrict); // Không được xóa Material nếu đã có phiếu nhập
+        });
+        
+        modelBuilder.Entity<SystemSetting>(entity =>
+        {
+            entity.ToTable("system_setting");
+
+            entity.HasKey(e => e.Key)
+                  .HasName("PK_SystemSetting_Key");
+
+            entity.Property(e => e.Key)
+                  .HasMaxLength(50)
+                  .HasColumnName("key");
+
+            entity.Property(e => e.Value)
+                  .IsRequired()
+                  .HasColumnName("value");
+            entity.Property(e => e.DataType)
+                  .HasMaxLength(20)
+                  .HasColumnName("data_type");
+
+            entity.Property(e => e.Description)
+                  .HasMaxLength(200)
+                  .HasColumnName("description");
         });
 
         modelBuilder.Entity<User>(entity =>

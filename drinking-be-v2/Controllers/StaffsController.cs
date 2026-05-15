@@ -2,6 +2,7 @@
 using drinking_be.Interfaces.StoreInterfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace drinking_be.Controllers
 {
@@ -50,16 +51,37 @@ namespace drinking_be.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] StaffUpdateDto updateDto)
         {
+            // Kiểm tra bảo mật chéo cấp
+            var targetStaff = await _staffService.GetByIdAsync(id);
+            if (targetStaff == null) return NotFound();
+
+            var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            // Nếu người đang sửa chỉ là Manager, nhưng lại đi sửa hồ sơ của một StoreManager khác -> Cấm.
+            if (currentUserRole == "Manager" && targetStaff.Position == "Quản lý cửa hàng") // Hoặc check Enum thay vì chuỗi
+            {
+                return StatusCode(403, "Bạn không có quyền chỉnh sửa hồ sơ của một Quản lý khác. Vui lòng liên hệ Admin.");
+            }
+
             var updatedStaff = await _staffService.UpdateAsync(id, updateDto);
-            if (updatedStaff == null) return NotFound();
             return Ok(updatedStaff);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
+            var targetStaff = await _staffService.GetByIdAsync(id);
+            if (targetStaff == null) return NotFound();
+
+            var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (currentUserRole == "Manager" && targetStaff.Position == "Quản lý cửa hàng")
+            {
+                return StatusCode(403, "Bạn không có quyền xóa (đuổi việc) một Quản lý khác. Vui lòng liên hệ Admin.");
+            }
+
             var result = await _staffService.DeleteAsync(id);
-            if (!result) return NotFound();
+            if (!result) return BadRequest("Có lỗi xảy ra khi xóa.");
             return NoContent();
         }
     }

@@ -51,7 +51,7 @@ namespace drinking_be.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
             try
             {
-                var cart = await _cartService.UpdateItemQuantityAsync(GetUserIdFromToken(), updateDto);
+                var cart = await _cartService.UpdateCartItemAsync(GetUserIdFromToken(), updateDto);
                 return Ok(cart);
             }
             catch (Exception ex)
