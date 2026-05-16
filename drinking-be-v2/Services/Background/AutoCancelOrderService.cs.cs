@@ -1,5 +1,5 @@
-﻿using drinking_be.Data;
-using drinking_be.Enums;
+﻿using drinking_be.Enums;
+using drinking_be.Interfaces;
 using drinking_be.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,9 +9,6 @@ namespace drinking_be.Services.Background
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<AutoCancelOrderService> _logger;
-
-        // Cấu hình thời gian hết hạn (ví dụ 5 phút)
-        private const int TIMEOUT_MINUTES = 5;
 
         public AutoCancelOrderService(IServiceProvider serviceProvider, ILogger<AutoCancelOrderService> logger)
         {
@@ -34,24 +31,23 @@ namespace drinking_be.Services.Background
                     _logger.LogError(ex, "Lỗi khi chạy AutoCancelOrderService");
                 }
 
-                // Chờ 1 phút rồi chạy lại (tránh spam DB liên tục)
+                // Chờ 1 phút rồi quét lại một lần
                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
             }
         }
 
         private async Task ProcessExpiredOrders()
         {
-            // Vì BackgroundService là Singleton, mà DbContext là Scoped
-            // Nên phải tạo Scope thủ công
             using (var scope = _serviceProvider.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<DBDrinkContext>();
+                var settingService = scope.ServiceProvider.GetRequiredService<ISettingService>(); 
 
-                var thresholdTime = DateTime.UtcNow.AddMinutes(-TIMEOUT_MINUTES);
+                // 1. Lấy cấu hình động từ Database/Cache (Mặc định 5 phút)
+                int timeoutMinutes = await settingService.GetIntValueAsync("OrderAutoCancelMinutes", 5);
+                var thresholdTime = DateTime.UtcNow.AddMinutes(-timeoutMinutes);
 
-                // Tìm các đơn hàng:
-                // 1. Trạng thái là NEW hoặc PENDING_PAYMENT
-                // 2. Thời gian tạo < (Hiện tại - 5 phút)
+                // 2. Tìm các đơn hàng quá hạn chưa thanh toán hoặc chưa xác nhận
                 var expiredOrders = await context.Orders
                     .Where(o => (o.Status == OrderStatusEnum.PendingPayment || o.Status == OrderStatusEnum.New)
                                 && o.CreatedAt < thresholdTime
@@ -66,25 +62,30 @@ namespace drinking_be.Services.Background
                     {
                         order.Status = OrderStatusEnum.Cancelled;
                         order.CancelReason = OrderCancelReasonEnum.AutoCancel;
-                        order.CancelNote = $"Đơn hàng bị hủy do không xác nhận/thanh toán sau {TIMEOUT_MINUTES} phút.";
+                        order.CancelNote = $"Đơn hàng bị hủy do không xác nhận/thanh toán sau {timeoutMinutes} phút.";
                         order.UpdatedAt = DateTime.UtcNow;
 
-                        // (Tùy chọn) Hoàn lại Voucher nếu cần
-                        // Logic hoàn voucher nên tách ra hàm chung trong Service để tái sử dụng
-                        // Nhưng ở đây viết nhanh:
-                        
-                        if (order.UserVoucherId.HasValue) {
-                             var voucher = await context.UserVouchers.FindAsync(order.UserVoucherId);
-                             if(voucher != null) { 
-                                voucher.Status = UserVoucherStatusEnum.Unused; 
-                                voucher.OrderIdUsed = null;
-                             }
+                        // 3. Hoàn lại Voucher chuẩn xác như trong OrderService
+                        if (order.UserVoucherId.HasValue)
+                        {
+                            var userVoucher = await context.UserVouchers.FindAsync(order.UserVoucherId);
+                            if (userVoucher != null)
+                            {
+                                userVoucher.Status = UserVoucherStatusEnum.Unused;
+                                userVoucher.UsedDate = null;
+                                userVoucher.OrderIdUsed = null;
+
+                                var template = await context.VoucherTemplates.FindAsync(userVoucher.VoucherTemplateId);
+                                if (template != null && template.UsedCount > 0)
+                                {
+                                    template.UsedCount--;
+                                }
+                            }
                         }
-                        
                     }
 
                     await context.SaveChangesAsync();
-                    _logger.LogInformation("Đã hủy thành công các đơn hàng quá hạn.");
+                    _logger.LogInformation($"Đã hủy thành công {expiredOrders.Count} đơn hàng quá hạn.");
                 }
             }
         }

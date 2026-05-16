@@ -185,6 +185,8 @@ builder.Services.AddScoped<IVnPayService, VnPayService>();
 // --- I. AI ---
 builder.Services.AddHttpClient<IAIService, AIService>(); //Phải dùng AddHttpClient vì trong constructor của AIService chúng ta có inject HttpClient
 
+// --- K. Setting ---
+builder.Services.AddScoped<ISettingService, SettingService>();
 // ==================================================================
 
 // --- 5. CẤU HÌNH JWT AUTH ---
