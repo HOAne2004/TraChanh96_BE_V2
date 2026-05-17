@@ -1,11 +1,12 @@
 ﻿using drinking_be.Dtos.Common;
 using drinking_be.Dtos.OrderDtos;
 using drinking_be.Enums;
+using drinking_be.Hubs;
 using drinking_be.Interfaces.OrderInterfaces;
-using drinking_be.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 
 namespace drinking_be.Controllers
@@ -17,11 +18,12 @@ namespace drinking_be.Controllers
     {
         private readonly IOrderService _orderService;
         private readonly IOrderPaymentService _orderPaymentService;
-
-        public OrdersController(IOrderService orderService, IOrderPaymentService orderPaymentService)
+        private readonly IHubContext<NotificationHub> _hubContext;
+        public OrdersController(IOrderService orderService, IOrderPaymentService orderPaymentService, IHubContext<NotificationHub> hubContext)
         {
             _orderService = orderService;
             _orderPaymentService = orderPaymentService;
+            _hubContext = hubContext;
         }
 
         // ==========================================================
@@ -151,7 +153,7 @@ namespace drinking_be.Controllers
                 dto.Status,
                 role
             );
-
+            await _hubContext.Clients.All.SendAsync("OrderStatusChanged", id, dto.Status);
             return Ok(result);
         }
 

@@ -109,6 +109,17 @@ namespace drinking_be.Services
 
             await RecalculateOrderPaymentStatusAsync(payment.OrderId);
 
+            var order = await _unitOfWork.Orders.GetByIdAsync(payment.OrderId);
+            if (order != null && order.Status == OrderStatusEnum.PendingPayment)
+            {
+                // 1. Lấy IOrderService thông qua trung gian _serviceProvider
+                var lazyOrderService = _serviceProvider.GetRequiredService<IOrderService>();
+
+                // 2. Cập nhật trạng thái thành New để Quán bắt đầu làm món
+                // (Giả sử bạn dùng Role System cho các tác vụ tự động của Server)
+                await lazyOrderService.UpdateOrderStatusAsync(order.Id, OrderStatusEnum.New, UserRoleEnum.System);
+            }
+
             await _hubContext.Clients.All.SendAsync("PaymentSuccess", payment.OrderId);
             
             var orderService = _serviceProvider.GetRequiredService<IOrderService>();
@@ -218,7 +229,6 @@ namespace drinking_be.Services
             return _mapper.Map<OrderPaymentReadDto>(refundPayment);
         }
 
-
         public async Task<bool> RecalculateOrderPaymentStatusAsync(long orderId)
         {
             var order = await _unitOfWork.Orders.GetByIdAsync(orderId)
@@ -282,6 +292,11 @@ namespace drinking_be.Services
             // 2. Cập nhật trạng thái IsPaid của đơn hàng
             await RecalculateOrderPaymentStatusAsync(orderId);
 
+            if (_hubContext != null)
+            {
+                await _hubContext.Clients.All.SendAsync("PaymentSuccess", orderId);
+            }
+
             // =========================================================
             // 3. 🟢 LOGIC BỔ SUNG: GỬI THÔNG BÁO VÀ EMAIL (LAZY LOAD)
             // =========================================================
@@ -321,6 +336,7 @@ namespace drinking_be.Services
                 // Bọc try-catch để nếu lỗi gửi mail cũng không làm sập luồng chính (không bị throw lỗi 500 ra ngoài)
                 // Nếu có ILogger, bạn có thể log lỗi ở đây
             }
+
         }
 
         public async Task<decimal> GetTotalRefundedAsync(long orderId)
@@ -365,6 +381,10 @@ namespace drinking_be.Services
             var order = await _unitOfWork.Orders.Find(o => o.OrderCode == orderCode).FirstOrDefaultAsync();
             if (order == null) return false;
 
+            if (order.IsPaid)
+            {
+                return true;
+            }
             // 2. Tìm hoặc tạo OrderPayment tương ứng
             var payment = await _unitOfWork.OrderPayments.Find(p => p.OrderId == order.Id && p.Status == OrderPaymentStatusEnum.Pending).FirstOrDefaultAsync();
 

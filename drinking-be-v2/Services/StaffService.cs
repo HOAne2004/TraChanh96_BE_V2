@@ -4,7 +4,9 @@ using drinking_be.Enums;
 using drinking_be.Interfaces;
 using drinking_be.Interfaces.StoreInterfaces;
 using drinking_be.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using static drinking_be.Services.OrderService;
 
 namespace drinking_be.Services
 {
@@ -70,7 +72,19 @@ namespace drinking_be.Services
             var staffRepo = _unitOfWork.Repository<Staff>();
             var userRepo = _unitOfWork.Repository<User>();
 
-            // 1. KONTROL SỐ LƯỢNG QUẢN LÝ (Giữ nguyên logic cũ)
+            // 1. KONTROL SỐ LƯỢNG VÀ TÍNH HỢP LỆ CỦA CƠ SỞ
+            bool isStoreRole = createDto.Position >= StaffPositionEnum.StoreManager; // Từ 10 trở lên là role cửa hàng
+
+            if (isStoreRole && !createDto.StoreId.HasValue)
+            {
+                throw new AppException("Nhân viên thuộc cửa hàng bắt buộc phải chọn Cơ sở làm việc.");
+            }
+
+            if (!isStoreRole && createDto.StoreId.HasValue)
+            {
+                throw new AppException("Nhân viên Văn phòng (HQ) không được gắn vào một cơ sở cụ thể.");
+            }
+
             if (createDto.StoreId.HasValue && createDto.Position == StaffPositionEnum.StoreManager)
             {
                 var managerCount = await staffRepo.GetQueryable()
@@ -130,6 +144,18 @@ namespace drinking_be.Services
 
         public async Task<StaffReadDto?> UpdateAsync(int id, StaffUpdateDto updateDto)
         {
+            bool isStoreRole = updateDto.Position >= StaffPositionEnum.StoreManager; // Từ 10 trở lên là role cửa hàng
+
+            if (isStoreRole && !updateDto.StoreId.HasValue)
+            {
+                throw new AppException("Nhân viên thuộc cửa hàng bắt buộc phải chọn Cơ sở làm việc.");
+            }
+
+            if (!isStoreRole && updateDto.StoreId.HasValue)
+            {
+                throw new AppException("Nhân viên Văn phòng (HQ) không được gắn vào một cơ sở cụ thể.");
+            }
+
             var staffRepo = _unitOfWork.Repository<Staff>();
             var staff = await staffRepo.GetByIdAsync(id);
             if (staff == null) return null;
@@ -141,7 +167,7 @@ namespace drinking_be.Services
             if (updateDto.Position.HasValue)
             {
                 var user = await _unitOfWork.Repository<User>().GetByIdAsync(staff.UserId);
-                if (user != null)
+                if (user != null && user.RoleId != UserRoleEnum.Admin)
                 {
                     user.RoleId = updateDto.Position == StaffPositionEnum.StoreManager ? UserRoleEnum.Manager : UserRoleEnum.Staff;
                     _unitOfWork.Repository<User>().Update(user);

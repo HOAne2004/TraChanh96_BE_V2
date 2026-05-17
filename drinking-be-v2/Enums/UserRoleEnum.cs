@@ -15,6 +15,9 @@ namespace drinking_be.Enums
         Manager = 3,
 
         [Description("Nhân viên")]
-        Staff = 4
+        Staff = 4,
+
+        [Description("Hệ thống")]
+        System = 99
     }
 }
