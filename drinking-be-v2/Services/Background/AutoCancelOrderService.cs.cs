@@ -1,6 +1,8 @@
 ﻿using drinking_be.Enums;
+using drinking_be.Hubs;
 using drinking_be.Interfaces;
 using drinking_be.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace drinking_be.Services.Background
@@ -18,52 +20,61 @@ namespace drinking_be.Services.Background
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("⏳ AutoCancelOrderService is starting.");
-
             while (!stoppingToken.IsCancellationRequested)
             {
-                try
-                {
-                    await ProcessExpiredOrders();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Lỗi khi chạy AutoCancelOrderService");
-                }
-
-                // Chờ 1 phút rồi quét lại một lần
+                try { await ProcessExpiredOrders(); }
+                catch (Exception ex) { _logger.LogError(ex, "Lỗi AutoCancelOrderService"); }
                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
             }
         }
 
         private async Task ProcessExpiredOrders()
         {
-            using (var scope = _serviceProvider.CreateScope())
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<DBDrinkContext>();
+            var settingService = scope.ServiceProvider.GetRequiredService<ISettingService>();
+
+            // 🟢 Lấy IHubContext để bắn Realtime (Bắt buộc phải Inject ở tầng này)
+            var hubContext = scope.ServiceProvider.GetService<IHubContext<NotificationHub>>();
+
+            // 1. TÁCH RÕ 2 MỐC THỜI GIAN
+            int paymentTimeout = await settingService.GetIntValueAsync("OrderAutoCancelMinutes", 5);
+            int confirmTimeout = await settingService.GetIntValueAsync("StoreConfirmTimeoutMinutes", 30); // 30 phút quán quên confirm
+
+            var paymentThreshold = DateTime.UtcNow.AddMinutes(-paymentTimeout);
+            var confirmThreshold = DateTime.UtcNow.AddMinutes(-confirmTimeout);
+
+            // 2A. Quét đơn chưa thanh toán online (Áp dụng Payment Threshold)
+            var unpaidOrders = await context.Orders
+                .Where(o => o.Status == OrderStatusEnum.PendingPayment && o.IsPaid == false && o.CreatedAt < paymentThreshold)
+                .ToListAsync();
+
+            // 2B. Quét đơn quán BỎ QUÊN (Áp dụng Confirm Threshold) - Bất kể COD hay Đã trả tiền
+            var forgottenOrders = await context.Orders
+                .Where(o => o.Status == OrderStatusEnum.New && o.CreatedAt < confirmThreshold)
+                .ToListAsync();
+
+            var allOrdersToCancel = unpaidOrders.Concat(forgottenOrders).ToList();
+
+            if (allOrdersToCancel.Any())
             {
-                var context = scope.ServiceProvider.GetRequiredService<DBDrinkContext>();
-                var settingService = scope.ServiceProvider.GetRequiredService<ISettingService>(); 
-
-                // 1. Lấy cấu hình động từ Database/Cache (Mặc định 5 phút)
-                int timeoutMinutes = await settingService.GetIntValueAsync("OrderAutoCancelMinutes", 5);
-                var thresholdTime = DateTime.UtcNow.AddMinutes(-timeoutMinutes);
-
-                // 2. Tìm các đơn hàng quá hạn chưa thanh toán hoặc chưa xác nhận
-                var expiredOrders = await context.Orders
-                    .Where(o => (o.Status == OrderStatusEnum.PendingPayment || o.Status == OrderStatusEnum.New)
-                                && o.CreatedAt < thresholdTime
-                                && o.IsPaid == false)
-                    .ToListAsync();
-
-                if (expiredOrders.Any())
+                foreach (var order in allOrdersToCancel)
                 {
-                    _logger.LogInformation($"Tìm thấy {expiredOrders.Count} đơn hàng quá hạn. Tiến hành hủy...");
+                    order.Status = OrderStatusEnum.Cancelled;
+                    order.UpdatedAt = DateTime.UtcNow;
 
-                    foreach (var order in expiredOrders)
+                    // Phân loại lý do Hủy và Xử lý Hoàn tiền
+                    if (order.IsPaid)
                     {
-                        order.Status = OrderStatusEnum.Cancelled;
+                        order.CancelReason = OrderCancelReasonEnum.StoreOverloaded;
+                        order.CancelNote = "Cửa hàng quá tải nên không xác nhận đơn. Tiền sẽ được hoàn lại.";
+                        // [Nâng cao] Chuyển trạng thái OrderPayment sang RefundPending ở đây nếu cần
+                    }
+                    else
+                    {
                         order.CancelReason = OrderCancelReasonEnum.AutoCancel;
-                        order.CancelNote = $"Đơn hàng bị hủy do không xác nhận/thanh toán sau {timeoutMinutes} phút.";
-                        order.UpdatedAt = DateTime.UtcNow;
+                        order.CancelNote = "Hệ thống tự hủy do quá thời gian chờ.";
+                    }
 
                         // 3. Hoàn lại Voucher chuẩn xác như trong OrderService
                         if (order.UserVoucherId.HasValue)
@@ -84,8 +95,16 @@ namespace drinking_be.Services.Background
                         }
                     }
 
-                    await context.SaveChangesAsync();
-                    _logger.LogInformation($"Đã hủy thành công {expiredOrders.Count} đơn hàng quá hạn.");
+                await context.SaveChangesAsync();
+
+                // 🟢 BẮN SIGNALR ĐỂ GIAO DIỆN TỰ NHẢY KHÔNG CẦN F5
+                if (hubContext != null)
+                {
+                    foreach (var order in allOrdersToCancel)
+                    {
+                        // Gửi đi sự kiện OrderStatusChanged
+                        await hubContext.Clients.All.SendAsync("OrderStatusChanged", order.Id, OrderStatusEnum.Cancelled);
+                    }
                 }
             }
         }
